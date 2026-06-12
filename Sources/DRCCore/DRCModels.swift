@@ -24,6 +24,10 @@ public struct DRCOptions: Sendable, Hashable, Codable {
 public struct DRCRequest: Sendable, Hashable, Codable {
     public let layoutURL: URL
     public let topCell: String
+    /// Technology rule deck (`LayoutTechDatabase` JSON) for backends
+    /// that check standard layout formats; backends embedding rules in
+    /// the layout input (custom JSON, Magic PDK) leave it nil.
+    public let technologyURL: URL?
     public let workingDirectory: URL?
     public let backendSelection: DRCBackendSelection
     public let options: DRCOptions
@@ -31,12 +35,14 @@ public struct DRCRequest: Sendable, Hashable, Codable {
     public init(
         layoutURL: URL,
         topCell: String,
+        technologyURL: URL? = nil,
         workingDirectory: URL? = nil,
         backendSelection: DRCBackendSelection = DRCBackendSelection(backendID: "magic"),
         options: DRCOptions = DRCOptions()
     ) {
         self.layoutURL = layoutURL
         self.topCell = topCell
+        self.technologyURL = technologyURL
         self.workingDirectory = workingDirectory
         self.backendSelection = backendSelection
         self.options = options

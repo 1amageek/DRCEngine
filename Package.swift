@@ -17,10 +17,20 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../SignoffToolSupport"),
+        .package(path: "../semiconductor-layout"),
     ],
     targets: [
         .target(name: "DRCCore"),
-        .target(name: "DRCPureSwift", dependencies: ["DRCCore"]),
+        .target(
+            name: "DRCPureSwift",
+            dependencies: [
+                "DRCCore",
+                .product(name: "LayoutCore", package: "semiconductor-layout"),
+                .product(name: "LayoutTech", package: "semiconductor-layout"),
+                .product(name: "LayoutVerify", package: "semiconductor-layout"),
+                .product(name: "LayoutIO", package: "semiconductor-layout"),
+            ]
+        ),
         .target(name: "DRCParsers", dependencies: ["DRCCore"]),
         .target(
             name: "DRCAdapters",
@@ -46,7 +56,16 @@ let package = Package(
         ),
         .executableTarget(name: "DRCCLI", dependencies: ["DRCCLICore"], path: "Sources/DRCCLI"),
         .testTarget(name: "DRCAdaptersTests", dependencies: ["DRCAdapters", "DRCCore"]),
-        .testTarget(name: "DRCPureSwiftTests", dependencies: ["DRCPureSwift", "DRCCore"]),
+        .testTarget(
+            name: "DRCPureSwiftTests",
+            dependencies: [
+                "DRCPureSwift",
+                "DRCCore",
+                .product(name: "LayoutCore", package: "semiconductor-layout"),
+                .product(name: "LayoutTech", package: "semiconductor-layout"),
+                .product(name: "LayoutIO", package: "semiconductor-layout"),
+            ]
+        ),
         .testTarget(name: "DRCParsersTests", dependencies: ["DRCParsers", "DRCCore"]),
         .testTarget(name: "DRCRuntimeTests", dependencies: ["DRCRuntime", "DRCCore"]),
         .testTarget(name: "DRCCLICoreTests", dependencies: ["DRCCLICore"]),

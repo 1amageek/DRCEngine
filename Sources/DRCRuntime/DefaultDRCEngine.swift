@@ -12,7 +12,7 @@ public struct DefaultDRCEngine: Sendable {
         backend: (any DRCBackend)? = MagicDRCAdapter.locate(),
         store: DRCArtifactStore = DRCArtifactStore()
     ) {
-        var backends: [any DRCBackend] = [PureSwiftDRCBackend()]
+        var backends: [any DRCBackend] = [PureSwiftDRCBackend(), LayoutGDSDRCBackend()]
         if let backend {
             backends.append(backend)
         }

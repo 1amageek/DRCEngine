@@ -24,12 +24,16 @@ public enum DRCCLIError: Error, LocalizedError, Equatable {
 public struct DRCCLIOptions: Sendable, Hashable {
     public let layoutURL: URL
     public let topCell: String
+    public let technologyURL: URL?
+    public let backendID: String?
     public let outputDirectory: URL
     public let timeoutSeconds: Double
 
     public init(arguments: [String]) throws {
         var layoutURL: URL?
         var topCell: String?
+        var technologyURL: URL?
+        var backendID: String?
         var outputDirectory: URL?
         var timeoutSeconds = 300.0
         var index = 0
@@ -42,6 +46,10 @@ public struct DRCCLIOptions: Sendable, Hashable {
                 topCell = try Self.value(after: argument, in: arguments, index: &index)
             case "--out":
                 outputDirectory = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
+            case "--tech":
+                technologyURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
+            case "--backend":
+                backendID = try Self.value(after: argument, in: arguments, index: &index)
             case "--timeout":
                 timeoutSeconds = try Self.positiveFiniteDouble(after: argument, in: arguments, index: &index)
             default:
@@ -55,15 +63,22 @@ public struct DRCCLIOptions: Sendable, Hashable {
         guard let outputDirectory else { throw DRCCLIError.missingRequired("--out") }
         self.layoutURL = layoutURL
         self.topCell = topCell
+        self.technologyURL = technologyURL
+        self.backendID = backendID
         self.outputDirectory = outputDirectory
         self.timeoutSeconds = timeoutSeconds
     }
 
     public func makeRequest() -> DRCRequest {
-        DRCRequest(
+        // A technology deck implies the standard-input pure Swift
+        // backend unless the caller chose one explicitly.
+        let resolvedBackendID = backendID ?? (technologyURL != nil ? "pure-swift-gds" : "magic")
+        return DRCRequest(
             layoutURL: layoutURL,
             topCell: topCell,
+            technologyURL: technologyURL,
             workingDirectory: outputDirectory,
+            backendSelection: DRCBackendSelection(backendID: resolvedBackendID),
             options: DRCOptions(timeoutSeconds: timeoutSeconds)
         )
     }
