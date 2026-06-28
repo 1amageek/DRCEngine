@@ -1,0 +1,40 @@
+{
+  "schemaVersion" : 1,
+  "defaultMaxDurationSeconds" : 30,
+  "qualificationPolicy" : {
+    "requiredCoverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "external.magic", "layout.gds"]
+  },
+  "cases" : [
+    {
+      "backendID" : "native-gds",
+      "caseID" : "standard-gds-minimum-cut-violation-magic-readiness",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "drc.cut.minimum.fail", "external.magic", "layout.gds"],
+      "expectedActiveErrorRuleIDs" : ["minimumCut.VIA1.cut.M1.drawing.M2.drawing.via1.minimumCut"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sampleProcessMinimumCutViolation",
+        "technology" : "sampleProcessMinimumCut"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "standard-gds-minimum-cut-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "STD_DRC"
+    },
+    {
+      "backendID" : "native-gds",
+      "caseID" : "standard-gds-minimum-cut-clean-magic-readiness",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "drc.cut.minimum.pass", "external.magic", "layout.gds"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sampleProcessMinimumCutClean",
+        "technology" : "sampleProcessMinimumCut"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "standard-gds-minimum-cut-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "STD_DRC"
+    }
+  ]
+}

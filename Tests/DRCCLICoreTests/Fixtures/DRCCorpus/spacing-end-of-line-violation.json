@@ -1,0 +1,35 @@
+{
+  "rectangles" : [
+    {
+      "id" : "wire",
+      "layer" : "met1",
+      "netID" : "sig",
+      "xMax" : 3,
+      "xMin" : 0,
+      "yMax" : 0.2,
+      "yMin" : 0
+    },
+    {
+      "id" : "blocker",
+      "layer" : "met1",
+      "netID" : "sig2",
+      "xMax" : 4,
+      "xMin" : 3.1,
+      "yMax" : 1,
+      "yMin" : 0
+    }
+  ],
+  "rules" : [
+    {
+      "endOfLineWidth" : 0.25,
+      "id" : "met1.eol",
+      "kind" : "minimumEndOfLineSpacing",
+      "layer" : "met1",
+      "spacingNetScope" : "differentNet",
+      "value" : 0.3
+    }
+  ],
+  "technologyID" : "golden-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

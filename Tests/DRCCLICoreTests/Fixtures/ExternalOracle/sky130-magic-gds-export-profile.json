@@ -1,0 +1,257 @@
+{
+  "antennaRules": [],
+  "contacts": [],
+  "derivedLayerRules": [],
+  "enclosureRules": [],
+  "exactOverlapRules": [],
+  "extensionRules": [],
+  "forbiddenLayerRules": [],
+  "grid": 0.005,
+  "layerRules": [
+    {
+      "layerID": { "name": "LI", "purpose": "drawing" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0.0561,
+      "minDensity": 0,
+      "minSpacing": 0.17,
+      "minWidth": 0.17,
+      "requiresRectangular": false
+    },
+    {
+      "layerID": { "name": "MCON", "purpose": "cut" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0,
+      "minDensity": 0,
+      "minSpacing": 0.17,
+      "minWidth": 0.17,
+      "requiresRectangular": false
+    },
+    {
+      "allowedAngleStepDegrees": 45,
+      "layerID": { "name": "MET1", "purpose": "drawing" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0,
+      "minDensity": 0,
+      "minEnclosedArea": 0.14,
+      "minSpacing": 0.14,
+      "minWidth": 0.14,
+      "requiresRectangular": false,
+      "wideSpacing": 0.28,
+      "wideWidthThreshold": 3.005
+    },
+    {
+      "layerID": { "name": "VIA1", "purpose": "cut" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0,
+      "minDensity": 0,
+      "minSpacing": 0.17,
+      "minWidth": 0.26,
+      "requiresRectangular": false
+    },
+    {
+      "allowedAngleStepDegrees": 45,
+      "layerID": { "name": "MET2", "purpose": "drawing" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0,
+      "minDensity": 0,
+      "minEnclosedArea": 0.14,
+      "minSpacing": 0.14,
+      "minWidth": 0.14,
+      "requiresRectangular": false,
+      "wideSpacing": 0.28,
+      "wideWidthThreshold": 3.005
+    },
+    {
+      "layerID": { "name": "VIA2", "purpose": "cut" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0,
+      "minDensity": 0,
+      "minSpacing": 0.20,
+      "minWidth": 0.28,
+      "requiresRectangular": false
+    },
+    {
+      "allowedAngleStepDegrees": 45,
+      "layerID": { "name": "MET3", "purpose": "drawing" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0.24,
+      "minDensity": 0,
+      "minEnclosedArea": 0.14,
+      "minSpacing": 0.30,
+      "minWidth": 0.30,
+      "requiresRectangular": false,
+      "wideSpacing": 0.40,
+      "wideWidthThreshold": 3.005
+    },
+    {
+      "layerID": { "name": "VIA3", "purpose": "cut" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0,
+      "minDensity": 0,
+      "minSpacing": 0.20,
+      "minWidth": 0.32,
+      "requiresRectangular": false
+    },
+    {
+      "allowedAngleStepDegrees": 45,
+      "layerID": { "name": "MET4", "purpose": "drawing" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0.24,
+      "minDensity": 0,
+      "minEnclosedArea": 0.14,
+      "minSpacing": 0.30,
+      "minWidth": 0.30,
+      "requiresRectangular": false,
+      "wideSpacing": 0.40,
+      "wideWidthThreshold": 3.005
+    },
+    {
+      "layerID": { "name": "VIA4", "purpose": "cut" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 0,
+      "minDensity": 0,
+      "minSpacing": 0.42,
+      "minWidth": 1.18,
+      "requiresRectangular": false
+    },
+    {
+      "allowedAngleStepDegrees": 45,
+      "layerID": { "name": "MET5", "purpose": "drawing" },
+      "maskColors": [],
+      "maxDensity": 1,
+      "minArea": 4,
+      "minDensity": 0,
+      "minSpacing": 1.6,
+      "minWidth": 1.6,
+      "requiresRectangular": false
+    }
+  ],
+  "layers": [
+    {
+      "color": { "alpha": 1, "blue": 0.25, "green": 0.45, "red": 0.7 },
+      "displayName": "Sky130 Local Interconnect",
+      "fillPattern": "solid",
+      "gdsDatatype": 20,
+      "gdsLayer": 67,
+      "id": { "name": "LI", "purpose": "drawing" },
+      "preferredDirection": "horizontal",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.2, "green": 0.85, "red": 0.85 },
+      "displayName": "Sky130 Local Interconnect Contact",
+      "fillPattern": "crosshatch",
+      "gdsDatatype": 44,
+      "gdsLayer": 67,
+      "id": { "name": "MCON", "purpose": "cut" },
+      "preferredDirection": "vertical",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.9, "green": 0.5, "red": 0.3 },
+      "displayName": "Sky130 Metal1",
+      "fillPattern": "forwardDiagonal",
+      "gdsDatatype": 20,
+      "gdsLayer": 68,
+      "id": { "name": "MET1", "purpose": "drawing" },
+      "preferredDirection": "horizontal",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.2, "green": 0.75, "red": 0.75 },
+      "displayName": "Sky130 Via1",
+      "fillPattern": "crosshatch",
+      "gdsDatatype": 44,
+      "gdsLayer": 68,
+      "id": { "name": "VIA1", "purpose": "cut" },
+      "preferredDirection": "vertical",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.75, "green": 0.65, "red": 0.2 },
+      "displayName": "Sky130 Metal2",
+      "fillPattern": "backwardDiagonal",
+      "gdsDatatype": 20,
+      "gdsLayer": 69,
+      "id": { "name": "MET2", "purpose": "drawing" },
+      "preferredDirection": "vertical",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.2, "green": 0.7, "red": 0.8 },
+      "displayName": "Sky130 Via2",
+      "fillPattern": "crosshatch",
+      "gdsDatatype": 44,
+      "gdsLayer": 69,
+      "id": { "name": "VIA2", "purpose": "cut" },
+      "preferredDirection": "vertical",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.8, "green": 0.35, "red": 0.55 },
+      "displayName": "Sky130 Metal3",
+      "fillPattern": "forwardDiagonal",
+      "gdsDatatype": 20,
+      "gdsLayer": 70,
+      "id": { "name": "MET3", "purpose": "drawing" },
+      "preferredDirection": "horizontal",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.2, "green": 0.72, "red": 0.78 },
+      "displayName": "Sky130 Via3",
+      "fillPattern": "crosshatch",
+      "gdsDatatype": 44,
+      "gdsLayer": 70,
+      "id": { "name": "VIA3", "purpose": "cut" },
+      "preferredDirection": "vertical",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.35, "green": 0.55, "red": 0.85 },
+      "displayName": "Sky130 Metal4",
+      "fillPattern": "forwardDiagonal",
+      "gdsDatatype": 20,
+      "gdsLayer": 71,
+      "id": { "name": "MET4", "purpose": "drawing" },
+      "preferredDirection": "vertical",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.2, "green": 0.72, "red": 0.78 },
+      "displayName": "Sky130 Via4",
+      "fillPattern": "crosshatch",
+      "gdsDatatype": 44,
+      "gdsLayer": 71,
+      "id": { "name": "VIA4", "purpose": "cut" },
+      "preferredDirection": "vertical",
+      "visibleByDefault": true
+    },
+    {
+      "color": { "alpha": 1, "blue": 0.45, "green": 0.45, "red": 0.75 },
+      "displayName": "Sky130 Metal5",
+      "fillPattern": "forwardDiagonal",
+      "gdsDatatype": 20,
+      "gdsLayer": 72,
+      "id": { "name": "MET5", "purpose": "drawing" },
+      "preferredDirection": "horizontal",
+      "visibleByDefault": true
+    }
+  ],
+  "minimumCutRules": [],
+  "spacingRules": [],
+  "units": {
+    "dbuPerMicron": 1000
+  },
+  "vias": []
+}

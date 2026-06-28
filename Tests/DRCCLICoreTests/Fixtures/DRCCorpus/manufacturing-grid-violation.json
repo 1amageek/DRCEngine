@@ -1,0 +1,24 @@
+{
+  "technologyID" : "drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer",
+  "rectangles" : [
+    {
+      "id" : "offgrid",
+      "layer" : "met1",
+      "netID" : "sig",
+      "xMax" : 1.015,
+      "xMin" : 0,
+      "yMax" : 1,
+      "yMin" : 0
+    }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.grid",
+      "kind" : "manufacturingGrid",
+      "layer" : "met1",
+      "value" : 0.01
+    }
+  ]
+}

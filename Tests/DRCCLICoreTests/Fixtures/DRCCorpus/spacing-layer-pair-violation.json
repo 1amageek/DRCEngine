@@ -1,0 +1,18 @@
+{
+  "rectangles" : [
+    { "id" : "metal", "layer" : "met1", "netID" : "sig", "xMax" : 1, "xMin" : 0, "yMax" : 1, "yMin" : 0 },
+    { "id" : "cut", "layer" : "via1", "netID" : "sig", "xMax" : 2.1, "xMin" : 1.1, "yMax" : 1, "yMin" : 0 }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.via1.spacing",
+      "kind" : "minimumSpacing",
+      "layer" : "met1",
+      "secondaryLayer" : "via1",
+      "value" : 0.2
+    }
+  ],
+  "technologyID" : "golden-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

@@ -1,0 +1,19 @@
+{
+  "rectangles" : [
+    { "id" : "left", "layer" : "met1", "xMin" : 0, "xMax" : 1, "yMin" : 0, "yMax" : 3 },
+    { "id" : "right", "layer" : "met1", "xMin" : 1.2, "xMax" : 2.2, "yMin" : 0, "yMax" : 3 },
+    { "id" : "bottom", "layer" : "met1", "xMin" : 0, "xMax" : 2.2, "yMin" : 0, "yMax" : 1 },
+    { "id" : "top", "layer" : "met1", "xMin" : 0, "xMax" : 2.2, "yMin" : 1.2, "yMax" : 3 }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.enclosedArea",
+      "kind" : "minimumEnclosedArea",
+      "layer" : "met1",
+      "value" : 0.1
+    }
+  ],
+  "technologyID" : "portable-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

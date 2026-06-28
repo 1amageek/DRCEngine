@@ -1,0 +1,33 @@
+{
+  "technologyID" : "drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer",
+  "rectangles" : [
+    {
+      "id" : "sig",
+      "layer" : "met1",
+      "netID" : "sig",
+      "xMin" : 0,
+      "yMin" : 0,
+      "xMax" : 2,
+      "yMax" : 1
+    },
+    {
+      "id" : "clk",
+      "layer" : "met1",
+      "netID" : "clk",
+      "xMin" : 1.25,
+      "yMin" : 0.25,
+      "xMax" : 2.25,
+      "yMax" : 0.75
+    }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.short",
+      "kind" : "differentNetOverlap",
+      "layer" : "met1",
+      "value" : 0
+    }
+  ]
+}

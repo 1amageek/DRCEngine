@@ -1,0 +1,13 @@
+{
+  "schemaVersion" : 1,
+  "defaultMaxDurationSeconds" : 0.000000000001,
+  "cases" : [
+    {
+      "backendID" : "native",
+      "caseID" : "clean-tight-budget",
+      "expectedPassed" : true,
+      "layoutPath" : "clean.json",
+      "topCell" : "inv"
+    }
+  ]
+}

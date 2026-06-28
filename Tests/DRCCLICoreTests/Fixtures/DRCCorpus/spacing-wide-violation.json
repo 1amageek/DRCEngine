@@ -1,0 +1,53 @@
+{
+  "rectangles" : [
+    {
+      "id" : "wide",
+      "layer" : "met1",
+      "netID" : "vdd",
+      "xMax" : 1,
+      "xMin" : 0,
+      "yMax" : 2,
+      "yMin" : 0
+    },
+    {
+      "id" : "near_wide",
+      "layer" : "met1",
+      "netID" : "sig",
+      "xMax" : 1.5,
+      "xMin" : 1.3,
+      "yMax" : 2,
+      "yMin" : 0
+    },
+    {
+      "id" : "narrow_a",
+      "layer" : "met1",
+      "netID" : "a",
+      "xMax" : 4.2,
+      "xMin" : 4,
+      "yMax" : 2,
+      "yMin" : 0
+    },
+    {
+      "id" : "narrow_b",
+      "layer" : "met1",
+      "netID" : "b",
+      "xMax" : 4.7,
+      "xMin" : 4.5,
+      "yMax" : 2,
+      "yMin" : 0
+    }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.wideSpacing",
+      "kind" : "minimumSpacing",
+      "layer" : "met1",
+      "spacingNetScope" : "differentNet",
+      "value" : 0.5,
+      "wideWidthThreshold" : 0.8
+    }
+  ],
+  "technologyID" : "golden-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

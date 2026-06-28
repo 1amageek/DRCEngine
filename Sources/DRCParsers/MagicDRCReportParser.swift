@@ -12,20 +12,46 @@ public struct MagicDRCReportParser: Sendable {
         success: Bool,
         provenance: DRCToolProvenance? = nil
     ) -> DRCResult {
-        var diagnostics = rawOutput
-            .split(whereSeparator: \.isNewline)
-            .compactMap { parseDiagnostic(line: String($0)) }
+        var diagnostics: [DRCDiagnostic] = []
+        var isParsingFindOutput = false
+        var seenFindDiagnostics = Set<String>()
+        for line in rawOutput.split(whereSeparator: \.isNewline).map(String.init) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed == "DRC_FIND_BEGIN" {
+                isParsingFindOutput = true
+                continue
+            }
+            if trimmed == "DRC_FIND_END" {
+                isParsingFindOutput = false
+                continue
+            }
+            if let diagnostic = parseDiagnostic(line: line) {
+                diagnostics.append(diagnostic)
+                continue
+            }
+            guard isParsingFindOutput, let diagnostic = parseMagicFindDiagnostic(line: line) else {
+                continue
+            }
+            let key = "\(diagnostic.ruleID ?? "")|\(diagnostic.message)"
+            if seenFindDiagnostics.insert(key).inserted {
+                diagnostics.append(diagnostic)
+            }
+        }
 
         let completed = containsExactLine("DRC_DONE", in: rawOutput)
         if completed {
             if let summaryLine = summaryLine(in: rawOutput) {
                 let fields = keyValueFields(in: summaryLine)
                 if let totalText = fields["total"], let total = Int(totalText) {
-                    let enumeratedCount = enumeratedViolationCount(in: diagnostics)
-                    if total != enumeratedCount {
+                    let counts = enumeratedViolationCounts(in: diagnostics)
+                    if !summaryTotalIsConsistent(
+                        total,
+                        ruleBucketCount: counts.ruleBucketCount,
+                        instanceCount: counts.instanceCount
+                    ) {
                         diagnostics.append(DRCDiagnostic(
                             severity: .error,
-                            message: "DRC_SUMMARY total=\(total) does not match enumerated violation count=\(enumeratedCount)",
+                            message: "DRC_SUMMARY total=\(total) does not match enumerated violation count=\(counts.ruleBucketCount) or instance count=\(counts.instanceCount)",
                             ruleID: "DRC_SUMMARY_MISMATCH",
                             count: total,
                             rawLine: summaryLine
@@ -67,7 +93,7 @@ public struct MagicDRCReportParser: Sendable {
         let uppercased = trimmed.uppercased()
 
         if uppercased.hasPrefix("VIOLATION") {
-            guard let ruleID = fields["rule"] else { return nil }
+            guard let ruleID = fields["rule"].flatMap(normalizedRuleID) else { return nil }
             return DRCDiagnostic(
                 severity: .error,
                 message: fields["message"] ?? strippedMessage(from: trimmed),
@@ -78,16 +104,73 @@ public struct MagicDRCReportParser: Sendable {
         }
 
         if uppercased.hasPrefix("ERROR") {
+            guard fields["rule"] != nil || fields["message"] != nil else {
+                return nil
+            }
             return DRCDiagnostic(
                 severity: .error,
                 message: fields["message"] ?? strippedMessage(from: trimmed),
-                ruleID: fields["rule"],
+                ruleID: fields["rule"].flatMap(normalizedRuleID),
                 count: fields["count"].flatMap(Int.init),
                 rawLine: trimmed
             )
         }
 
         return nil
+    }
+
+    private func summaryTotalIsConsistent(
+        _ total: Int,
+        ruleBucketCount: Int,
+        instanceCount: Int
+    ) -> Bool {
+        if total == ruleBucketCount || total == instanceCount {
+            return true
+        }
+        return total >= ruleBucketCount && total <= instanceCount
+    }
+
+    private func parseMagicFindDiagnostic(line: String) -> DRCDiagnostic? {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              trimmed != "No errors found.",
+              !trimmed.hasPrefix("Error area #"),
+              trimmed.hasSuffix(")"),
+              let openIndex = trimmed.lastIndex(of: "("),
+              openIndex < trimmed.index(before: trimmed.endIndex)
+        else {
+            return nil
+        }
+        let codeStart = trimmed.index(after: openIndex)
+        let codeEnd = trimmed.index(before: trimmed.endIndex)
+        guard let ruleID = normalizedRuleID(from: String(trimmed[codeStart..<codeEnd])) else {
+            return nil
+        }
+        return DRCDiagnostic(
+            severity: .error,
+            message: trimmed,
+            ruleID: ruleID,
+            count: 1,
+            rawLine: "DRC_FIND_RULE \(trimmed)"
+        )
+    }
+
+    private func normalizedRuleID(from rawValue: String) -> String? {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let candidate: String
+        if let whitespace = trimmed.range(of: #"\s"#, options: .regularExpression) {
+            candidate = String(trimmed[..<whitespace.lowerBound])
+        } else {
+            candidate = trimmed
+        }
+        let token = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty,
+              token.range(of: #"^[A-Za-z0-9_.+-]+$"#, options: .regularExpression) != nil
+        else {
+            return nil
+        }
+        return token
     }
 
     private func containsExactLine(_ marker: String, in rawOutput: String) -> Bool {
@@ -105,12 +188,18 @@ public struct MagicDRCReportParser: Sendable {
         return nil
     }
 
-    private func enumeratedViolationCount(in diagnostics: [DRCDiagnostic]) -> Int {
-        diagnostics
-            .filter { $0.rawLine.uppercased().hasPrefix("VIOLATION") }
-            .reduce(0) { total, diagnostic in
-                total + (diagnostic.count ?? 1)
+    private func enumeratedViolationCounts(in diagnostics: [DRCDiagnostic]) -> (
+        ruleBucketCount: Int,
+        instanceCount: Int
+    ) {
+        let violationDiagnostics = diagnostics.filter {
+                let rawLine = $0.rawLine.uppercased()
+                return rawLine.hasPrefix("VIOLATION") || rawLine.hasPrefix("DRC_FIND_RULE")
             }
+        let instanceCount = violationDiagnostics.reduce(0) { total, diagnostic in
+            total + max(1, diagnostic.count ?? 1)
+        }
+        return (violationDiagnostics.count, instanceCount)
     }
 
     private func keyValueFields(in line: String) -> [String: String] {

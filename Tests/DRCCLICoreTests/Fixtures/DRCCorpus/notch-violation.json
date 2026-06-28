@@ -1,0 +1,18 @@
+{
+  "rectangles" : [
+    { "id" : "left", "layer" : "met1", "xMin" : 0, "xMax" : 1, "yMin" : 0, "yMax" : 3 },
+    { "id" : "right", "layer" : "met1", "xMin" : 1.2, "xMax" : 2.2, "yMin" : 0, "yMax" : 3 },
+    { "id" : "bridge", "layer" : "met1", "xMin" : 0, "xMax" : 2.2, "yMin" : 2, "yMax" : 3 }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.notch",
+      "kind" : "minimumNotch",
+      "layer" : "met1",
+      "value" : 0.5
+    }
+  ],
+  "technologyID" : "portable-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

@@ -1,0 +1,18 @@
+{
+  "rectangles" : [
+    { "id" : "dense", "layer" : "met1", "xMax" : 1, "xMin" : 0, "yMax" : 1, "yMin" : 0 }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.density",
+      "kind" : "maximumDensity",
+      "layer" : "met1",
+      "value" : 0.6,
+      "windowHeight" : 1,
+      "windowWidth" : 1
+    }
+  ],
+  "technologyID" : "golden-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

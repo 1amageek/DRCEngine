@@ -1,0 +1,386 @@
+{
+  "schemaVersion" : 1,
+  "defaultMaxDurationSeconds" : 10,
+  "qualificationPolicy" : {
+    "requiredCoverageTags" : ["drc.antenna", "drc.antenna.multi-layer", "drc.antenna.process-step", "drc.antenna.via-aware", "drc.antenna.via-topology", "drc.area", "drc.clean", "drc.cut", "drc.cut.minimum", "drc.cut.minimum.fail", "drc.cut.minimum.multi-stack", "drc.cut.minimum.pass", "drc.cut.minimum.standard-input", "drc.density", "drc.density.minimum", "drc.enclosed-area", "drc.enclosure", "drc.extension", "drc.extension.minimum", "drc.grid", "drc.grid.manufacturing", "drc.input.cif", "drc.input.dxf", "drc.input.gds", "drc.input.oasis", "drc.notch", "drc.overlap", "drc.overlap.different-net", "drc.overlap.exact", "drc.overlap.forbidden", "drc.short", "drc.spacing", "drc.spacing.different-net", "drc.spacing.directional", "drc.spacing.end-of-line", "drc.spacing.layer-pair", "drc.spacing.net-scope", "drc.spacing.parallel-run-length", "drc.spacing.same-net", "drc.spacing.wide", "drc.tech.layer-map", "drc.waiver", "drc.width"]
+  },
+  "cases" : [
+    {
+      "backendID" : "native",
+      "caseID" : "clean",
+      "coverageTags" : ["drc.clean", "layout.json"],
+      "expectedPassed" : true,
+      "layoutPath" : "clean.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native-gds",
+      "caseID" : "standard-gds-clean",
+      "coverageTags" : ["drc.input.gds", "drc.tech.layer-map", "layout.gds"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sampleProcessM1Clean",
+        "technology" : "sampleProcess"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "standard-gds-clean.gds",
+      "oracleBackendID" : "native-gds",
+      "topCell" : "STD_DRC"
+    },
+    {
+      "backendID" : "native-gds",
+      "caseID" : "standard-oasis-clean",
+      "coverageTags" : ["drc.input.oasis", "drc.tech.layer-map", "layout.oasis"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "oasis",
+        "kind" : "sampleProcessM1Clean",
+        "technology" : "sampleProcess"
+      },
+      "layoutFormat" : "oasis",
+      "layoutPath" : "standard-oasis-clean.oas",
+      "oracleBackendID" : "native-gds",
+      "topCell" : "STD_DRC"
+    },
+    {
+      "backendID" : "native-gds",
+      "caseID" : "standard-cif-clean",
+      "coverageTags" : ["drc.input.cif", "drc.tech.layer-map", "layout.cif"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "cif",
+        "kind" : "sampleProcessM1Clean",
+        "technology" : "sampleProcess"
+      },
+      "layoutFormat" : "cif",
+      "layoutPath" : "standard-cif-clean.cif",
+      "oracleBackendID" : "native-gds",
+      "topCell" : "STD_DRC"
+    },
+    {
+      "backendID" : "native-gds",
+      "caseID" : "standard-dxf-clean",
+      "coverageTags" : ["drc.input.dxf", "drc.tech.layer-map", "layout.dxf"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "dxf",
+        "kind" : "sampleProcessM1Clean",
+        "technology" : "sampleProcess"
+      },
+      "layoutFormat" : "dxf",
+      "layoutPath" : "standard-dxf-clean.dxf",
+      "oracleBackendID" : "native-gds",
+      "topCell" : "STD_DRC"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "manufacturing-grid-violation",
+      "coverageTags" : ["drc.grid", "drc.grid.manufacturing", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.grid"],
+      "expectedPassed" : false,
+      "layoutPath" : "manufacturing-grid-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "width-violation",
+      "coverageTags" : ["drc.width", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.width"],
+      "expectedPassed" : false,
+      "layoutPath" : "width-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "area-violation",
+      "coverageTags" : ["drc.area", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.area"],
+      "expectedPassed" : false,
+      "layoutPath" : "area-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "antenna-violation",
+      "coverageTags" : ["drc.antenna", "drc.antenna.multi-layer", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met2.antenna"],
+      "expectedPassed" : false,
+      "layoutPath" : "antenna-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "antenna-process-step-violation",
+      "coverageTags" : ["drc.antenna", "drc.antenna.process-step", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.antenna.processStep"],
+      "expectedPassed" : false,
+      "layoutPath" : "antenna-process-step-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "antenna-via-aware-violation",
+      "coverageTags" : ["drc.antenna", "drc.antenna.via-aware", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met2.antenna.viaAware"],
+      "expectedPassed" : false,
+      "layoutPath" : "antenna-via-aware-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "antenna-via-aware-disconnected",
+      "coverageTags" : ["drc.antenna", "drc.antenna.via-aware", "drc.antenna.via-topology", "layout.json"],
+      "expectedPassed" : true,
+      "layoutPath" : "antenna-via-aware-disconnected.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "density-violation",
+      "coverageTags" : ["drc.density", "drc.density.maximum", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.density"],
+      "expectedPassed" : false,
+      "layoutPath" : "density-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "minimum-cut-violation",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.fail", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["via1.minimumCut"],
+      "expectedPassed" : false,
+      "layoutPath" : "minimum-cut-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "minimum-cut-clean",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.pass", "layout.json"],
+      "expectedPassed" : true,
+      "layoutPath" : "minimum-cut-clean.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "minimum-cut-multistack-violation",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.fail", "drc.cut.minimum.multi-stack", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["via1.minimumCut"],
+      "expectedPassed" : false,
+      "layoutPath" : "minimum-cut-multistack-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "minimum-cut-multistack-clean",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.multi-stack", "drc.cut.minimum.pass", "layout.json"],
+      "expectedPassed" : true,
+      "layoutPath" : "minimum-cut-multistack-clean.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native-gds",
+      "caseID" : "standard-gds-minimum-cut-violation",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.fail", "drc.cut.minimum.standard-input", "drc.input.gds", "drc.tech.layer-map", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["minimumCut.VIA1.cut.M1.drawing.M2.drawing.via1.minimumCut"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sampleProcessMinimumCutViolation",
+        "technology" : "sampleProcessMinimumCut"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "standard-gds-minimum-cut-violation.gds",
+      "oracleBackendID" : "native-gds",
+      "topCell" : "STD_DRC"
+    },
+    {
+      "backendID" : "native-gds",
+      "caseID" : "standard-gds-minimum-cut-clean",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.pass", "drc.cut.minimum.standard-input", "drc.input.gds", "drc.tech.layer-map", "layout.gds"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sampleProcessMinimumCutClean",
+        "technology" : "sampleProcessMinimumCut"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "standard-gds-minimum-cut-clean.gds",
+      "oracleBackendID" : "native-gds",
+      "topCell" : "STD_DRC"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "minimum-density-violation",
+      "coverageTags" : ["drc.density", "drc.density.minimum", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.minimumDensity"],
+      "expectedPassed" : false,
+      "layoutPath" : "minimum-density-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "notch-violation",
+      "coverageTags" : ["drc.notch", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.notch"],
+      "expectedPassed" : false,
+      "layoutPath" : "notch-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "forbidden-overlap-violation",
+      "coverageTags" : ["drc.overlap", "drc.overlap.forbidden", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["active.nwell.forbiddenOverlap"],
+      "expectedPassed" : false,
+      "layoutPath" : "forbidden-overlap-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "different-net-overlap-violation",
+      "coverageTags" : ["drc.overlap", "drc.overlap.different-net", "drc.short", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.short"],
+      "expectedPassed" : false,
+      "layoutPath" : "different-net-overlap-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "exact-overlap-violation",
+      "coverageTags" : ["drc.overlap", "drc.overlap.exact", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["via1.marker.exactOverlap"],
+      "expectedPassed" : false,
+      "layoutPath" : "exact-overlap-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "spacing-violation",
+      "coverageTags" : ["drc.spacing", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.spacing"],
+      "expectedPassed" : false,
+      "layoutPath" : "spacing-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "spacing-different-net-violation",
+      "coverageTags" : ["drc.spacing", "drc.spacing.different-net", "drc.spacing.net-scope", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.spacingDifferentNet"],
+      "expectedPassed" : false,
+      "layoutPath" : "spacing-different-net-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "spacing-same-net-violation",
+      "coverageTags" : ["drc.spacing", "drc.spacing.net-scope", "drc.spacing.same-net", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.spacingSameNet"],
+      "expectedPassed" : false,
+      "layoutPath" : "spacing-same-net-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "spacing-layer-pair-violation",
+      "coverageTags" : ["drc.spacing", "drc.spacing.layer-pair", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.via1.spacing"],
+      "expectedPassed" : false,
+      "layoutPath" : "spacing-layer-pair-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "spacing-end-of-line-violation",
+      "coverageTags" : ["drc.spacing", "drc.spacing.end-of-line", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.eol"],
+      "expectedPassed" : false,
+      "layoutPath" : "spacing-end-of-line-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "spacing-prl-violation",
+      "coverageTags" : ["drc.spacing", "drc.spacing.directional", "drc.spacing.parallel-run-length", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.spacing.prl"],
+      "expectedPassed" : false,
+      "layoutPath" : "spacing-prl-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "spacing-wide-violation",
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.wideSpacing"],
+      "expectedPassed" : false,
+      "layoutPath" : "spacing-wide-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "enclosure-violation",
+      "coverageTags" : ["drc.enclosure", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.via1.enclosure"],
+      "expectedPassed" : false,
+      "layoutPath" : "enclosure-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "minimum-extension-violation",
+      "coverageTags" : ["drc.extension", "drc.extension.minimum", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["poly.active.extension"],
+      "expectedPassed" : false,
+      "layoutPath" : "minimum-extension-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "enclosed-area-violation",
+      "coverageTags" : ["drc.enclosed-area", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.enclosedArea"],
+      "expectedPassed" : false,
+      "layoutPath" : "enclosed-area-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "waived-width-violation",
+      "coverageTags" : ["drc.waiver", "drc.width"],
+      "expectedPassed" : true,
+      "layoutPath" : "width-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv",
+      "waiverPath" : "width-waiver.json"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "rectangles" : [
+    { "id" : "sparse", "layer" : "met1", "xMax" : 0.25, "xMin" : 0, "yMax" : 0.25, "yMin" : 0 }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.minimumDensity",
+      "kind" : "minimumDensity",
+      "layer" : "met1",
+      "value" : 0.2,
+      "windowHeight" : 1,
+      "windowOriginX" : 0,
+      "windowOriginY" : 0,
+      "windowWidth" : 1
+    }
+  ],
+  "technologyID" : "golden-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

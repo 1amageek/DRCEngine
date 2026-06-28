@@ -1,0 +1,48 @@
+{
+  "rectangles" : [
+    {
+      "antennaGateArea" : 1,
+      "id" : "gate",
+      "layer" : "poly",
+      "netID" : "out",
+      "xMin" : 0,
+      "xMax" : 1,
+      "yMin" : 8,
+      "yMax" : 9
+    },
+    {
+      "antennaProcessStep" : "m1",
+      "id" : "m1_wire",
+      "layer" : "met1",
+      "netID" : "out",
+      "xMin" : 0,
+      "xMax" : 8,
+      "yMin" : 0,
+      "yMax" : 1
+    },
+    {
+      "antennaProcessStep" : "m2",
+      "id" : "m2_late_wire",
+      "layer" : "met2",
+      "netID" : "out",
+      "xMin" : 0,
+      "xMax" : 20,
+      "yMin" : 2,
+      "yMax" : 7
+    }
+  ],
+  "rules" : [
+    {
+      "conductorLayers" : ["met1", "met2"],
+      "gateLayer" : "poly",
+      "id" : "met1.antenna.processStep",
+      "kind" : "maximumAntennaRatio",
+      "layer" : "met1",
+      "processStep" : "m1",
+      "value" : 5
+    }
+  ],
+  "technologyID" : "portable-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

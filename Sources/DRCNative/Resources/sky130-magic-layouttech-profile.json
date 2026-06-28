@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "profileID": "sky130.magic.layouttech",
+  "displayName": "Sky130 Magic LayoutTech Import Profile",
+  "layerOrder": [
+    "DNWELL",
+    "NWELL",
+    "DIFF",
+    "POLY",
+    "CONT",
+    "LI",
+    "MCON",
+    "MET1",
+    "VIA1",
+    "MET2",
+    "VIA2",
+    "MET3",
+    "CAPM",
+    "MIMCC",
+    "VIA3",
+    "MET4",
+    "CAPM2",
+    "MIM2CC",
+    "VIA4",
+    "MET5",
+    "HVI",
+    "RPM",
+    "URPM",
+    "GLASS",
+    "RDL"
+  ],
+  "cutLayerNames": [
+    "CONT",
+    "MCON",
+    "VIA1",
+    "VIA2",
+    "VIA3",
+    "VIA4",
+    "VIA5",
+    "MIMCC",
+    "MIM2CC"
+  ],
+  "baseLayerNames": [
+    "DNWELL",
+    "NWELL",
+    "DIFF",
+    "POLY",
+    "CONT",
+    "LI",
+    "MCON",
+    "MET1",
+    "VIA1",
+    "MET2",
+    "VIA2",
+    "MET3",
+    "CAPM",
+    "MIMCC",
+    "VIA3",
+    "MET4",
+    "CAPM2",
+    "MIM2CC",
+    "VIA4",
+    "MET5",
+    "VIA5",
+    "HVI",
+    "RPM",
+    "URPM",
+    "GLASS",
+    "RDL"
+  ],
+  "layerPurposes": {
+    "CONT": "cut",
+    "MCON": "cut",
+    "VIA1": "cut",
+    "VIA2": "cut",
+    "VIA3": "cut",
+    "VIA4": "cut",
+    "VIA5": "cut",
+    "MIMCC": "cut",
+    "MIM2CC": "cut"
+  },
+  "layerDisplayNames": {
+    "DNWELL": "Deep N-Well",
+    "NWELL": "N-Well",
+    "DIFF": "Diffusion",
+    "POLY": "Poly",
+    "CONT": "Contact",
+    "LI": "Local Interconnect",
+    "MCON": "Local Interconnect Contact",
+    "CAPM": "MiM Capacitor Plate",
+    "MIMCC": "MiM Capacitor Contact",
+    "CAPM2": "MiM2 Capacitor Plate",
+    "MIM2CC": "MiM2 Capacitor Contact",
+    "HVI": "High Voltage Identifier",
+    "RPM": "Precision Resistor Marker",
+    "URPM": "Ultra-High Resistance Poly Marker",
+    "GLASS": "Pad Opening",
+    "RDL": "Redistribution Layer"
+  },
+  "layerColors": {},
+  "layerFillPatterns": {
+    "CONT": "crosshatch",
+    "MCON": "crosshatch",
+    "VIA1": "crosshatch",
+    "VIA2": "crosshatch",
+    "VIA3": "crosshatch",
+    "VIA4": "crosshatch",
+    "VIA5": "crosshatch",
+    "MIMCC": "crosshatch",
+    "MIM2CC": "crosshatch",
+    "MET1": "forwardDiagonal",
+    "MET2": "forwardDiagonal",
+    "MET3": "forwardDiagonal",
+    "MET4": "forwardDiagonal",
+    "MET5": "forwardDiagonal",
+    "RDL": "forwardDiagonal",
+    "CAPM": "forwardDiagonal",
+    "CAPM2": "forwardDiagonal"
+  },
+  "layerPreferredDirections": {
+    "MET1": "horizontal",
+    "MET3": "horizontal",
+    "MET5": "horizontal",
+    "MET2": "vertical",
+    "MET4": "vertical",
+    "RDL": "vertical"
+  },
+  "planeBaseLayerNames": {
+    "dwell": "DNWELL",
+    "well": "NWELL",
+    "active": "DIFF",
+    "locali": "LI",
+    "metal1": "MET1",
+    "metal2": "MET2",
+    "metal3": "MET3",
+    "cap1": "CAPM",
+    "metal4": "MET4",
+    "cap2": "CAPM2",
+    "metal5": "MET5",
+    "metali": "RDL",
+    "block": "GLASS"
+  },
+  "canonicalLayerAliases": {
+    "CONT": ["contact", "cont"],
+    "MCON": ["mcon", "licon"],
+    "VIA1": ["v1"],
+    "VIA2": ["v2"],
+    "VIA3": ["v3"],
+    "VIA4": ["v4"],
+    "VIA5": ["v5"],
+    "CAPM": ["c1", "mim", "mimcap", "capm"],
+    "MIMCC": ["mimcapcontact", "mimcapc", "mimcc", "capmc"],
+    "CAPM2": ["c2", "mim2", "mimcap2", "capm2"],
+    "MIM2CC": ["mimcap2contact", "mimcap2c", "mim2cc", "capm2c"],
+    "HVI": ["hvi"],
+    "RPM": ["rpm"],
+    "URPM": ["urpm"],
+    "GLASS": ["glass", "overglass"]
+  },
+  "layerSetAliases": {
+    "active": ["DIFF", "POLY"],
+    "a": ["DIFF", "POLY"]
+  },
+  "typeAliasBaseLayerNames": {
+    "active": {
+      "p": "POLY",
+      "pc": "POLY",
+      "polyc": "POLY",
+      "polycut": "POLY",
+      "polycont": "POLY",
+      "polysilicon": "POLY",
+      "pcontact": "POLY",
+      "xpc": "POLY",
+      "xpolyc": "POLY",
+      "xpolycontact": "POLY",
+      "mrp1": "POLY",
+      "npres": "POLY",
+      "npolyres": "POLY",
+      "xhrpoly": "POLY",
+      "ppres": "POLY",
+      "ppolyres": "POLY",
+      "uhrpoly": "POLY",
+      "xpolyres": "POLY",
+      "xpres": "POLY",
+      "xres": "POLY",
+      "rmp": "POLY"
+    },
+    "cap1": {
+      "mimcapcontact": "MIMCC",
+      "mimcapc": "MIMCC",
+      "mimcc": "MIMCC",
+      "capmc": "MIMCC"
+    },
+    "cap2": {
+      "mimcap2contact": "MIM2CC",
+      "mimcap2c": "MIM2CC",
+      "mim2cc": "MIM2CC",
+      "capm2c": "MIM2CC"
+    },
+    "block": {
+      "glass": "GLASS"
+    }
+  },
+  "derivedLayerSeeds": [
+    {
+      "id": "sky130.derived.MIMCC",
+      "targetLayerName": "MIMCC",
+      "sourceLayerNames": ["VIA3", "CAPM"],
+      "operation": "intersection"
+    },
+    {
+      "id": "sky130.derived.MIM2CC",
+      "targetLayerName": "MIM2CC",
+      "sourceLayerNames": ["VIA4", "CAPM2"],
+      "operation": "intersection"
+    }
+  ],
+  "cutStackConnections": [
+    {
+      "id": "CONT_DIFF",
+      "cutLayerName": "CONT",
+      "bottomLayerName": "DIFF",
+      "topLayerName": "LI",
+      "kind": "contact"
+    },
+    {
+      "id": "CONT_POLY",
+      "cutLayerName": "CONT",
+      "bottomLayerName": "POLY",
+      "topLayerName": "LI",
+      "kind": "contact"
+    },
+    {
+      "id": "MCON",
+      "cutLayerName": "MCON",
+      "bottomLayerName": "LI",
+      "topLayerName": "MET1",
+      "kind": "via"
+    },
+    {
+      "id": "VIA1",
+      "cutLayerName": "VIA1",
+      "bottomLayerName": "MET1",
+      "topLayerName": "MET2",
+      "kind": "via"
+    },
+    {
+      "id": "VIA2",
+      "cutLayerName": "VIA2",
+      "bottomLayerName": "MET2",
+      "topLayerName": "MET3",
+      "kind": "via"
+    },
+    {
+      "id": "VIA3",
+      "cutLayerName": "VIA3",
+      "bottomLayerName": "MET3",
+      "topLayerName": "MET4",
+      "kind": "via"
+    },
+    {
+      "id": "MIMCC",
+      "cutLayerName": "MIMCC",
+      "bottomLayerName": "CAPM",
+      "topLayerName": "MET4",
+      "kind": "contact"
+    },
+    {
+      "id": "VIA4",
+      "cutLayerName": "VIA4",
+      "bottomLayerName": "MET4",
+      "topLayerName": "MET5",
+      "kind": "via"
+    },
+    {
+      "id": "MIM2CC",
+      "cutLayerName": "MIM2CC",
+      "bottomLayerName": "CAPM2",
+      "topLayerName": "MET5",
+      "kind": "contact"
+    },
+    {
+      "id": "VIA5",
+      "cutLayerName": "VIA5",
+      "bottomLayerName": "MET5",
+      "topLayerName": "RDL",
+      "kind": "via"
+    }
+  ]
+}

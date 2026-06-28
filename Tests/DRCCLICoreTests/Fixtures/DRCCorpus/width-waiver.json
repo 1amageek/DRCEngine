@@ -1,0 +1,13 @@
+{
+  "schemaVersion" : 1,
+  "waivers" : [
+    {
+      "id" : "waive-thin-met1",
+      "kind" : "minimumWidth",
+      "layer" : "met1",
+      "reason" : "Committed golden corpus waiver fixture",
+      "relatedShapeIDs" : ["thin"],
+      "ruleID" : "met1.width"
+    }
+  ]
+}

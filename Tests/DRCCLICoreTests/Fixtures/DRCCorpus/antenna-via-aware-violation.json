@@ -1,0 +1,75 @@
+{
+  "rectangles" : [
+    {
+      "id" : "m1_wire",
+      "layer" : "met1",
+      "netID" : "out",
+      "xMin" : 0,
+      "xMax" : 2,
+      "yMin" : 0,
+      "yMax" : 1
+    },
+    {
+      "id" : "contact",
+      "layer" : "contact",
+      "netID" : "out",
+      "xMin" : 0.25,
+      "xMax" : 0.5,
+      "yMin" : 0.25,
+      "yMax" : 0.5
+    },
+    {
+      "id" : "via1",
+      "layer" : "via1",
+      "netID" : "out",
+      "xMin" : 1.5,
+      "xMax" : 1.75,
+      "yMin" : 0.25,
+      "yMax" : 0.5
+    },
+    {
+      "id" : "m2_wire",
+      "layer" : "met2",
+      "netID" : "out",
+      "xMin" : 1.5,
+      "xMax" : 7.5,
+      "yMin" : 0,
+      "yMax" : 1
+    },
+    {
+      "antennaGateArea" : 1,
+      "id" : "gate",
+      "layer" : "poly",
+      "netID" : "out",
+      "xMin" : 0,
+      "xMax" : 1,
+      "yMin" : 0,
+      "yMax" : 1
+    }
+  ],
+  "rules" : [
+    {
+      "antennaCutConnections" : [
+        {
+          "layer" : "contact",
+          "lowerLayer" : "poly",
+          "upperLayer" : "met1"
+        },
+        {
+          "layer" : "via1",
+          "lowerLayer" : "met1",
+          "upperLayer" : "met2"
+        }
+      ],
+      "conductorLayers" : ["met1", "met2"],
+      "gateLayer" : "poly",
+      "id" : "met2.antenna.viaAware",
+      "kind" : "maximumAntennaRatio",
+      "layer" : "met2",
+      "value" : 5
+    }
+  ],
+  "technologyID" : "portable-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

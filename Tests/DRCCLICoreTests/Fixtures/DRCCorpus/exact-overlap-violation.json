@@ -1,0 +1,34 @@
+{
+  "technologyID" : "drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer",
+  "rectangles" : [
+    {
+      "id" : "via1",
+      "layer" : "via1",
+      "netID" : "sig",
+      "xMin" : 0,
+      "yMin" : 0,
+      "xMax" : 0.2,
+      "yMax" : 0.2
+    },
+    {
+      "id" : "via1_marker",
+      "layer" : "via1_marker",
+      "netID" : "sig",
+      "xMin" : 0,
+      "yMin" : 0,
+      "xMax" : 0.25,
+      "yMax" : 0.2
+    }
+  ],
+  "rules" : [
+    {
+      "id" : "via1.marker.exactOverlap",
+      "kind" : "exactOverlap",
+      "layer" : "via1",
+      "secondaryLayer" : "via1_marker",
+      "value" : 0
+    }
+  ]
+}

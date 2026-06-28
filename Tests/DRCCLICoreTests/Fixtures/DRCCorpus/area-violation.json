@@ -1,0 +1,11 @@
+{
+  "rectangles" : [
+    { "id" : "small", "layer" : "met1", "xMax" : 0.4, "xMin" : 0, "yMax" : 0.4, "yMin" : 0 }
+  ],
+  "rules" : [
+    { "id" : "met1.area", "kind" : "minimumArea", "layer" : "met1", "value" : 0.5 }
+  ],
+  "technologyID" : "golden-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

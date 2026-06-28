@@ -1,0 +1,34 @@
+{
+  "technologyID" : "drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer",
+  "rectangles" : [
+    {
+      "id" : "active",
+      "layer" : "active",
+      "netID" : "source",
+      "xMin" : 0,
+      "yMin" : 0,
+      "xMax" : 2,
+      "yMax" : 1
+    },
+    {
+      "id" : "nwell",
+      "layer" : "nwell",
+      "netID" : "bulk",
+      "xMin" : 1.5,
+      "yMin" : 0.25,
+      "xMax" : 2.5,
+      "yMax" : 0.75
+    }
+  ],
+  "rules" : [
+    {
+      "id" : "active.nwell.forbiddenOverlap",
+      "kind" : "forbiddenOverlap",
+      "layer" : "active",
+      "secondaryLayer" : "nwell",
+      "value" : 0
+    }
+  ]
+}

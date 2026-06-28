@@ -1,0 +1,80 @@
+{
+  "technologyID" : "drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer",
+  "rectangles" : [
+    {
+      "id" : "lower-a",
+      "layer" : "met1",
+      "netID" : "sig_a",
+      "xMax" : 2,
+      "xMin" : 0,
+      "yMax" : 2,
+      "yMin" : 0
+    },
+    {
+      "id" : "upper-a",
+      "layer" : "met2",
+      "netID" : "sig_a",
+      "xMax" : 2,
+      "xMin" : 0,
+      "yMax" : 2,
+      "yMin" : 0
+    },
+    {
+      "id" : "cut-a-1",
+      "layer" : "via1",
+      "netID" : "sig_a",
+      "xMax" : 1,
+      "xMin" : 0.5,
+      "yMax" : 1,
+      "yMin" : 0.5
+    },
+    {
+      "id" : "cut-a-2",
+      "layer" : "via1",
+      "netID" : "sig_a",
+      "xMax" : 1.6,
+      "xMin" : 1.1,
+      "yMax" : 1,
+      "yMin" : 0.5
+    },
+    {
+      "id" : "lower-b",
+      "layer" : "met1",
+      "netID" : "sig_b",
+      "xMax" : 6,
+      "xMin" : 4,
+      "yMax" : 2,
+      "yMin" : 0
+    },
+    {
+      "id" : "upper-b",
+      "layer" : "met2",
+      "netID" : "sig_b",
+      "xMax" : 6,
+      "xMin" : 4,
+      "yMax" : 2,
+      "yMin" : 0
+    },
+    {
+      "id" : "cut-b-1",
+      "layer" : "via1",
+      "netID" : "sig_b",
+      "xMax" : 5,
+      "xMin" : 4.5,
+      "yMax" : 1,
+      "yMin" : 0.5
+    }
+  ],
+  "rules" : [
+    {
+      "id" : "via1.minimumCut",
+      "kind" : "minimumCut",
+      "layer" : "via1",
+      "lowerLayer" : "met1",
+      "upperLayer" : "met2",
+      "value" : 2
+    }
+  ]
+}

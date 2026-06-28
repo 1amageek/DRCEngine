@@ -1,0 +1,1401 @@
+{
+  "schemaVersion" : 1,
+  "defaultMaxDurationSeconds" : 30,
+  "qualificationPolicy" : {
+    "requiredCoverageTags" : ["external.magic", "layout.gds", "sky130"]
+  },
+  "cases" : [
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-inverter-magic-drc",
+      "coverageTags" : ["external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "layoutFormat" : "gds",
+      "layoutPath" : "../../../../../PEXEngine/Tests/PEXAdaptersTests/Fixtures/inv1.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "sky130_fd_sc_hd__inv_1"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-inverter-magic-cut-count-clean",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "drc.cut.minimum.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "layoutFormat" : "gds",
+      "layoutPath" : "../../../../../PEXEngine/Tests/PEXAdaptersTests/Fixtures/inv1.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "sky130_fd_sc_hd__inv_1"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-plate-magic-cut-count-clean",
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "drc.cut.minimum.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "layoutFormat" : "gds",
+      "layoutPath" : "../../../../../PEXEngine/Tests/PEXRuntimeTests/Fixtures/pex_plate.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "pex_plate"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.external-oracle", "drc.width.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met1.1"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1WidthViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-width-clean",
+      "coverageTags" : ["drc.width", "drc.width.external-oracle", "drc.width.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1WidthClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.external-oracle", "drc.spacing.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met1.2"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1SpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.external-oracle", "drc.spacing.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1SpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-area-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.external-oracle", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met1.6"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1AreaViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-area-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_AREA_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-area-clean",
+      "coverageTags" : ["drc.area", "drc.area.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1AreaClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-area-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_AREA_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-angle-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.external-oracle", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["x.3a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1AngleViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-angle-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_ANGLE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-angle-clean",
+      "coverageTags" : ["drc.angle", "drc.angle.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1AngleClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-angle-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_ANGLE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-wide-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.external-oracle", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met1.3b"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1WideSpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-wide-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_WIDE_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-wide-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.external-oracle", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1WideSpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-wide-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_WIDE_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-large-attached-spacing-violation",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.external-oracle", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met1.3a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1LargeAttachedSpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-large-attached-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_LARGE_ATTACHED_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-large-attached-spacing-clean",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.external-oracle", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1LargeAttachedSpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-large-attached-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_LARGE_ATTACHED_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-mcon-enclosure-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met1.4", "met1.5"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1MCONEnclosureViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-mcon-enclosure-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_MCON_ENCLOSURE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met1-mcon-enclosure-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal1MCONEnclosureClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met1-mcon-enclosure-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET1_MCON_ENCLOSURE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-mcon-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.mcon", "drc.contact.width", "drc.contact.width.external-oracle", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["mcon.1"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMCONWidthViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-mcon-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MCON_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-mcon-width-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.mcon", "drc.contact.width", "drc.contact.width.external-oracle", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMCONWidthClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-mcon-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MCON_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-mcon-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.mcon", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["mcon.2"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMCONSpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-mcon-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MCON_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-mcon-spacing-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.mcon", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMCONSpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-mcon-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MCON_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via1-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via1", "drc.contact.width", "drc.contact.width.via1", "drc.contact.width.via1.external-oracle", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via.1a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA1WidthViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via1-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA1_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via1-width-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.via1", "drc.contact.width", "drc.contact.width.via1", "drc.contact.width.via1.external-oracle", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA1WidthClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via1-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA1_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via1-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via1", "drc.contact.spacing", "drc.contact.spacing.via1", "drc.contact.spacing.via1.external-oracle", "drc.contact.spacing.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via.2"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA1SpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via1-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA1_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via1-spacing-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.via1", "drc.contact.spacing", "drc.contact.spacing.via1", "drc.contact.spacing.via1.external-oracle", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA1SpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via1-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA1_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via1-met1-enclosure-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via1", "drc.enclosure.via1.met1", "drc.enclosure.via1.met1.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via.5a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA1Metal1EnclosureViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via1-met1-enclosure-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA1_MET1_ENCLOSURE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via1-met1-enclosure-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via1", "drc.enclosure.via1.met1", "drc.enclosure.via1.met1.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA1Metal1EnclosureClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via1-met1-enclosure-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA1_MET1_ENCLOSURE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via1-met2-enclosure-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via1", "drc.enclosure.via1.met2", "drc.enclosure.via1.met2.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met2.5"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA1Metal2EnclosureViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via1-met2-enclosure-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA1_MET2_ENCLOSURE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via1-met2-enclosure-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via1", "drc.enclosure.via1.met2", "drc.enclosure.via1.met2.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA1Metal2EnclosureClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via1-met2-enclosure-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA1_MET2_ENCLOSURE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met2", "drc.width.met2.external-oracle", "drc.width.met2.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met2.1"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2WidthViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-width-clean",
+      "coverageTags" : ["drc.width", "drc.width.met2", "drc.width.met2.external-oracle", "drc.width.met2.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2WidthClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met2", "drc.spacing.met2.external-oracle", "drc.spacing.met2.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met2.2"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2SpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.met2", "drc.spacing.met2.external-oracle", "drc.spacing.met2.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2SpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-area-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.met2", "drc.area.met2.external-oracle", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met2.6"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2AreaViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-area-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_AREA_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-area-clean",
+      "coverageTags" : ["drc.area", "drc.area.met2", "drc.area.met2.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2AreaClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-area-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_AREA_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-angle-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.met2", "drc.angle.met2.external-oracle", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["x.3a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2AngleViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-angle-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_ANGLE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-angle-clean",
+      "coverageTags" : ["drc.angle", "drc.angle.met2", "drc.angle.met2.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2AngleClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-angle-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_ANGLE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-wide-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met2", "drc.spacing.wide.met2.external-oracle", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met2.3b"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2WideSpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-wide-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_WIDE_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-wide-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met2", "drc.spacing.wide.met2.external-oracle", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2WideSpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-wide-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_WIDE_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-large-attached-spacing-violation",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met2", "drc.spacing.large-attached.met2.external-oracle", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met2.3a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2LargeAttachedSpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-large-attached-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_LARGE_ATTACHED_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met2-large-attached-spacing-clean",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met2", "drc.spacing.large-attached.met2.external-oracle", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal2LargeAttachedSpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met2-large-attached-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET2_LARGE_ATTACHED_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via2-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via2", "drc.contact.width", "drc.contact.width.via2", "drc.contact.width.via2.external-oracle", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via2.1a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA2WidthViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via2-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA2_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via2-width-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.via2", "drc.contact.width", "drc.contact.width.via2", "drc.contact.width.via2.external-oracle", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA2WidthClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via2-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA2_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via2-spacing-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.via2", "drc.contact.spacing", "drc.contact.spacing.via2", "drc.contact.spacing.via2.external-oracle", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA2SpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via2-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA2_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via2-met2-enclosure-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met2", "drc.enclosure.via2.met2.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via2.4a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA2Metal2EnclosureViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via2-met2-enclosure-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA2_MET2_ENCLOSURE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via2-met2-enclosure-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met2", "drc.enclosure.via2.met2.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA2Metal2EnclosureClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via2-met2-enclosure-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA2_MET2_ENCLOSURE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via2-met3-enclosure-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met3", "drc.enclosure.via2.met3.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met3.4"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA2Metal3EnclosureViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via2-met3-enclosure-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA2_MET3_ENCLOSURE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via2-met3-enclosure-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met3", "drc.enclosure.via2.met3.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA2Metal3EnclosureClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via2-met3-enclosure-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA2_MET3_ENCLOSURE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met3", "drc.width.met3.external-oracle", "drc.width.met3.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met3.1"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3WidthViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-width-clean",
+      "coverageTags" : ["drc.width", "drc.width.met3", "drc.width.met3.external-oracle", "drc.width.met3.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3WidthClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met3", "drc.spacing.met3.external-oracle", "drc.spacing.met3.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met3.2"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3SpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.met3", "drc.spacing.met3.external-oracle", "drc.spacing.met3.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3SpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-area-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.met3", "drc.area.met3.external-oracle", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met3.6"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3AreaViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-area-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_AREA_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-area-clean",
+      "coverageTags" : ["drc.area", "drc.area.met3", "drc.area.met3.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3AreaClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-area-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_AREA_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-angle-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.met3", "drc.angle.met3.external-oracle", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["x.3a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3AngleViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-angle-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_ANGLE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-angle-clean",
+      "coverageTags" : ["drc.angle", "drc.angle.met3", "drc.angle.met3.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3AngleClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-angle-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_ANGLE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-wide-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met3", "drc.spacing.wide.met3.external-oracle", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met3.3d"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3WideSpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-wide-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_WIDE_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-wide-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met3", "drc.spacing.wide.met3.external-oracle", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3WideSpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-wide-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_WIDE_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-large-attached-spacing-violation",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met3", "drc.spacing.large-attached.met3.external-oracle", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met3.3c"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3LargeAttachedSpacingViolation",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-large-attached-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_LARGE_ATTACHED_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met3-large-attached-spacing-clean",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met3", "drc.spacing.large-attached.met3.external-oracle", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal3LargeAttachedSpacingClean",
+        "technology" : "sky130MagicMetal1"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met3-large-attached-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET3_LARGE_ATTACHED_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via3-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via3", "drc.contact.width", "drc.contact.width.fail", "drc.contact.width.via3", "drc.contact.width.via3.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via3.1"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA3WidthViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via3-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA3_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via3-width-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.via3", "drc.contact.width", "drc.contact.width.pass", "drc.contact.width.via3", "drc.contact.width.via3.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA3WidthClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via3-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA3_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via3-spacing-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.spacing", "drc.contact.spacing.pass", "drc.contact.spacing.via3", "drc.contact.spacing.via3.external-oracle", "drc.contact.via3", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA3SpacingClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via3-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA3_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via3-met3-enclosure-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "drc.enclosure.via3", "drc.enclosure.via3.met3", "drc.enclosure.via3.met3.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via3.5"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA3Metal3EnclosureViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via3-met3-enclosure-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA3_MET3_ENCLOSURE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via3-met3-enclosure-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.pass", "drc.enclosure.via3", "drc.enclosure.via3.met3", "drc.enclosure.via3.met3.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA3Metal3EnclosureClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via3-met3-enclosure-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA3_MET3_ENCLOSURE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via3-met4-enclosure-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "drc.enclosure.via3", "drc.enclosure.via3.met4", "drc.enclosure.via3.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met4.3"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA3Metal4EnclosureViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via3-met4-enclosure-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA3_MET4_ENCLOSURE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via3-met4-enclosure-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.pass", "drc.enclosure.via3", "drc.enclosure.via3.met4", "drc.enclosure.via3.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA3Metal4EnclosureClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via3-met4-enclosure-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA3_MET4_ENCLOSURE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met4", "drc.width.met4.external-oracle", "drc.width.met4.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met4.1"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4WidthViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-width-clean",
+      "coverageTags" : ["drc.width", "drc.width.met4", "drc.width.met4.external-oracle", "drc.width.met4.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4WidthClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met4", "drc.spacing.met4.external-oracle", "drc.spacing.met4.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met4.2"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4SpacingViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.met4", "drc.spacing.met4.external-oracle", "drc.spacing.met4.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4SpacingClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-area-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.fail", "drc.area.met4", "drc.area.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met4.4a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4AreaViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-area-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_AREA_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-area-clean",
+      "coverageTags" : ["drc.area", "drc.area.met4", "drc.area.met4.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4AreaClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-area-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_AREA_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-angle-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.fail", "drc.angle.met4", "drc.angle.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["x.3a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4AngleViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-angle-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_ANGLE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-angle-clean",
+      "coverageTags" : ["drc.angle", "drc.angle.met4", "drc.angle.met4.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4AngleClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-angle-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_ANGLE_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-wide-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.fail", "drc.spacing.wide.met4", "drc.spacing.wide.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met4.5b"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4WideSpacingViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-wide-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_WIDE_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-wide-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met4", "drc.spacing.wide.met4.external-oracle", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4WideSpacingClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-wide-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_WIDE_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-large-attached-spacing-violation",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.fail", "drc.spacing.large-attached.met4", "drc.spacing.large-attached.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met4.5a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4LargeAttachedSpacingViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-large-attached-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_LARGE_ATTACHED_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met4-large-attached-spacing-clean",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met4", "drc.spacing.large-attached.met4.external-oracle", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal4LargeAttachedSpacingClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met4-large-attached-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET4_LARGE_ATTACHED_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via4-width-violation",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via4", "drc.contact.width", "drc.contact.width.via4", "drc.contact.width.via4.external-oracle", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via4.1"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA4WidthViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via4-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA4_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via4-width-clean",
+      "additionalEnvironment" : {
+        "MAGIC_DRC_STYLE" : "drc(full)"
+      },
+      "coverageTags" : ["drc.contact", "drc.contact.via4", "drc.contact.width", "drc.contact.width.via4", "drc.contact.width.via4.external-oracle", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicVIA4WidthClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-via4-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_VIA4_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met5-width-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met5", "drc.width.met5.external-oracle", "drc.width.met5.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met5.1"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal5WidthViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met5-width-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET5_WIDTH_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met5-width-clean",
+      "coverageTags" : ["drc.width", "drc.width.met5", "drc.width.met5.external-oracle", "drc.width.met5.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal5WidthClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met5-width-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET5_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met5-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met5", "drc.spacing.met5.external-oracle", "drc.spacing.met5.fail", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met5.2"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal5SpacingViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met5-spacing-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET5_SPACING_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met5-spacing-clean",
+      "coverageTags" : ["drc.spacing", "drc.spacing.met5", "drc.spacing.met5.external-oracle", "drc.spacing.met5.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal5SpacingClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met5-spacing-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET5_SPACING_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met5-area-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.fail", "drc.area.met5", "drc.area.met5.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met5.4"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal5AreaViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met5-area-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET5_AREA_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met5-area-clean",
+      "coverageTags" : ["drc.area", "drc.area.met5", "drc.area.met5.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal5AreaClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met5-area-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET5_AREA_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met5-angle-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.fail", "drc.angle.met5", "drc.angle.met5.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["x.3a"],
+      "expectedPassed" : false,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal5AngleViolation",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met5-angle-violation.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET5_ANGLE_VIOLATION"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-met5-angle-clean",
+      "coverageTags" : ["drc.angle", "drc.angle.met5", "drc.angle.met5.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "expectedPassed" : true,
+      "generatedLayoutFixture" : {
+        "format" : "gds",
+        "kind" : "sky130MagicMetal5AngleClean",
+        "technologyPath" : "sky130-magic-gds-export-profile.json"
+      },
+      "layoutFormat" : "gds",
+      "layoutPath" : "generated/sky130-magic-met5-angle-clean.gds",
+      "oracleBackendID" : "magic",
+      "topCell" : "SKY130_MET5_ANGLE_CLEAN"
+    }
+  ]
+}
