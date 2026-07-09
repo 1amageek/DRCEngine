@@ -7,6 +7,17 @@ public struct DRCMagicRuleImportCatalogInventoryBuilder: Sendable {
         var pdkRootURL: URL?
     }
 
+    private struct DiscoveryDirectory: Sendable {
+        var url: URL
+        var depth: Int
+    }
+
+    private struct DiscoveryChild: Sendable {
+        var url: URL
+        var isDirectory: Bool
+        var isSymbolicLink: Bool
+    }
+
     public let maxDiscoveryDepth: Int
     public let maxDiscoveredCatalogsPerRoot: Int
 
@@ -179,20 +190,47 @@ public struct DRCMagicRuleImportCatalogInventoryBuilder: Sendable {
         let resolvedURL = resolvedURL(for: requiredFile.path, catalogURL: catalogURL, pdkRootURL: pdkRootURL)
         let resolvedPath = resolvedURL.path(percentEncoded: false)
         let exists = FileManager.default.fileExists(atPath: resolvedPath)
-        let issue = exists ? nil : DRCMagicRuleImportCatalogInventoryIssue(
-            code: "required-file-missing",
-            message: "Catalog required file is missing.",
-            path: resolvedPath,
-            field: "requiredFiles.\(requiredFile.purpose)"
-        )
+        var issues: [DRCMagicRuleImportCatalogInventoryIssue] = []
+        if !exists {
+            issues.append(DRCMagicRuleImportCatalogInventoryIssue(
+                code: "required-file-missing",
+                message: "Catalog required file is missing.",
+                path: resolvedPath,
+                field: "requiredFiles.\(requiredFile.purpose)"
+            ))
+        }
+        if let issue = requiredFileBoundaryIssue(
+            resolvedURL: resolvedURL,
+            requiredFile: requiredFile,
+            pdkRootURL: pdkRootURL
+        ) {
+            issues.append(issue)
+        }
         return DRCMagicRuleImportCatalogRequiredFileInventory(
             purpose: requiredFile.purpose,
             declaredPath: requiredFile.path,
             resolvedPath: resolvedPath,
             exists: exists,
-            status: exists ? .passed : .failed,
-            issues: issue.map { [$0] } ?? []
+            status: issues.isEmpty ? .passed : .failed,
+            issues: issues
         )
+    }
+
+    private func requiredFileBoundaryIssue(
+        resolvedURL: URL,
+        requiredFile: DRCMagicRuleImportCatalog.RequiredFile,
+        pdkRootURL: URL?
+    ) -> DRCMagicRuleImportCatalogInventoryIssue? {
+        guard let pdkRootURL else { return nil }
+        guard isResolvedURL(resolvedURL, insideOrEqualTo: pdkRootURL) else {
+            return DRCMagicRuleImportCatalogInventoryIssue(
+                code: "required-file-outside-pdk-root",
+                message: "Catalog required file resolves outside the PDK root.",
+                path: resolvedURL.path(percentEncoded: false),
+                field: "requiredFiles.\(requiredFile.purpose)"
+            )
+        }
+        return nil
     }
 
     private func discoverCatalogs(
@@ -200,66 +238,94 @@ public struct DRCMagicRuleImportCatalogInventoryBuilder: Sendable {
         requireCatalog: Bool
     ) -> (inventory: DRCMagicRuleImportCatalogRootInventory, catalogURLs: [URL]) {
         let rootPath = pdkRootURL.path(percentEncoded: false)
-        guard FileManager.default.fileExists(atPath: rootPath) else {
-            let issue = DRCMagicRuleImportCatalogInventoryIssue(
-                code: "pdk-root-missing",
-                message: "PDK root does not exist.",
-                path: rootPath
-            )
-            return (
-                DRCMagicRuleImportCatalogRootInventory(
-                    pdkRootPath: rootPath,
-                    discoveredCatalogPaths: [],
-                    status: .failed,
-                    issues: [issue]
-                ),
-                []
-            )
+        if let issue = pdkRootIssue(for: pdkRootURL) {
+            return failedDiscoveryResult(rootPath: rootPath, issue: issue)
         }
 
         var discovered: [URL] = []
         var issues: [DRCMagicRuleImportCatalogInventoryIssue] = []
-        var queue: [(url: URL, depth: Int)] = [(pdkRootURL, 0)]
+        if maxDiscoveredCatalogsPerRoot <= 0 {
+            issues.append(catalogDiscoveryLimitIssue(path: rootPath))
+            return discoveryResult(
+                rootPath: rootPath,
+                discovered: discovered,
+                issues: issues,
+                requireCatalog: requireCatalog
+            )
+        }
+
+        var queue: [DiscoveryDirectory] = [DiscoveryDirectory(url: pdkRootURL, depth: 0)]
+        var visitedDirectoryPaths: Set<String> = []
+        var catalogLimitReported = false
         while !queue.isEmpty && discovered.count < maxDiscoveredCatalogsPerRoot {
             let next = queue.removeFirst()
             guard next.depth <= maxDiscoveryDepth else { continue }
-            let children: [URL]
-            do {
-                children = try FileManager.default.contentsOfDirectory(
-                    at: next.url,
-                    includingPropertiesForKeys: [.isDirectoryKey],
-                    options: [.skipsHiddenFiles]
-                )
-            } catch {
-                issues.append(DRCMagicRuleImportCatalogInventoryIssue(
-                    code: "catalog-discovery-read-failed",
-                    message: "Directory could not be read during catalog discovery: \(error.localizedDescription)",
-                    path: next.url.path(percentEncoded: false)
-                ))
+            let canonicalDirectoryPath = next.url.resolvingSymlinksInPath().path(percentEncoded: false)
+            guard visitedDirectoryPaths.insert(canonicalDirectoryPath).inserted else {
                 continue
             }
-            for child in children.sorted(by: { $0.path(percentEncoded: false) < $1.path(percentEncoded: false) }) {
-                if child.lastPathComponent == "magic-rule-import-catalog.json" {
-                    discovered.append(child)
+
+            let directoryContents: (children: [DiscoveryChild], issues: [DRCMagicRuleImportCatalogInventoryIssue])
+            do {
+                directoryContents = try discoveryChildren(in: next.url)
+            } catch {
+                issues.append(catalogDiscoveryReadIssue(directoryURL: next.url, error: error))
+                continue
+            }
+            issues.append(contentsOf: directoryContents.issues)
+            for child in directoryContents.children.sorted(by: discoveryChildSort) {
+                if child.isSymbolicLink {
+                    issues.append(catalogDiscoverySymlinkIssue(url: child.url))
                     continue
                 }
-                do {
-                    let values = try child.resourceValues(forKeys: [.isDirectoryKey])
-                    guard values.isDirectory == true else { continue }
-                    queue.append((child, next.depth + 1))
-                } catch {
-                    issues.append(DRCMagicRuleImportCatalogInventoryIssue(
-                        code: "catalog-discovery-resource-failed",
-                        message: "Path metadata could not be read during catalog discovery: \(error.localizedDescription)",
-                        path: child.path(percentEncoded: false)
-                    ))
+
+                if child.url.lastPathComponent == "magic-rule-import-catalog.json" {
+                    if child.isDirectory {
+                        issues.append(catalogDiscoveryCatalogDirectoryIssue(url: child.url))
+                        continue
+                    }
+                    guard appendDiscoveredCatalog(
+                        child.url,
+                        discovered: &discovered,
+                        issues: &issues,
+                        catalogLimitReported: &catalogLimitReported
+                    ) else {
+                        break
+                    }
+                    if discovered.count >= maxDiscoveredCatalogsPerRoot {
+                        break
+                    }
+                    continue
+                }
+
+                if child.isDirectory {
+                    queue.append(DiscoveryDirectory(url: child.url, depth: next.depth + 1))
                 }
             }
         }
 
+        if discovered.count >= maxDiscoveredCatalogsPerRoot && !queue.isEmpty && !catalogLimitReported {
+            issues.append(catalogDiscoveryLimitIssue(path: rootPath))
+        }
+
+        return discoveryResult(
+            rootPath: rootPath,
+            discovered: discovered,
+            issues: issues,
+            requireCatalog: requireCatalog
+        )
+    }
+
+    private func discoveryResult(
+        rootPath: String,
+        discovered: [URL],
+        issues: [DRCMagicRuleImportCatalogInventoryIssue],
+        requireCatalog: Bool
+    ) -> (inventory: DRCMagicRuleImportCatalogRootInventory, catalogURLs: [URL]) {
         let paths = discovered.map { $0.path(percentEncoded: false) }
+        var resultIssues = issues
         if paths.isEmpty && requireCatalog {
-            issues.append(DRCMagicRuleImportCatalogInventoryIssue(
+            resultIssues.append(DRCMagicRuleImportCatalogInventoryIssue(
                 code: "no-catalogs-found",
                 message: "No magic-rule-import-catalog.json files were discovered under the PDK root.",
                 path: rootPath
@@ -269,10 +335,138 @@ public struct DRCMagicRuleImportCatalogInventoryBuilder: Sendable {
             DRCMagicRuleImportCatalogRootInventory(
                 pdkRootPath: rootPath,
                 discoveredCatalogPaths: paths,
-                status: issues.isEmpty ? .passed : .failed,
-                issues: issues
+                status: resultIssues.isEmpty ? .passed : .failed,
+                issues: resultIssues
             ),
             discovered
+        )
+    }
+
+    private func pdkRootIssue(for pdkRootURL: URL) -> DRCMagicRuleImportCatalogInventoryIssue? {
+        let rootPath = pdkRootURL.path(percentEncoded: false)
+        var isDirectory = ObjCBool(false)
+        guard FileManager.default.fileExists(atPath: rootPath, isDirectory: &isDirectory) else {
+            return DRCMagicRuleImportCatalogInventoryIssue(
+                code: "pdk-root-missing",
+                message: "PDK root does not exist.",
+                path: rootPath
+            )
+        }
+        guard isDirectory.boolValue else {
+            return DRCMagicRuleImportCatalogInventoryIssue(
+                code: "pdk-root-not-directory",
+                message: "PDK root must be a directory.",
+                path: rootPath
+            )
+        }
+        return nil
+    }
+
+    private func failedDiscoveryResult(
+        rootPath: String,
+        issue: DRCMagicRuleImportCatalogInventoryIssue
+    ) -> (inventory: DRCMagicRuleImportCatalogRootInventory, catalogURLs: [URL]) {
+        (
+            DRCMagicRuleImportCatalogRootInventory(
+                pdkRootPath: rootPath,
+                discoveredCatalogPaths: [],
+                status: .failed,
+                issues: [issue]
+            ),
+            []
+        )
+    }
+
+    private func discoveryChildren(
+        in directoryURL: URL
+    ) throws -> (children: [DiscoveryChild], issues: [DRCMagicRuleImportCatalogInventoryIssue]) {
+        let children = try FileManager.default.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: [.skipsHiddenFiles]
+        )
+        var discoveredChildren: [DiscoveryChild] = []
+        var issues: [DRCMagicRuleImportCatalogInventoryIssue] = []
+        for child in children {
+            do {
+                let values = try child.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                discoveredChildren.append(DiscoveryChild(
+                    url: child,
+                    isDirectory: values.isDirectory == true,
+                    isSymbolicLink: values.isSymbolicLink == true
+                ))
+            } catch {
+                issues.append(catalogDiscoveryResourceIssue(url: child, error: error))
+            }
+        }
+        return (discoveredChildren, issues)
+    }
+
+    private func discoveryChildSort(_ lhs: DiscoveryChild, _ rhs: DiscoveryChild) -> Bool {
+        lhs.url.path(percentEncoded: false) < rhs.url.path(percentEncoded: false)
+    }
+
+    private func appendDiscoveredCatalog(
+        _ catalogURL: URL,
+        discovered: inout [URL],
+        issues: inout [DRCMagicRuleImportCatalogInventoryIssue],
+        catalogLimitReported: inout Bool
+    ) -> Bool {
+        guard discovered.count < maxDiscoveredCatalogsPerRoot else {
+            if !catalogLimitReported {
+                issues.append(catalogDiscoveryLimitIssue(path: catalogURL.path(percentEncoded: false)))
+                catalogLimitReported = true
+            }
+            return false
+        }
+        discovered.append(catalogURL)
+        return true
+    }
+
+    private func catalogDiscoveryLimitIssue(path: String) -> DRCMagicRuleImportCatalogInventoryIssue {
+        DRCMagicRuleImportCatalogInventoryIssue(
+            code: "catalog-discovery-limit-reached",
+            message: "Catalog discovery reached maxDiscoveredCatalogsPerRoot before scanning all candidates.",
+            path: path,
+            field: "maxDiscoveredCatalogsPerRoot"
+        )
+    }
+
+    private func catalogDiscoveryReadIssue(
+        directoryURL: URL,
+        error: Error
+    ) -> DRCMagicRuleImportCatalogInventoryIssue {
+        DRCMagicRuleImportCatalogInventoryIssue(
+            code: "catalog-discovery-read-failed",
+            message: "Directory could not be read during catalog discovery: \(error.localizedDescription)",
+            path: directoryURL.path(percentEncoded: false)
+        )
+    }
+
+    private func catalogDiscoveryResourceIssue(
+        url: URL,
+        error: Error
+    ) -> DRCMagicRuleImportCatalogInventoryIssue {
+        DRCMagicRuleImportCatalogInventoryIssue(
+            code: "catalog-discovery-resource-failed",
+            message: "Path metadata could not be read during catalog discovery: \(error.localizedDescription)",
+            path: url.path(percentEncoded: false)
+        )
+    }
+
+    private func catalogDiscoverySymlinkIssue(url: URL) -> DRCMagicRuleImportCatalogInventoryIssue {
+        DRCMagicRuleImportCatalogInventoryIssue(
+            code: "catalog-discovery-symlink-skipped",
+            message: "Catalog discovery skipped a symbolic link to keep PDK-root traversal bounded.",
+            path: url.path(percentEncoded: false)
+        )
+    }
+
+    private func catalogDiscoveryCatalogDirectoryIssue(url: URL) -> DRCMagicRuleImportCatalogInventoryIssue {
+        DRCMagicRuleImportCatalogInventoryIssue(
+            code: "catalog-discovery-catalog-path-not-file",
+            message: "Catalog discovery found a directory named magic-rule-import-catalog.json.",
+            path: url.path(percentEncoded: false)
         )
     }
 
@@ -297,6 +491,12 @@ public struct DRCMagicRuleImportCatalogInventoryBuilder: Sendable {
             ? String(rootPath.dropLast())
             : rootPath
         return path == normalizedRoot || path.hasPrefix("\(normalizedRoot)/")
+    }
+
+    private func isResolvedURL(_ url: URL, insideOrEqualTo rootURL: URL) -> Bool {
+        let resolvedPath = url.standardizedFileURL.resolvingSymlinksInPath().path(percentEncoded: false)
+        let rootPath = rootURL.standardizedFileURL.resolvingSymlinksInPath().path(percentEncoded: false)
+        return isPath(resolvedPath, insideOrEqualTo: rootPath)
     }
 
     private func resolvedURL(for path: String, catalogURL: URL, pdkRootURL: URL?) -> URL {

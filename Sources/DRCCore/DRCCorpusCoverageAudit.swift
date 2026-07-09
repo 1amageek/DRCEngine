@@ -13,6 +13,7 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
     public let reportPath: String?
     public let summary: Summary
     public let observedCoverageTags: [String]
+    public let coverageFamilies: [CoverageFamilySummary]
     public let missingRequirements: [MissingRequirement]
     public let suggestedActions: [SuggestedAction]
 
@@ -24,6 +25,7 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
         reportPath: String? = nil,
         summary: Summary,
         observedCoverageTags: [String],
+        coverageFamilies: [CoverageFamilySummary] = [],
         missingRequirements: [MissingRequirement] = [],
         suggestedActions: [SuggestedAction] = []
     ) {
@@ -34,12 +36,54 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
         self.reportPath = reportPath
         self.summary = summary
         self.observedCoverageTags = Array(Set(observedCoverageTags.filter { !$0.isEmpty })).sorted()
+        self.coverageFamilies = coverageFamilies.sorted { lhs, rhs in
+            lhs.familyID < rhs.familyID
+        }
         self.missingRequirements = missingRequirements.sorted { lhs, rhs in
             lhs.requirementID < rhs.requirementID
         }
         self.suggestedActions = suggestedActions.sorted { lhs, rhs in
             lhs.actionID < rhs.actionID
         }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case auditID
+        case status
+        case policyID
+        case reportPath
+        case summary
+        case observedCoverageTags
+        case coverageFamilies
+        case missingRequirements
+        case suggestedActions
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            schemaVersion: try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
+                ?? DRCCorpusCoverageAudit.currentSchemaVersion,
+            auditID: try container.decode(String.self, forKey: .auditID),
+            status: try container.decode(DRCCorpusCoverageAuditStatus.self, forKey: .status),
+            policyID: try container.decode(String.self, forKey: .policyID),
+            reportPath: try container.decodeIfPresent(String.self, forKey: .reportPath),
+            summary: try container.decode(Summary.self, forKey: .summary),
+            observedCoverageTags: try container.decodeIfPresent([String].self, forKey: .observedCoverageTags) ?? [],
+            coverageFamilies: try container.decodeIfPresent(
+                [CoverageFamilySummary].self,
+                forKey: .coverageFamilies
+            ) ?? [],
+            missingRequirements: try container.decodeIfPresent(
+                [MissingRequirement].self,
+                forKey: .missingRequirements
+            ) ?? [],
+            suggestedActions: try container.decodeIfPresent(
+                [SuggestedAction].self,
+                forKey: .suggestedActions
+            ) ?? []
+        )
     }
 
     public struct Summary: Sendable, Hashable, Codable {
@@ -58,6 +102,9 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
         public let observedCoverageTagCount: Int
         public let requiredCoverageTagCount: Int
         public let coveredRequiredCoverageTagCount: Int
+        public let reportGeneratedAt: String?
+        public let checkedAt: String?
+        public let reportAgeSeconds: Double?
 
         public init(
             caseCount: Int,
@@ -74,7 +121,10 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
             missingRequirementCount: Int,
             observedCoverageTagCount: Int,
             requiredCoverageTagCount: Int,
-            coveredRequiredCoverageTagCount: Int
+            coveredRequiredCoverageTagCount: Int,
+            reportGeneratedAt: String? = nil,
+            checkedAt: String? = nil,
+            reportAgeSeconds: Double? = nil
         ) {
             self.caseCount = caseCount
             self.matchedCaseCount = matchedCaseCount
@@ -91,6 +141,50 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
             self.observedCoverageTagCount = observedCoverageTagCount
             self.requiredCoverageTagCount = requiredCoverageTagCount
             self.coveredRequiredCoverageTagCount = coveredRequiredCoverageTagCount
+            self.reportGeneratedAt = reportGeneratedAt
+            self.checkedAt = checkedAt
+            self.reportAgeSeconds = reportAgeSeconds
+        }
+    }
+
+    public struct CoverageFamilySummary: Sendable, Hashable, Codable {
+        public let familyID: String
+        public let observedCoverageTags: [String]
+        public let requiredCoverageTags: [String]
+        public let coveredRequiredCoverageTags: [String]
+        public let missingRequiredCoverageTags: [String]
+        public let observedCaseCount: Int
+        public let requiredRequirementCount: Int
+        public let satisfiedRequirementCount: Int
+        public let missingRequirementCount: Int
+        public let coveragePassRate: Double
+
+        public init(
+            familyID: String,
+            observedCoverageTags: [String],
+            requiredCoverageTags: [String],
+            coveredRequiredCoverageTags: [String],
+            missingRequiredCoverageTags: [String],
+            observedCaseCount: Int,
+            requiredRequirementCount: Int,
+            satisfiedRequirementCount: Int,
+            missingRequirementCount: Int,
+            coveragePassRate: Double
+        ) {
+            self.familyID = familyID
+            self.observedCoverageTags = Self.normalized(observedCoverageTags)
+            self.requiredCoverageTags = Self.normalized(requiredCoverageTags)
+            self.coveredRequiredCoverageTags = Self.normalized(coveredRequiredCoverageTags)
+            self.missingRequiredCoverageTags = Self.normalized(missingRequiredCoverageTags)
+            self.observedCaseCount = observedCaseCount
+            self.requiredRequirementCount = requiredRequirementCount
+            self.satisfiedRequirementCount = satisfiedRequirementCount
+            self.missingRequirementCount = missingRequirementCount
+            self.coveragePassRate = coveragePassRate
+        }
+
+        private static func normalized(_ values: [String]) -> [String] {
+            Array(Set(values.filter { !$0.isEmpty })).sorted()
         }
     }
 

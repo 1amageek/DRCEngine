@@ -124,6 +124,126 @@ struct MagicDRCAdapterTests {
         #expect(didThrowExpectedError)
     }
 
+    @Test func unsupportedLayoutFormatIsRejectedBeforeLaunchingMagic() async throws {
+        let directory = try makeTemporaryDirectory()
+        let launchedMarker = directory.appending(path: "launched")
+        let oasisURL = directory.appending(path: "layout.oas")
+        try "not-oasis".write(to: oasisURL, atomically: true, encoding: .utf8)
+        let executableURL = try makeExecutableScript(
+            in: directory,
+            name: "fake-magic-unsupported-format",
+            body: """
+            #!/bin/sh
+            touch \(shellSingleQuoted(launchedMarker.path(percentEncoded: false)))
+            """
+        )
+        let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            magicExecutableURL: executableURL,
+            rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
+            pdkRoot: "/tmp/pdk",
+            driverScriptURL: URL(filePath: "/tmp/drc.tcl")
+        ))
+        let request = DRCRequest(
+            layoutURL: oasisURL,
+            topCell: "inv",
+            layoutFormat: .oasis,
+            workingDirectory: directory
+        )
+
+        do {
+            _ = try await adapter.run(request)
+            Issue.record("Expected Magic DRC unsupported format rejection")
+        } catch let error as DRCError {
+            guard case .invalidInput(let message) = error else {
+                Issue.record("Unexpected DRC error: \(error)")
+                return
+            }
+            #expect(message.contains("supports only GDSII or Magic layout inputs"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        #expect(!FileManager.default.fileExists(atPath: launchedMarker.path(percentEncoded: false)))
+    }
+
+    @Test func unknownAutoLayoutExtensionIsRejectedBeforeLaunchingMagic() async throws {
+        let directory = try makeTemporaryDirectory()
+        let launchedMarker = directory.appending(path: "launched")
+        let unknownLayoutURL = directory.appending(path: "layout.layout")
+        try "not-gds-or-magic".write(to: unknownLayoutURL, atomically: true, encoding: .utf8)
+        let executableURL = try makeExecutableScript(
+            in: directory,
+            name: "fake-magic-unknown-auto-format",
+            body: """
+            #!/bin/sh
+            touch \(shellSingleQuoted(launchedMarker.path(percentEncoded: false)))
+            """
+        )
+        let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            magicExecutableURL: executableURL,
+            rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
+            pdkRoot: "/tmp/pdk",
+            driverScriptURL: URL(filePath: "/tmp/drc.tcl")
+        ))
+        let request = DRCRequest(
+            layoutURL: unknownLayoutURL,
+            topCell: "inv",
+            layoutFormat: .auto,
+            workingDirectory: directory
+        )
+
+        do {
+            _ = try await adapter.run(request)
+            Issue.record("Expected Magic DRC unknown auto-format rejection")
+        } catch let error as DRCError {
+            guard case .invalidInput(let message) = error else {
+                Issue.record("Unexpected DRC error: \(error)")
+                return
+            }
+            #expect(message.contains("auto layout format requires a .gds or .mag extension"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        #expect(!FileManager.default.fileExists(atPath: launchedMarker.path(percentEncoded: false)))
+    }
+
+    @Test func emptyTopCellIsRejectedBeforeLaunchingMagic() async throws {
+        let directory = try makeTemporaryDirectory()
+        let launchedMarker = directory.appending(path: "launched")
+        let executableURL = try makeExecutableScript(
+            in: directory,
+            name: "fake-magic-empty-top",
+            body: """
+            #!/bin/sh
+            touch \(shellSingleQuoted(launchedMarker.path(percentEncoded: false)))
+            """
+        )
+        let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            magicExecutableURL: executableURL,
+            rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
+            pdkRoot: "/tmp/pdk",
+            driverScriptURL: URL(filePath: "/tmp/drc.tcl")
+        ))
+        let request = DRCRequest(
+            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            topCell: " \t ",
+            workingDirectory: directory
+        )
+
+        do {
+            _ = try await adapter.run(request)
+            Issue.record("Expected Magic DRC empty top-cell rejection")
+        } catch let error as DRCError {
+            guard case .invalidInput(let message) = error else {
+                Issue.record("Unexpected DRC error: \(error)")
+                return
+            }
+            #expect(message == "topCell must not be empty")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        #expect(!FileManager.default.fileExists(atPath: launchedMarker.path(percentEncoded: false)))
+    }
+
     @Test func repeatedRunsUseDistinctLogArtifacts() async throws {
         let directory = try makeTemporaryDirectory()
         let executableURL = try makeExecutableScript(
@@ -160,33 +280,12 @@ struct MagicDRCAdapterTests {
 
     @Test(.timeLimit(.minutes(1)))
     func cancellationCheckTerminatesMagicProcessTree() async throws {
-        let directory = try makeTemporaryDirectory()
-        let childSurvived = directory.appending(path: "child-survived")
-        let executableURL = try makeExecutableScript(
-            in: directory,
-            name: "fake-magic-cancel",
-            body: """
-            #!/bin/sh
-            trap '' TERM
-            (
-                trap '' TERM
-                sleep 1
-                touch \(shellSingleQuoted(childSurvived.path(percentEncoded: false)))
-            ) &
-            echo "DRC_STARTED"
-            sleep 10
-            """
-        )
-        let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
-            magicExecutableURL: executableURL,
-            rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
-            pdkRoot: "/tmp/pdk",
-            driverScriptURL: URL(filePath: "/tmp/drc.tcl")
-        ))
+        let fixture = try makeCancellationFixture()
+        let adapter = makeAdapter(executableURL: fixture.executableURL)
         let request = DRCRequest(
             layoutURL: URL(filePath: "/tmp/inverter.gds"),
             topCell: "inv",
-            workingDirectory: directory,
+            workingDirectory: fixture.directory,
             options: DRCOptions(timeoutSeconds: 5)
         )
         let probe = CancellationProbe()
@@ -202,25 +301,10 @@ struct MagicDRCAdapterTests {
         try await Task.sleep(nanoseconds: 200_000_000)
         probe.cancel()
 
-        do {
-            _ = try await task.value
-            Issue.record("Expected Magic DRC cancellation")
-        } catch let error as DRCError {
-            switch error {
-            case .cancelled:
-                break
-            default:
-                Issue.record("Unexpected DRC error: \(error)")
-            }
-        } catch {
-            Issue.record("Unexpected cancellation error: \(error)")
-        }
+        await expectMagicDRCCancellation(from: task)
 
         try await Task.sleep(nanoseconds: 1_300_000_000)
-        let didChildSurvive = FileManager.default.fileExists(atPath: childSurvived.path(percentEncoded: false))
-        if didChildSurvive {
-            Issue.record("Magic DRC child process survived cancellation")
-        }
+        assertNoChildProcessSurvived(fixture.childSurvived)
     }
 
     private func makeTemporaryDirectory() throws -> URL {
@@ -238,6 +322,69 @@ struct MagicDRCAdapterTests {
             ofItemAtPath: scriptURL.path(percentEncoded: false)
         )
         return scriptURL
+    }
+
+    private struct CancellationFixture {
+        let directory: URL
+        let childSurvived: URL
+        let executableURL: URL
+    }
+
+    private func makeCancellationFixture() throws -> CancellationFixture {
+        let directory = try makeTemporaryDirectory()
+        let childSurvived = directory.appending(path: "child-survived")
+        let executableURL = try makeExecutableScript(
+            in: directory,
+            name: "fake-magic-cancel",
+            body: """
+            #!/bin/sh
+            trap '' TERM
+            (
+                trap '' TERM
+                sleep 1
+                touch \(shellSingleQuoted(childSurvived.path(percentEncoded: false)))
+            ) &
+            echo "DRC_STARTED"
+            sleep 10
+            """
+        )
+        return CancellationFixture(
+            directory: directory,
+            childSurvived: childSurvived,
+            executableURL: executableURL
+        )
+    }
+
+    private func makeAdapter(executableURL: URL) -> MagicDRCAdapter {
+        MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            magicExecutableURL: executableURL,
+            rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
+            pdkRoot: "/tmp/pdk",
+            driverScriptURL: URL(filePath: "/tmp/drc.tcl")
+        ))
+    }
+
+    private func expectMagicDRCCancellation(from task: Task<DRCExecutionResult, Error>) async {
+        do {
+            _ = try await task.value
+            Issue.record("Expected Magic DRC cancellation")
+        } catch let error as DRCError {
+            switch error {
+            case .cancelled:
+                break
+            default:
+                Issue.record("Unexpected DRC error: \(error)")
+            }
+        } catch {
+            Issue.record("Unexpected cancellation error: \(error)")
+        }
+    }
+
+    private func assertNoChildProcessSurvived(_ childSurvived: URL) {
+        let didChildSurvive = FileManager.default.fileExists(atPath: childSurvived.path(percentEncoded: false))
+        if didChildSurvive {
+            Issue.record("Magic DRC child process survived cancellation")
+        }
     }
 
     private func shellSingleQuoted(_ value: String) -> String {

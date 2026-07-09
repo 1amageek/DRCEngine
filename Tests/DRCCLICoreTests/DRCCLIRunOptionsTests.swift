@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Testing
 import DRCCore
 import DRCCLICore
@@ -145,10 +146,325 @@ extension DRCCLIOptionsTests {
 
         #expect(report.result.passed)
         #expect(canonicalPath(report.artifactManifestURL) == canonicalPath(manifestURL))
+        #expect(manifest.schemaVersion == 1)
         #expect(manifest.backendID == "native")
+        #expect(manifest.toolName == "NativeDRC")
         #expect(manifest.passed)
-        #expect(manifest.inputs.contains { $0.id == "input-layout" && $0.sha256 != nil })
-        #expect(manifest.outputs.contains { $0.id == "report" && $0.sha256 != nil })
+        #expect(manifest.completed)
+        #expect(manifest.diagnosticSummary.infoCount == 0)
+        #expect(manifest.diagnosticSummary.warningCount == 0)
+        #expect(manifest.diagnosticSummary.errorCount == 0)
+        #expect(manifest.diagnosticSummary.waivedErrorCount == 0)
+
+        let inputLayout = try #require(manifest.inputs.first { $0.id == "input-layout" })
+        let reportOutput = try #require(manifest.outputs.first { $0.id == "report" })
+        let manifestOutput = try #require(manifest.outputs.first { $0.id == "manifest" })
+        let layoutData = try Data(contentsOf: layoutURL)
+        let reportData = try Data(contentsOf: reportURL)
+
+        #expect(inputLayout.kind == .layout)
+        #expect(!inputLayout.path.hasPrefix("/"))
+        #expect(inputLayout.path.hasPrefix("retained-artifacts/input-layout/"))
+        #expect(FileManager.default.fileExists(
+            atPath: outputDirectory.appending(path: inputLayout.path).path(percentEncoded: false)
+        ))
+        #expect(inputLayout.byteCount == layoutData.count)
+        #expect(inputLayout.sha256 == sha256(layoutData))
+        #expect(reportOutput.kind == .report)
+        #expect(reportOutput.path == reportURL.lastPathComponent)
+        #expect(reportOutput.byteCount == reportData.count)
+        #expect(reportOutput.sha256 == sha256(reportData))
+        #expect(manifestOutput.kind == .manifest)
+        #expect(manifestOutput.path == manifestURL.lastPathComponent)
+        #expect(manifestOutput.byteCount == nil)
+        #expect(manifestOutput.sha256 == nil)
+    }
+
+    @Test func nativeCLIWritesFailureReportAndManifestWithDiagnostics() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let outputDirectory = root.appending(path: "artifacts")
+        let layoutURL = root.appending(path: "layout.json")
+        try """
+        {
+          "rectangles" : [
+            { "id" : "thin", "layer" : "met1", "xMax" : 0.1, "xMin" : 0, "yMax" : 1, "yMin" : 0 }
+          ],
+          "rules" : [
+            { "id" : "met1.width", "kind" : "minimumWidth", "layer" : "met1", "value" : 0.5 }
+          ],
+          "technologyID" : "cli-test-tech",
+          "topCell" : "inv",
+          "unit" : "micrometer"
+        }
+        """.write(to: layoutURL, atomically: true, encoding: .utf8)
+
+        let exitCode = await DRCCLI.run(arguments: [
+            "--layout", layoutURL.path(percentEncoded: false),
+            "--top-cell", "inv",
+            "--backend", "native",
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(exitCode == 2)
+        let reportURL = try onlyArtifact(in: outputDirectory, prefix: "drc-report-")
+        let manifestURL = try onlyArtifact(in: outputDirectory, prefix: "drc-artifact-manifest-")
+        let reportData = try Data(contentsOf: reportURL)
+        let report = try JSONDecoder().decode(DRCExecutionResult.self, from: reportData)
+        let manifest = try JSONDecoder().decode(DRCArtifactManifest.self, from: Data(contentsOf: manifestURL))
+
+        #expect(!report.result.passed)
+        #expect(report.result.completed)
+        #expect(canonicalPath(report.artifactManifestURL) == canonicalPath(manifestURL))
+        let diagnostic = try #require(report.result.diagnostics.first)
+        #expect(report.result.diagnostics.count == 1)
+        #expect(diagnostic.severity == .error)
+        #expect(diagnostic.ruleID == "met1.width")
+        #expect(diagnostic.kind == "minimumWidth")
+        #expect(diagnostic.layer == "met1")
+        #expect(diagnostic.relatedShapeIDs == ["thin"])
+        #expect(diagnostic.measured == 0.1)
+        #expect(diagnostic.required == 0.5)
+        #expect(diagnostic.suggestedFix != nil)
+
+        #expect(!manifest.passed)
+        #expect(manifest.completed)
+        #expect(manifest.diagnosticSummary.infoCount == 0)
+        #expect(manifest.diagnosticSummary.warningCount == 0)
+        #expect(manifest.diagnosticSummary.errorCount == 1)
+        #expect(manifest.diagnosticSummary.waivedErrorCount == 0)
+        #expect(manifest.waiverReport == nil)
+
+        let inputLayout = try #require(manifest.inputs.first { $0.id == "input-layout" })
+        let reportOutput = try #require(manifest.outputs.first { $0.id == "report" })
+        let manifestOutput = try #require(manifest.outputs.first { $0.id == "manifest" })
+        let layoutData = try Data(contentsOf: layoutURL)
+
+        #expect(inputLayout.kind == .layout)
+        #expect(inputLayout.byteCount == layoutData.count)
+        #expect(inputLayout.sha256 == sha256(layoutData))
+        #expect(reportOutput.kind == .report)
+        #expect(reportOutput.path == reportURL.lastPathComponent)
+        #expect(reportOutput.byteCount == reportData.count)
+        #expect(reportOutput.sha256 == sha256(reportData))
+        #expect(manifestOutput.kind == .manifest)
+        #expect(manifestOutput.path == manifestURL.lastPathComponent)
+        #expect(manifestOutput.byteCount == nil)
+        #expect(manifestOutput.sha256 == nil)
+    }
+
+    @Test func nativeCLIInvocationJSONOutputMatchesPersistedFailureArtifacts() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let outputDirectory = root.appending(path: "artifacts")
+        let layoutURL = root.appending(path: "layout.json")
+        try """
+        {
+          "rectangles" : [
+            { "id" : "thin", "layer" : "met1", "xMax" : 0.1, "xMin" : 0, "yMax" : 1, "yMin" : 0 }
+          ],
+          "rules" : [
+            { "id" : "met1.width", "kind" : "minimumWidth", "layer" : "met1", "value" : 0.5 }
+          ],
+          "technologyID" : "cli-test-tech",
+          "topCell" : "inv",
+          "unit" : "micrometer"
+        }
+        """.write(to: layoutURL, atomically: true, encoding: .utf8)
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--layout", layoutURL.path(percentEncoded: false),
+            "--top-cell", "inv",
+            "--backend", "native",
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 2)
+        #expect(invocation.standardError.isEmpty)
+        #expect(invocation.standardOutput.contains(#""status" : "failed""#))
+        #expect(!invocation.standardOutput.contains("status=failed"))
+
+        let data = try #require(invocation.standardOutput.data(using: .utf8))
+        let output = try JSONDecoder().decode(DRCCLIOutput.self, from: data)
+        let reportURL = try #require(output.reportPath.map(URL.init(fileURLWithPath:)))
+        let manifestURL = try #require(output.manifestPath.map(URL.init(fileURLWithPath:)))
+        let report = try JSONDecoder().decode(DRCExecutionResult.self, from: Data(contentsOf: reportURL))
+        let manifest = try JSONDecoder().decode(DRCArtifactManifest.self, from: Data(contentsOf: manifestURL))
+
+        #expect(output.status == "failed")
+        #expect(output.backendID == "native")
+        #expect(output.toolName == "NativeDRC")
+        #expect(output.diagnosticSummary.errorCount == 1)
+        #expect(output.runSummary.activeViolationCount == 1)
+        #expect(output.runSummary.violationBuckets.first?.ruleID == "met1.width")
+        #expect(output.diagnostics.first?.relatedShapeIDs == ["thin"])
+        #expect(output.reportPath == reportURL.path(percentEncoded: false))
+        #expect(output.manifestPath == manifestURL.path(percentEncoded: false))
+        #expect(report.result.diagnostics == output.diagnostics)
+        #expect(manifest.diagnosticSummary == output.diagnosticSummary)
+        let reportOutput = try #require(manifest.outputs.first { $0.id == "report" })
+        let reportData = try Data(contentsOf: reportURL)
+        #expect(reportOutput.sha256 == sha256(reportData))
+        #expect(reportOutput.byteCount == reportData.count)
+    }
+
+    @Test func singleRunCLIMissingLayoutReturnsOneWithoutArtifacts() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let outputDirectory = root.appending(path: "artifacts")
+        let missingLayoutURL = root.appending(path: "missing-layout.json")
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--layout", missingLayoutURL.path(percentEncoded: false),
+            "--top-cell", "inv",
+            "--backend", "native",
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 1)
+        #expect(invocation.standardOutput.isEmpty)
+        #expect(invocation.standardError.contains("Invalid DRC input"))
+        #expect(invocation.standardError.contains("could not read layout"))
+        #expect(!FileManager.default.fileExists(atPath: outputDirectory.path(percentEncoded: false)))
+    }
+
+    @Test func singleRunCLIUnsupportedBackendReturnsOneWithoutArtifacts() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let outputDirectory = root.appending(path: "artifacts")
+        let layoutURL = root.appending(path: "layout.json")
+        try """
+        {
+          "rectangles" : [],
+          "rules" : [],
+          "technologyID" : "cli-test-tech",
+          "topCell" : "inv",
+          "unit" : "micrometer"
+        }
+        """.write(to: layoutURL, atomically: true, encoding: .utf8)
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--layout", layoutURL.path(percentEncoded: false),
+            "--top-cell", "inv",
+            "--backend", "unsupported-native",
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 1)
+        #expect(invocation.standardOutput.isEmpty)
+        #expect(invocation.standardError.contains("Unsupported DRC backend"))
+        #expect(!FileManager.default.fileExists(atPath: outputDirectory.path(percentEncoded: false)))
+    }
+
+    @Test func singleRunCLIDuplicateWaiverIDsReturnsOneWithoutArtifacts() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let outputDirectory = root.appending(path: "artifacts")
+        let layoutURL = root.appending(path: "layout.json")
+        let waiverURL = root.appending(path: "drc-waivers.json")
+        try """
+        {
+          "rectangles" : [
+            { "id" : "thin", "layer" : "met1", "xMax" : 0.1, "xMin" : 0, "yMax" : 1, "yMin" : 0 }
+          ],
+          "rules" : [
+            { "id" : "met1.width", "kind" : "minimumWidth", "layer" : "met1", "value" : 0.5 }
+          ],
+          "technologyID" : "cli-test-tech",
+          "topCell" : "inv",
+          "unit" : "micrometer"
+        }
+        """.write(to: layoutURL, atomically: true, encoding: .utf8)
+        try """
+        {
+          "schemaVersion" : 1,
+          "waivers" : [
+            {
+              "id" : "duplicate-waiver",
+              "kind" : "minimumWidth",
+              "layer" : "met1",
+              "reason" : "Fixture waiver",
+              "relatedShapeIDs" : ["thin"],
+              "ruleID" : "met1.width"
+            },
+            {
+              "id" : "duplicate-waiver",
+              "kind" : "minimumWidth",
+              "layer" : "met1",
+              "reason" : "Duplicate fixture waiver",
+              "relatedShapeIDs" : ["thin"],
+              "ruleID" : "met1.width"
+            }
+          ]
+        }
+        """.write(to: waiverURL, atomically: true, encoding: .utf8)
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--layout", layoutURL.path(percentEncoded: false),
+            "--top-cell", "inv",
+            "--backend", "native",
+            "--waivers", waiverURL.path(percentEncoded: false),
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 1)
+        #expect(invocation.standardOutput.isEmpty)
+        #expect(invocation.standardError.contains("Waiver IDs must be unique"))
+        #expect(try artifactCount(in: outputDirectory, prefix: "drc-report-") == 0)
+        #expect(try artifactCount(in: outputDirectory, prefix: "drc-artifact-manifest-") == 0)
+    }
+
+    @Test func singleRunCLIUnscopedWaiverReturnsOneWithoutArtifacts() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let outputDirectory = root.appending(path: "artifacts")
+        let layoutURL = root.appending(path: "layout.json")
+        let waiverURL = root.appending(path: "drc-waivers.json")
+        try """
+        {
+          "rectangles" : [
+            { "id" : "thin", "layer" : "met1", "xMax" : 0.1, "xMin" : 0, "yMax" : 1, "yMin" : 0 }
+          ],
+          "rules" : [
+            { "id" : "met1.width", "kind" : "minimumWidth", "layer" : "met1", "value" : 0.5 }
+          ],
+          "technologyID" : "cli-test-tech",
+          "topCell" : "inv",
+          "unit" : "micrometer"
+        }
+        """.write(to: layoutURL, atomically: true, encoding: .utf8)
+        try """
+        {
+          "schemaVersion" : 1,
+          "waivers" : [
+            {
+              "id" : "blanket-waiver",
+              "reason" : "Too broad"
+            }
+          ]
+        }
+        """.write(to: waiverURL, atomically: true, encoding: .utf8)
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--layout", layoutURL.path(percentEncoded: false),
+            "--top-cell", "inv",
+            "--backend", "native",
+            "--waivers", waiverURL.path(percentEncoded: false),
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 1)
+        #expect(invocation.standardOutput.isEmpty)
+        #expect(invocation.standardError.contains("drc_waiver_unscoped"))
+        #expect(invocation.standardError.contains("must include at least one scope selector"))
+        #expect(try artifactCount(in: outputDirectory, prefix: "drc-report-") == 0)
+        #expect(try artifactCount(in: outputDirectory, prefix: "drc-artifact-manifest-") == 0)
     }
 
     @Test func nativeCLIAppliesWaiverFile() async throws {
@@ -201,5 +517,19 @@ extension DRCCLIOptionsTests {
         #expect(report.result.passed)
         #expect(report.result.diagnostics.first?.waiverID == "waive-thin-met1")
         #expect(report.waiverReport?.waivedDiagnosticCount == 1)
+    }
+
+    private func sha256(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func artifactCount(in directory: URL, prefix: String) throws -> Int {
+        guard FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)) else {
+            return 0
+        }
+        return try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.hasPrefix(prefix) }.count
     }
 }

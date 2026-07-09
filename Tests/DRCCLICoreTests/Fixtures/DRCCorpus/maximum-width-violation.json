@@ -1,0 +1,23 @@
+{
+  "rectangles" : [
+    {
+      "id" : "wide",
+      "layer" : "met1",
+      "xMax" : 3,
+      "xMin" : 0,
+      "yMax" : 0.8,
+      "yMin" : 0
+    }
+  ],
+  "rules" : [
+    {
+      "id" : "met1.maxWidth",
+      "kind" : "maximumWidth",
+      "layer" : "met1",
+      "value" : 2
+    }
+  ],
+  "technologyID" : "unit-test-tech",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

@@ -4,6 +4,8 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
     public enum Kind: String, Sendable, Hashable, Codable {
         case manufacturingGrid
         case minimumWidth
+        case maximumWidth
+        case forbiddenLayer
         case minimumSpacing
         case forbiddenOverlap
         case exactOverlap

@@ -684,6 +684,17 @@
     },
     {
       "backendID" : "magic",
+      "caseID" : "sky130-magic-via2-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.fail", "drc.contact.spacing.via2", "drc.contact.spacing.via2.external-oracle", "drc.contact.via2", "external.magic", "layout.magic", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via2.2"],
+      "expectedPassed" : false,
+      "layoutFormat" : "magic-layout",
+      "layoutPath" : "sky130-magic-via2-spacing-violation.mag",
+      "oracleBackendID" : "magic",
+      "topCell" : "sky130-magic-via2-spacing-violation"
+    },
+    {
+      "backendID" : "magic",
       "caseID" : "sky130-magic-via2-met2-enclosure-violation",
       "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met2", "drc.enclosure.via2.met2.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via2.4a"],
@@ -984,6 +995,17 @@
     },
     {
       "backendID" : "magic",
+      "caseID" : "sky130-magic-via3-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.fail", "drc.contact.spacing.via3", "drc.contact.spacing.via3.external-oracle", "drc.contact.via3", "external.magic", "layout.magic", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via3.2"],
+      "expectedPassed" : false,
+      "layoutFormat" : "magic-layout",
+      "layoutPath" : "sky130-magic-via3-spacing-violation.mag",
+      "oracleBackendID" : "magic",
+      "topCell" : "sky130-magic-via3-spacing-violation"
+    },
+    {
+      "backendID" : "magic",
       "caseID" : "sky130-magic-via3-met3-enclosure-violation",
       "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "drc.enclosure.via3", "drc.enclosure.via3.met3", "drc.enclosure.via3.met3.external-oracle", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via3.5"],
@@ -1272,6 +1294,48 @@
       "layoutPath" : "generated/sky130-magic-via4-width-clean.gds",
       "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA4_WIDTH_CLEAN"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via4-spacing-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.fail", "drc.contact.spacing.via4", "drc.contact.spacing.via4.external-oracle", "drc.contact.via4", "external.magic", "layout.magic", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["via4.2"],
+      "expectedPassed" : false,
+      "layoutFormat" : "magic-layout",
+      "layoutPath" : "sky130-magic-via4-spacing-violation.mag",
+      "oracleBackendID" : "magic",
+      "topCell" : "sky130-magic-via4-spacing-violation"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via4-spacing-clean",
+      "coverageTags" : ["drc.contact", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.pass", "drc.contact.spacing.via4", "drc.contact.spacing.via4.external-oracle", "drc.contact.via4", "external.magic", "layout.magic", "sky130"],
+      "expectedPassed" : true,
+      "layoutFormat" : "magic-layout",
+      "layoutPath" : "sky130-magic-via4-spacing-clean.mag",
+      "oracleBackendID" : "magic",
+      "topCell" : "sky130-magic-via4-spacing-clean"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via4-met5-enclosure-violation",
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "drc.enclosure.via4", "drc.enclosure.via4.met5", "drc.enclosure.via4.met5.external-oracle", "external.magic", "layout.magic", "sky130"],
+      "expectedActiveErrorRuleIDs" : ["met5.3"],
+      "expectedPassed" : false,
+      "layoutFormat" : "magic-layout",
+      "layoutPath" : "sky130-magic-via4-met5-enclosure-violation.mag",
+      "oracleBackendID" : "magic",
+      "topCell" : "sky130-magic-via4-met5-enclosure-violation"
+    },
+    {
+      "backendID" : "magic",
+      "caseID" : "sky130-magic-via4-met5-enclosure-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.pass", "drc.enclosure.via4", "drc.enclosure.via4.met5", "drc.enclosure.via4.met5.external-oracle", "external.magic", "layout.magic", "sky130"],
+      "expectedPassed" : true,
+      "layoutFormat" : "magic-layout",
+      "layoutPath" : "sky130-magic-via4-met5-enclosure-clean.mag",
+      "oracleBackendID" : "magic",
+      "topCell" : "sky130-magic-via4-met5-enclosure-clean"
     },
     {
       "backendID" : "magic",

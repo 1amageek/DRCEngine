@@ -1,4 +1,5 @@
 import Foundation
+import DRCFoundryImport
 import LayoutCore
 import LayoutTech
 import Testing
@@ -6,6 +7,86 @@ import Testing
 
 @Suite("Sky130 Magic DRC LayoutTech importer")
 struct Sky130MagicDRCLayoutTechImporterTests {
+    @Test func exactOverlapSourceRuleRejectsEmptySecondaryLayers() {
+        #expect(throws: MagicDRCSourceRuleValidationError.emptyExactOverlapSecondaryLayers(ruleID: "exactOverlap.invalid")) {
+            _ = try MagicDRCSourceExactOverlapRule(
+                id: "exactOverlap.invalid",
+                primaryLayerName: "CONT",
+                secondaryLayerNames: [],
+                sourceLineNumber: 1,
+                sourceLine: "exact_overlap (empty)/a"
+            )
+        }
+        #expect(throws: MagicDRCSourceRuleValidationError.emptyExactOverlapSecondaryLayers(ruleID: "exactOverlap.invalid")) {
+            _ = try MagicDRCSourceExactOverlapRule(
+                validatingID: "exactOverlap.invalid",
+                primaryLayerName: "CONT",
+                secondaryLayerNames: [],
+                sourceLineNumber: 1,
+                sourceLine: "exact_overlap (empty)/a"
+            )
+        }
+    }
+
+    @Test func invalidImportProfileBlocksImportInsteadOfDroppingUnsupportedFeatures() {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.invalid-profile",
+            layerOrder: ["METX", "CUTX", "METY"],
+            cutLayerNames: ["CUTX"],
+            layerPurposes: ["CUTX": "cut"],
+            baseLayerNames: ["METX", "CUTX", "METY"],
+            derivedLayerSeeds: [
+                MagicDRCLayoutTechDerivedLayerSeed(
+                    id: "invalid.derived",
+                    targetLayerName: "METY",
+                    sourceLayerNames: ["METX"],
+                    operation: "unsupported-operation"
+                ),
+            ],
+            cutStackConnections: [
+                MagicDRCLayoutTechCutStackConnection(
+                    id: "CUTX",
+                    cutLayerName: "CUTX",
+                    bottomLayerName: "METX",
+                    topLayerName: "METY",
+                    kind: "unsupported-kind",
+                    minimumCutCount: 0
+                ),
+            ]
+        )
+
+        let issueCodes = Set(profile.validationIssues().map(\.code))
+        #expect(issueCodes.contains(.unsupportedDerivedLayerOperation))
+        #expect(issueCodes.contains(.unsupportedCutStackKind))
+        #expect(issueCodes.contains(.invalidMinimumCutCount))
+
+        let result = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer METX metx
+              calma 10 0
+            drc
+              width metx 100 "Metal X width"
+            end
+            """,
+            sourcePath: "/tmp/invalid-profile.magic.tech",
+            profile: profile,
+            generatedAt: "2026-07-04T00:00:00Z"
+        )
+
+        #expect(result.report.status == .blocked)
+        #expect(result.report.importedRuleCount == 0)
+        #expect(result.report.importedLayerNames.isEmpty)
+        #expect(result.technology.layers.isEmpty)
+        #expect(result.technology.derivedLayerRules.isEmpty)
+        #expect(result.technology.vias.isEmpty)
+        #expect(result.report.diagnostics.count == 1)
+        #expect(result.report.diagnostics.first?.code == "magic_drc_layouttech_profile_validation_failed")
+        #expect(result.report.diagnostics.first?.message.contains("unsupportedDerivedLayerOperation") == true)
+        #expect(result.report.diagnostics.first?.message.contains("unsupportedCutStackKind") == true)
+        #expect(result.report.diagnostics.first?.message.contains("invalidMinimumCutCount") == true)
+    }
+
     @Test func bundledMagicLayoutTechProfileLoadsProcessDataAsArtifact() throws {
         let profile = try MagicDRCLayoutTechImportProfile.bundledMagicLayoutTechProfile(
             resourceName: "sky130-magic-layouttech-profile"
@@ -96,170 +177,6 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(minimumCutRule?.minimumCount == 2)
     }
 
-    @Test func deckParsedMinimumCutPolicyOverridesProfileDefault() throws {
-        let profile = MagicDRCLayoutTechImportProfile(
-            profileID: "test.magic.deck-minimum-cut",
-            layerOrder: ["METX", "CUTX", "METY"],
-            cutLayerNames: ["CUTX"],
-            layerPurposes: ["CUTX": "cut"],
-            baseLayerNames: ["METX", "CUTX", "METY"],
-            cutStackConnections: [
-                MagicDRCLayoutTechCutStackConnection(
-                    id: "CUTX",
-                    cutLayerName: "CUTX",
-                    bottomLayerName: "METX",
-                    topLayerName: "METY",
-                    kind: "via"
-                ),
-            ]
-        )
-        let result = MagicDRCLayoutTechImporter.importTechnology(
-            text: """
-            style gdsii
-            layer METX metx
-              calma 10 0
-            layer CUTX cutx
-              calma 11 0
-            layer METY mety
-              calma 12 0
-            cut cutx via CUTX
-            drc
-              width metx 100 "Metal X width"
-              width cutx 50 "Cut X width"
-              spacing cutx cutx 60 touching_illegal "Cut X spacing"
-              surround cutx metx 20 absence_illegal "Bottom overlap"
-              surround cutx mety 30 absence_illegal "Top overlap"
-              minimumcut cutx metx mety 3 "Cut X needs three cuts"
-            end
-            """,
-            sourcePath: "/tmp/generic-deck-minimum-cut.magic.tech",
-            profile: profile,
-            generatedAt: "2026-06-25T00:00:00Z"
-        )
-
-        #expect(result.report.status == .complete)
-        #expect(result.report.profileMinimumCutPolicyCount == 0)
-        #expect(result.report.sourceMinimumCutPolicyIDs == ["sourceMinimumCut.CUTX"])
-        #expect(result.report.sourceMinimumCutPolicyCount == 1)
-        #expect(result.report.sourceMinimumCutPolicies.first?.minimumCount == 3)
-        #expect(result.report.sourceMinimumCutPolicies.first?.sourceLineNumber == 15)
-        #expect(result.report.importedFamilyCounts["minimum_cut"] == 1)
-        #expect(result.report.derivedMinimumCutRuleIDs == ["mincut.CUTX"])
-        #expect(result.technology.minimumCutRule(for: "mincut.CUTX")?.minimumCount == 3)
-    }
-
-    @Test func sourceContactSectionSuppliesCutStackWithoutProfileConnection() {
-        let profile = MagicDRCLayoutTechImportProfile(
-            profileID: "test.magic.contact-stack",
-            layerOrder: ["METX", "CUTX", "METY"],
-            cutLayerNames: ["CUTX"],
-            layerPurposes: ["CUTX": "cut"],
-            baseLayerNames: ["METX", "CUTX", "METY"]
-        )
-        let result = MagicDRCLayoutTechImporter.importTechnology(
-            text: """
-            style gdsii
-            layer METX metx
-              calma 10 0
-            layer CUTX cutx
-              calma 11 0
-            layer METY mety
-              calma 12 0
-            contact
-              CUTX METX METY
-            end
-            drc
-              width metx 100 "Metal X width"
-              width cutx 50 "Cut X width"
-              spacing cutx cutx 60 touching_illegal "Cut X spacing"
-              surround cutx metx 20 absence_illegal "Bottom overlap"
-              surround cutx mety 30 absence_illegal "Top overlap"
-            end
-            wiring
-              contact CUTX 50 METX 20 METY 30
-            end
-            """,
-            sourcePath: "/tmp/generic-contact-stack.magic.tech",
-            profile: profile,
-            generatedAt: "2026-06-24T00:00:00Z"
-        )
-
-        let metX = LayoutLayerID(name: "METX", purpose: "drawing")
-        let cutX = LayoutLayerID(name: "CUTX", purpose: "cut")
-        let metY = LayoutLayerID(name: "METY", purpose: "drawing")
-        #expect(result.report.status == .complete)
-        #expect(result.report.sourceContactStackIDs == ["CUTX"])
-        #expect(result.report.sourceContactStackCount == 1)
-        #expect(result.report.sourceContactStacks.first?.cutLayerName == "CUTX")
-        #expect(result.report.sourceContactStacks.first?.bottomLayerName == "METX")
-        #expect(result.report.sourceContactStacks.first?.topLayerName == "METY")
-        #expect(result.report.sourceContactDefinitionIDs == ["CUTX"])
-        #expect(result.report.derivedViaDefinitionIDs == ["CUTX"])
-        #expect(result.report.derivedMinimumCutRuleIDs == ["mincut.CUTX"])
-
-        let via = result.technology.viaDefinition(for: "CUTX")
-        #expect(via?.cutLayer == cutX)
-        #expect(via?.bottomLayer == metX)
-        #expect(via?.topLayer == metY)
-        #expect(via?.cutSize.width == 0.05)
-        #expect(via?.cutSpacing == 0.06)
-        #expect(via?.enclosure.bottom == 0.02)
-        #expect(via?.enclosure.top == 0.03)
-    }
-
-    @Test func sourceContactStackIDRequiresExactTopLayerWhenProfileHasDecoyConnection() {
-        let profile = MagicDRCLayoutTechImportProfile(
-            profileID: "test.magic.contact-stack-decoy",
-            layerOrder: ["METX", "CUTX", "METY", "METZ"],
-            cutLayerNames: ["CUTX"],
-            layerPurposes: ["CUTX": "cut"],
-            baseLayerNames: ["METX", "CUTX", "METY", "METZ"],
-            cutStackConnections: [
-                MagicDRCLayoutTechCutStackConnection(
-                    id: "CUTX_DECOY",
-                    cutLayerName: "CUTX",
-                    bottomLayerName: "METX",
-                    topLayerName: "METZ",
-                    kind: "via"
-                ),
-            ]
-        )
-        let result = MagicDRCLayoutTechImporter.importTechnology(
-            text: """
-            style gdsii
-            layer METX metx
-              calma 10 0
-            layer CUTX cutx
-              calma 11 0
-            layer METY mety
-              calma 12 0
-            contact
-              CUTX METX METY
-            end
-            drc
-              width metx 100 "Metal X width"
-              width cutx 50 "Cut X width"
-              spacing cutx cutx 60 touching_illegal "Cut X spacing"
-              surround cutx metx 20 absence_illegal "Bottom overlap"
-              surround cutx mety 30 absence_illegal "Top overlap"
-            end
-            wiring
-              contact CUTX 50 METX 20 METY 30
-            end
-            """,
-            sourcePath: "/tmp/generic-contact-stack-decoy.magic.tech",
-            profile: profile,
-            generatedAt: "2026-06-24T00:00:00Z"
-        )
-
-        let metY = LayoutLayerID(name: "METY", purpose: "drawing")
-        #expect(result.report.sourceContactStackIDs == ["CUTX"])
-        #expect(result.report.sourceContactDefinitionIDs == ["CUTX"])
-        #expect(result.report.derivedViaDefinitionIDs == ["CUTX"])
-        #expect(result.technology.viaDefinition(for: "CUTX")?.topLayer == metY)
-        #expect(result.technology.viaDefinition(for: "CUTX_DECOY") == nil)
-    }
-
     @Test func importProfileDoesNotFallbackToSky130LayerKnowledge() {
         let profile = MagicDRCLayoutTechImportProfile(
             profileID: "test.magic.no-sky130-fallback",
@@ -290,6 +207,71 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(result.report.skippedFamilyCounts["width"] == 1)
         #expect(result.report.skippedFamilyCounts["spacing"] == 1)
         #expect(result.report.importedRules.map(\.layerName) == ["METX"])
+    }
+
+    @Test func unsupportedMagicRuleFamiliesAreReportedAsPartialImport() {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.unsupported-families",
+            layerOrder: ["METX"],
+            baseLayerNames: ["METX"]
+        )
+        let result = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer METX metx
+              calma 10 0
+            drc
+              width metx 100 "Metal X width"
+              edge4way metx 100 "Unsupported edge rule"
+              cifspacing metx 120 "Unsupported CIF spacing"
+              extend metx 30 "Unsupported extend"
+              cifwidth metx 80 "Unsupported CIF width"
+            end
+            """,
+            sourcePath: "/tmp/unsupported-families.magic.tech",
+            profile: profile,
+            generatedAt: "2026-06-24T00:00:00Z"
+        )
+
+        #expect(result.report.status == .partial)
+        #expect(result.report.importedFamilyCounts["width"] == 1)
+        #expect(result.report.skippedFamilyCounts["edge4way"] == 1)
+        #expect(result.report.skippedFamilyCounts["cifspacing"] == 1)
+        #expect(result.report.skippedFamilyCounts["extend"] == 1)
+        #expect(result.report.skippedFamilyCounts["cifwidth"] == 1)
+        #expect(result.report.skippedRuleCount == 4)
+        #expect(result.report.diagnostics.count == 4)
+        #expect(result.report.diagnostics.allSatisfy { $0.code == "unsupported_magic_drc_family" })
+    }
+
+    @Test func unrecognizedMagicRuleFamiliesInsideDRCBlockAreReportedAsPartialImport() {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.unrecognized-family",
+            layerOrder: ["METX"],
+            baseLayerNames: ["METX"]
+        )
+        let result = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer METX metx
+              calma 10 0
+            drc
+              width metx 100 "Metal X width"
+              futurefamily metx 140 "Future Magic DRC family"
+            end
+            """,
+            sourcePath: "/tmp/unrecognized-family.magic.tech",
+            profile: profile,
+            generatedAt: "2026-06-24T00:00:00Z"
+        )
+
+        #expect(result.report.status == .partial)
+        #expect(result.report.importedFamilyCounts["width"] == 1)
+        #expect(result.report.skippedFamilyCounts["futurefamily"] == 1)
+        #expect(result.report.skippedRuleCount == 1)
+        let diagnostic = result.report.diagnostics.first
+        #expect(diagnostic?.code == "unsupported_magic_drc_family")
+        #expect(diagnostic?.sourceLineNumber == 6)
     }
 
     @Test func importProfileLayerSetAliasesSupplyGenericActiveSemantics() {
@@ -335,6 +317,19 @@ struct Sky130MagicDRCLayoutTechImporterTests {
             profile: profile,
             generatedAt: generatedAt
         )
+    }
+
+    private static func expectZeroRuleSet(
+        _ technology: LayoutTechDatabase,
+        for layerID: LayoutLayerID
+    ) {
+        let ruleSet = technology.ruleSet(for: layerID)
+        #expect(ruleSet != nil)
+        #expect(ruleSet?.minWidth == 0)
+        #expect(ruleSet?.minSpacing == 0)
+        #expect(ruleSet?.minArea == 0)
+        #expect(ruleSet?.minDensity == 0)
+        #expect(ruleSet?.maxDensity == 1)
     }
 
     @Test func importsRepresentableWidthSpacingAndAreaRules() throws {
@@ -461,6 +456,8 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(enclosedHoleRule?.value == 0.14)
         let overhang = result.technology.extensionRule(extending: poly, enclosed: diff, direction: .horizontal)
         #expect(overhang?.minExtension == 0.13)
+        let verticalOverhang = result.technology.extensionRule(extending: poly, enclosed: diff, direction: .vertical)
+        #expect(verticalOverhang?.minExtension == 0.13)
         let overhangRule = result.report.importedRules.first { $0.family == "overhang" }
         #expect(overhangRule?.layerName == "POLY")
         #expect(overhangRule?.secondaryLayerName == "DIFF")
@@ -617,6 +614,90 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         })
     }
 
+    @Test func nonHoleCIFMaxWidthXORMarkerMaterializes() throws {
+        let result = try Self.importSky130Fixture(
+            text: """
+            style gdsii
+            layer DNWELL dnwell
+              calma 64 18
+            layer NWELL nwell
+              calma 64 20
+            style drc
+              templayer nwell_missing nwell
+                xor dnwell
+            drc
+              width nwell 840 "Nwell width"
+              cifmaxwidth nwell_missing 0 bend_illegal "Nwell missing marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A-xor-templayer.tech",
+            generatedAt: "2026-06-23T00:00:00Z"
+        )
+
+        #expect(result.report.status == .complete)
+        #expect(result.report.importedFamilyCounts["width"] == 1)
+        #expect(result.report.skippedFamilyCounts["cifmaxwidth"] == nil)
+        #expect(result.report.sourceForbiddenMarkerRuleIDs == ["forbiddenMarker.nwell_missing"])
+        #expect(result.report.sourceForbiddenMarkerRuleCount == 1)
+        let tempLayer = result.report.sourceTempLayerDefinitions.first { $0.name == "nwell_missing" }
+        #expect(tempLayer?.operations.map(\.command) == ["xor"])
+        #expect(tempLayer?.operationNames == ["xor"])
+        #expect(result.report.sourceTempLayerOperationCounts["xor"] == 1)
+        #expect(result.report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.nwell_missing"])
+        #expect(result.report.sourceTempLayerMaterializedRuleCount == 1)
+        #expect(result.technology.derivedLayerRules.contains { rule in
+            rule.id == "magic.templayer.nwell_missing"
+                && rule.targetLayer == LayoutLayerID(name: "nwell_missing", purpose: "marker")
+                && rule.sourceLayers == [
+                    LayoutLayerID(name: "NWELL", purpose: "drawing"),
+                    LayoutLayerID(name: "DNWELL", purpose: "drawing"),
+                ]
+                && rule.operation == .xor
+        })
+        #expect(!result.report.diagnostics.contains {
+            $0.code == "magic_drc_cifmaxwidth_marker_materialization_deferred"
+        })
+    }
+
+    @Test func nonHoleCIFMaxWidthUnsupportedFutureTempLayerOperationStaysPartial() throws {
+        let result = try Self.importSky130Fixture(
+            text: """
+            style gdsii
+            layer DNWELL dnwell
+              calma 64 18
+            layer NWELL nwell
+              calma 64 20
+            style drc
+              templayer nwell_missing nwell
+                edge4way dnwell
+            drc
+              width nwell 840 "Nwell width"
+              cifmaxwidth nwell_missing 0 bend_illegal "Nwell missing marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A-unsupported-templayer.tech",
+            generatedAt: "2026-06-23T00:00:00Z"
+        )
+
+        #expect(result.report.status == .partial)
+        #expect(result.report.importedFamilyCounts["width"] == 1)
+        #expect(result.report.skippedFamilyCounts["cifmaxwidth"] == 1)
+        #expect(result.report.sourceForbiddenMarkerRuleIDs == ["forbiddenMarker.nwell_missing"])
+        #expect(result.report.sourceForbiddenMarkerRuleCount == 1)
+        let tempLayer = result.report.sourceTempLayerDefinitions.first { $0.name == "nwell_missing" }
+        #expect(tempLayer?.operations.map(\.command) == ["edge4way"])
+        #expect(tempLayer?.operationNames == ["edge4way"])
+        #expect(result.report.sourceTempLayerOperationCounts["edge4way"] == 1)
+        #expect(result.report.sourceTempLayerMaterializedRuleIDs.isEmpty)
+        #expect(result.report.sourceTempLayerMaterializedRuleCount == 0)
+        #expect(result.report.diagnostics.contains {
+            $0.code == "magic_drc_cifmaxwidth_marker_materialization_deferred"
+        })
+        #expect(!result.technology.derivedLayerRules.contains {
+            $0.id == "magic.templayer.nwell_missing"
+        })
+    }
+
     @Test func nonHoleCIFMaxWidthGrowShrinkMarkerMaterializes() throws {
         let result = try Self.importSky130Fixture(
             text: """
@@ -667,6 +748,148 @@ struct Sky130MagicDRCLayoutTechImporterTests {
                 && rule.targetLayer == LayoutLayerID(name: "nwell_missing", purpose: "marker")
                 && rule.operation == .difference
         })
+        #expect(!result.report.diagnostics.contains {
+            $0.code == "magic_drc_cifmaxwidth_marker_materialization_deferred"
+        })
+    }
+
+    @Test func nonHoleCIFMaxWidthGrowMinMarkerMaterializes() throws {
+        let result = try Self.importSky130Fixture(
+            text: """
+            style gdsii
+            layer MET1 allm1
+              calma 68 20
+            types
+              metal1 metal1,m1,met1
+            end
+            style drc
+              templayer m1_short_marker m1
+                grow-min 200
+            drc
+              width m1 140 "Metal1 width"
+              cifmaxwidth m1_short_marker 0 bend_illegal "Metal1 short marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A.tech",
+            generatedAt: "2026-06-25T00:00:00Z"
+        )
+
+        #expect(result.report.status == .complete)
+        #expect(result.report.skippedFamilyCounts["cifmaxwidth"] == nil)
+        #expect(result.report.sourceTempLayerOperationCounts["grow-min"] == 1)
+        #expect(result.report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.m1_short_marker"])
+        #expect(result.report.sourceTempLayerMaterializedRuleCount == 1)
+        #expect(result.technology.derivedLayerRules.contains { rule in
+            rule.id == "magic.templayer.m1_short_marker"
+                && rule.targetLayer == LayoutLayerID(name: "m1_short_marker", purpose: "marker")
+                && rule.sourceLayers == [LayoutLayerID(name: "MET1", purpose: "drawing")]
+                && rule.operation == .growMin
+                && rule.operationDistance == 0.2
+        })
+        #expect(!result.report.diagnostics.contains {
+            $0.code == "magic_drc_cifmaxwidth_marker_materialization_deferred"
+        })
+    }
+
+    @Test func nonHoleCIFMaxWidthBridgeMarkerMaterializes() throws {
+        let result = try Self.importSky130Fixture(
+            text: """
+            style gdsii
+            layer NWELL nwell
+              calma 64 20
+            style drc
+              templayer nwell_corner_bridge nwell
+                bridge 400
+                and-not nwell
+            drc
+              width nwell 840 "Nwell width"
+              cifmaxwidth nwell_corner_bridge 0 bend_illegal "Nwell bridge marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A.tech",
+            generatedAt: "2026-06-28T00:00:00Z"
+        )
+
+        #expect(result.report.status == .complete)
+        #expect(result.report.skippedFamilyCounts["cifmaxwidth"] == nil)
+        #expect(result.report.sourceTempLayerOperationCounts["bridge"] == 1)
+        #expect(result.report.sourceTempLayerOperationCounts["and-not"] == 1)
+        #expect(result.report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.nwell_corner_bridge"])
+        #expect(result.report.sourceTempLayerMaterializedRuleCount == 1)
+        #expect(result.technology.derivedLayerRules.contains { rule in
+            rule.id == "magic.templayer.nwell_corner_bridge.step1"
+                && rule.targetLayer == LayoutLayerID(name: "nwell_corner_bridge.step1", purpose: "derived")
+                && rule.sourceLayers == [LayoutLayerID(name: "NWELL", purpose: "drawing")]
+                && rule.operation == .bridge
+                && rule.operationDistance == 0.4
+                && rule.operationWidth == 0.4
+        })
+        #expect(result.technology.derivedLayerRules.contains { rule in
+            rule.id == "magic.templayer.nwell_corner_bridge"
+                && rule.targetLayer == LayoutLayerID(name: "nwell_corner_bridge", purpose: "marker")
+                && rule.operation == .difference
+        })
+        Self.expectZeroRuleSet(
+            result.technology,
+            for: LayoutLayerID(name: "nwell_corner_bridge.step1", purpose: "derived")
+        )
+        Self.expectZeroRuleSet(
+            result.technology,
+            for: LayoutLayerID(name: "nwell_corner_bridge", purpose: "marker")
+        )
+        #expect(!result.report.diagnostics.contains {
+            $0.code == "magic_drc_cifmaxwidth_marker_materialization_deferred"
+        })
+    }
+
+    @Test func nonHoleCIFMaxWidthCloseMarkerMaterializes() throws {
+        let result = try Self.importSky130Fixture(
+            text: """
+            style gdsii
+            layer MET1 allm1
+              calma 68 20
+            types
+              metal1 metal1,m1,met1
+            end
+            style drc
+              templayer m1_closed_holes m1
+                close 140000
+                and-not m1
+            drc
+              width m1 140 "Metal1 width"
+              cifmaxwidth m1_closed_holes 0 bend_illegal "Metal1 close marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A.tech",
+            generatedAt: "2026-06-28T00:00:00Z"
+        )
+
+        #expect(result.report.status == .complete)
+        #expect(result.report.skippedFamilyCounts["cifmaxwidth"] == nil)
+        #expect(result.report.sourceTempLayerOperationCounts["close"] == 1)
+        #expect(result.report.sourceTempLayerOperationCounts["and-not"] == 1)
+        #expect(result.report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.m1_closed_holes"])
+        #expect(result.report.sourceTempLayerMaterializedRuleCount == 1)
+        #expect(result.technology.derivedLayerRules.contains { rule in
+            rule.id == "magic.templayer.m1_closed_holes.step1"
+                && rule.targetLayer == LayoutLayerID(name: "m1_closed_holes.step1", purpose: "derived")
+                && rule.sourceLayers == [LayoutLayerID(name: "MET1", purpose: "drawing")]
+                && rule.operation == .close
+                && rule.operationDistance == 0.14
+        })
+        #expect(result.technology.derivedLayerRules.contains { rule in
+            rule.id == "magic.templayer.m1_closed_holes"
+                && rule.targetLayer == LayoutLayerID(name: "m1_closed_holes", purpose: "marker")
+                && rule.operation == .difference
+        })
+        Self.expectZeroRuleSet(
+            result.technology,
+            for: LayoutLayerID(name: "m1_closed_holes.step1", purpose: "derived")
+        )
+        Self.expectZeroRuleSet(
+            result.technology,
+            for: LayoutLayerID(name: "m1_closed_holes", purpose: "marker")
+        )
         #expect(!result.report.diagnostics.contains {
             $0.code == "magic_drc_cifmaxwidth_marker_materialization_deferred"
         })

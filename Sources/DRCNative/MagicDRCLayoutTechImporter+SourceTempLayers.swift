@@ -8,6 +8,7 @@ extension MagicDRCLayoutTechImporter {
         "and",
         "and-not",
         "or",
+        "xor",
         "grow",
         "grow-min",
         "shrink",
@@ -16,6 +17,30 @@ extension MagicDRCLayoutTechImporter {
         "boundary",
         "mask-hints",
         "close",
+    ]
+
+    static let sourceTempLayerTerminatingCommands: Set<String> = [
+        "calma",
+        "cifinput",
+        "cifoutput",
+        "cifpaint",
+        "compose",
+        "contact",
+        "drc",
+        "end",
+        "extract",
+        "labels",
+        "layer",
+        "mzrouter",
+        "plane",
+        "scalefactor",
+        "style",
+        "tech",
+        "timestamp",
+        "types",
+        "units",
+        "version",
+        "wiring",
     ]
 
     struct SourceTempLayerDefinitionDraft: Sendable, Hashable {
@@ -84,7 +109,7 @@ extension MagicDRCLayoutTechImporter {
             guard let currentName = activeName else {
                 continue
             }
-            guard sourceTempLayerOperationCommands.contains(command) else {
+            if sourceTempLayerTerminatingCommands.contains(command) {
                 activeName = nil
                 continue
             }
@@ -140,7 +165,7 @@ extension MagicDRCLayoutTechImporter {
 
         for operation in operations {
             switch operation.command {
-            case "and", "and-not", "or", "mask-hints", "bloat-all":
+            case "and", "and-not", "or", "xor", "mask-hints", "bloat-all":
                 terms.append(contentsOf: operation.arguments.flatMap { splitExpressionTerms($0) })
             default:
                 continue
@@ -310,7 +335,7 @@ extension MagicDRCLayoutTechImporter {
             let isLast = operationIndex == definition.operations.indices.last
 
             switch operation.command {
-            case "grow", "shrink":
+            case "grow", "grow-min", "shrink":
                 guard let baseLayer = currentLayer,
                       operation.arguments.count == 1,
                       let rawDistance = Double(operation.arguments[0]),
@@ -323,11 +348,62 @@ extension MagicDRCLayoutTechImporter {
                     id: target.ruleID,
                     targetLayer: target.layer,
                     sourceLayers: [baseLayer],
-                    operation: operation.command == "grow" ? .grow : .shrink,
+                    operation: sourceTempLayerSizingOperation(for: operation.command),
                     operationDistance: rawDistance / 1_000
                 ))
                 currentLayer = target.layer
-            case "and", "or", "and-not":
+            case "bridge":
+                guard let baseLayer = currentLayer,
+                      operation.arguments.count == 1 || operation.arguments.count == 2,
+                      let rawDistance = Double(operation.arguments[0]),
+                      rawDistance.isFinite,
+                      rawDistance > 0 else {
+                    return nil
+                }
+                let rawWidthText = operation.arguments.count == 2
+                    ? operation.arguments[1]
+                    : operation.arguments[0]
+                guard let rawWidth = Double(rawWidthText),
+                      rawWidth.isFinite,
+                      rawWidth > 0 else {
+                    return nil
+                }
+                let target = nextTarget(isLast: isLast)
+                rules.append(LayoutDerivedLayerRule(
+                    id: target.ruleID,
+                    targetLayer: target.layer,
+                    sourceLayers: [baseLayer],
+                    operation: .bridge,
+                    operationDistance: rawDistance / 1_000,
+                    operationWidth: rawWidth / 1_000
+                ))
+                currentLayer = target.layer
+            case "close":
+                guard let baseLayer = currentLayer,
+                      operation.arguments.count <= 1 else {
+                    return nil
+                }
+                let area: Double
+                if let rawAreaText = operation.arguments.first {
+                    guard let rawArea = Double(rawAreaText),
+                          rawArea.isFinite,
+                          rawArea >= 0 else {
+                        return nil
+                    }
+                    area = rawArea / 1_000_000
+                } else {
+                    area = 0
+                }
+                let target = nextTarget(isLast: isLast)
+                rules.append(LayoutDerivedLayerRule(
+                    id: target.ruleID,
+                    targetLayer: target.layer,
+                    sourceLayers: [baseLayer],
+                    operation: .close,
+                    operationDistance: area
+                ))
+                currentLayer = target.layer
+            case "and", "or", "and-not", "xor":
                 guard let baseLayer = currentLayer else {
                     return nil
                 }
@@ -348,6 +424,8 @@ extension MagicDRCLayoutTechImporter {
                     derivedOperation = .intersection
                 case "or":
                     derivedOperation = .union
+                case "xor":
+                    derivedOperation = .xor
                 default:
                     derivedOperation = .difference
                 }
@@ -484,6 +562,19 @@ extension MagicDRCLayoutTechImporter {
             finalLayer: targetLayer,
             finalRuleID: sourceTempLayerMaterializedRuleID(name: definition.name)
         )
+    }
+
+    static func sourceTempLayerSizingOperation(
+        for command: String
+    ) -> LayoutDerivedLayerRule.Operation {
+        switch command {
+        case "grow":
+            return .grow
+        case "grow-min":
+            return .growMin
+        default:
+            return .shrink
+        }
     }
 
     static func sourceTempLayerOperandLayers(

@@ -41,17 +41,53 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
         public let format: String
         public let producer: String
         public let consumer: [String]
+        public let integrityEvidenceFields: [String]
+        public let currentnessVerifier: String
+        public let verdictFields: [String]
 
         public init(
             artifactID: String,
             format: String,
             producer: String,
-            consumer: [String]
+            consumer: [String],
+            integrityEvidenceFields: [String] = [],
+            currentnessVerifier: String = "unspecified",
+            verdictFields: [String] = []
         ) {
             self.artifactID = artifactID
             self.format = format
             self.producer = producer
             self.consumer = consumer
+            self.integrityEvidenceFields = integrityEvidenceFields
+            self.currentnessVerifier = currentnessVerifier
+            self.verdictFields = verdictFields
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case artifactID
+            case format
+            case producer
+            case consumer
+            case integrityEvidenceFields
+            case currentnessVerifier
+            case verdictFields
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            artifactID = try container.decode(String.self, forKey: .artifactID)
+            format = try container.decode(String.self, forKey: .format)
+            producer = try container.decode(String.self, forKey: .producer)
+            consumer = try container.decode([String].self, forKey: .consumer)
+            integrityEvidenceFields = try container.decodeIfPresent(
+                [String].self,
+                forKey: .integrityEvidenceFields
+            ) ?? []
+            currentnessVerifier = try container.decodeIfPresent(
+                String.self,
+                forKey: .currentnessVerifier
+            ) ?? "unspecified"
+            verdictFields = try container.decodeIfPresent([String].self, forKey: .verdictFields) ?? []
         }
     }
 

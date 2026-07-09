@@ -107,7 +107,7 @@ public struct DRCCorpusToolEvidenceExport: Sendable, Hashable, Codable {
         var metrics = [
             "passRate": report.summary.passRate,
             "durationBudgetPassRate": report.caseCount == 0
-                ? 1
+                ? 0
                 : Double(report.summary.durationBudgetPassedCaseCount) / Double(report.caseCount),
             "totalDurationSeconds": report.totalDurationSeconds,
         ]

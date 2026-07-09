@@ -105,40 +105,15 @@ public struct DRCCLIOutput: Sendable, Hashable, Codable {
 
     public init(result: DRCExecutionResult) {
         let summaryReport = DRCRunSummaryBuilder().build(result: result)
-        self.status = result.result.passed ? "passed" : "failed"
-        self.backendID = result.result.backendID
-        self.toolName = result.result.toolName
+        let summary = summaryReport.summary
+        self.status = summary.status
+        self.backendID = summary.backendID
+        self.toolName = summary.toolName
         self.reportPath = result.reportURL?.path(percentEncoded: false)
         self.manifestPath = result.artifactManifestURL?.path(percentEncoded: false)
         self.diagnostics = result.result.diagnostics
         self.waiverReport = result.waiverReport
-        self.runSummary = summaryReport.summary
-        self.diagnosticSummary = result.result.diagnostics.reduce(
-            into: DRCDiagnosticSummary(infoCount: 0, warningCount: 0, errorCount: 0)
-        ) { summary, diagnostic in
-            switch diagnostic.severity {
-            case .info:
-                summary = DRCDiagnosticSummary(
-                    infoCount: summary.infoCount + 1,
-                    warningCount: summary.warningCount,
-                    errorCount: summary.errorCount,
-                    waivedErrorCount: summary.waivedErrorCount
-                )
-            case .warning:
-                summary = DRCDiagnosticSummary(
-                    infoCount: summary.infoCount,
-                    warningCount: summary.warningCount + 1,
-                    errorCount: summary.errorCount,
-                    waivedErrorCount: summary.waivedErrorCount
-                )
-            case .error:
-                summary = DRCDiagnosticSummary(
-                    infoCount: summary.infoCount,
-                    warningCount: summary.warningCount,
-                    errorCount: summary.errorCount + (diagnostic.isWaived ? 0 : 1),
-                    waivedErrorCount: summary.waivedErrorCount + (diagnostic.isWaived ? 1 : 0)
-                )
-            }
-        }
+        self.runSummary = summary
+        self.diagnosticSummary = summary.diagnosticSummary
     }
 }

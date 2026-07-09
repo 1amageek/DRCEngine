@@ -16,6 +16,26 @@ public struct DRCCorpusRunner: Sendable {
         outputDirectory: URL,
         options: DRCCorpusRunOptions = DRCCorpusRunOptions()
     ) async throws -> DRCCorpusReport {
+        let spec = try loadSpec(from: specURL)
+        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        try validateBudget(spec.defaultMaxDurationSeconds, label: "defaultMaxDurationSeconds")
+
+        let caseResults = try await runCases(
+            spec: spec,
+            specDirectory: specURL.deletingLastPathComponent(),
+            outputDirectory: outputDirectory,
+            options: options
+        )
+        let report = makeReport(
+            caseResults: caseResults,
+            options: options,
+            qualificationPolicy: spec.qualificationPolicy
+        )
+        try writeReport(report, to: outputDirectory)
+        return report
+    }
+
+    private func loadSpec(from specURL: URL) throws -> DRCCorpusSpec {
         let data: Data
         do {
             data = try Data(contentsOf: specURL)
@@ -28,133 +48,241 @@ public struct DRCCorpusRunner: Sendable {
         } catch {
             throw DRCError.invalidInput("Could not decode DRC corpus spec: \(error.localizedDescription)")
         }
-        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        return spec
+    }
+
+    private func runCases(
+        spec: DRCCorpusSpec,
+        specDirectory: URL,
+        outputDirectory: URL,
+        options: DRCCorpusRunOptions
+    ) async throws -> [DRCCorpusCaseResult] {
         var caseResults: [DRCCorpusCaseResult] = []
-        let specDirectory = specURL.deletingLastPathComponent()
-        try validateBudget(spec.defaultMaxDurationSeconds, label: "defaultMaxDurationSeconds")
 
         for corpusCase in spec.cases {
-            try validateBudget(corpusCase.maxDurationSeconds, label: "\(corpusCase.caseID).maxDurationSeconds")
-            let maxDurationSeconds = corpusCase.maxDurationSeconds ?? spec.defaultMaxDurationSeconds
-            let caseDirectory = outputDirectory
-                .appending(path: "cases")
-                .appending(path: safePathComponent(corpusCase.caseID))
-            try FileManager.default.createDirectory(at: caseDirectory, withIntermediateDirectories: true)
-            let startedAt = Date()
-            let preparedInputs: PreparedDRCCorpusInputs
-            do {
-                preparedInputs = try DRCCorpusGeneratedInputFactory().prepareInputs(
-                    for: corpusCase,
-                    specDirectory: specDirectory,
-                    caseDirectory: caseDirectory
-                )
-            } catch {
-                caseResults.append(failedCaseResult(
-                    corpusCase: corpusCase,
-                    expectedMaxDurationSeconds: maxDurationSeconds,
-                    durationSeconds: Date().timeIntervalSince(startedAt),
-                    error: error
-                ))
-                continue
-            }
-            let request = DRCRequest(
-                layoutURL: preparedInputs.layoutURL,
-                topCell: corpusCase.topCell,
-                layoutFormat: preparedInputs.layoutFormat,
-                technologyURL: preparedInputs.technologyURL,
-                waiverURL: corpusCase.waiverPath.map { resolve($0, relativeTo: specDirectory) },
-                workingDirectory: caseDirectory,
-                backendSelection: DRCBackendSelection(backendID: corpusCase.backendID ?? "native"),
-                options: DRCOptions(additionalEnvironment: corpusCase.additionalEnvironment)
-            )
-            let executionResult: DRCExecutionResult
-            do {
-                executionResult = try await engine.run(request)
-            } catch {
-                let durationSeconds = Date().timeIntervalSince(startedAt)
-                caseResults.append(failedCaseResult(
-                    corpusCase: corpusCase,
-                    expectedMaxDurationSeconds: maxDurationSeconds,
-                    durationSeconds: durationSeconds,
-                    error: error
-                ))
-                continue
-            }
-            let durationSeconds = Date().timeIntervalSince(startedAt)
-            let actualRuleIDs = activeErrorRuleIDs(in: executionResult.result.diagnostics)
-            let primaryDiagnosticSummary = diagnosticSummary(executionResult.result.diagnostics)
-            let primaryProvenance = provenance(for: executionResult)
-            let expectedRuleIDs = corpusCase.expectedActiveErrorRuleIDs.sorted()
-            let expectationMatched = executionResult.result.passed == corpusCase.expectedPassed
-                && actualRuleIDs == expectedRuleIDs
-            let durationBudgetPassed = maxDurationSeconds.map { durationSeconds <= $0 } ?? true
-            let oracleResult = await runOracleIfNeeded(
-                corpusCase: corpusCase,
-                oracleBackendID: options.oracleBackendIDOverride ?? corpusCase.oracleBackendID,
+            caseResults.append(try await runCase(
+                corpusCase,
+                defaultMaxDurationSeconds: spec.defaultMaxDurationSeconds,
                 specDirectory: specDirectory,
-                caseDirectory: caseDirectory,
-                preparedInputs: preparedInputs,
-                primaryPassed: executionResult.result.passed,
-                primaryBackendID: executionResult.result.backendID,
-                primaryActiveRuleIDs: actualRuleIDs,
-                primaryDiagnosticSummary: primaryDiagnosticSummary
+                outputDirectory: outputDirectory,
+                options: options
+            ))
+        }
+        return caseResults
+    }
+
+    private func runCase(
+        _ corpusCase: DRCCorpusCase,
+        defaultMaxDurationSeconds: Double?,
+        specDirectory: URL,
+        outputDirectory: URL,
+        options: DRCCorpusRunOptions
+    ) async throws -> DRCCorpusCaseResult {
+        try validateBudget(corpusCase.maxDurationSeconds, label: "\(corpusCase.caseID).maxDurationSeconds")
+        let maxDurationSeconds = corpusCase.maxDurationSeconds ?? defaultMaxDurationSeconds
+        let caseDirectory = try createCaseDirectory(for: corpusCase, outputDirectory: outputDirectory)
+        let startedAt = Date()
+
+        let preparedInputs: PreparedDRCCorpusInputs
+        do {
+            preparedInputs = try prepareInputs(
+                for: corpusCase,
+                specDirectory: specDirectory,
+                caseDirectory: caseDirectory
             )
-            let oracleComparison = oracleResult.map {
-                self.oracleComparison(
-                    primaryBackendID: executionResult.result.backendID,
-                    primaryPassed: executionResult.result.passed,
-                    primaryActiveRuleIDs: actualRuleIDs,
-                    primaryDiagnosticSummary: primaryDiagnosticSummary,
-                    oracleResult: $0
-                )
-            }
-            let oracleAgreementPassed = oracleResult?.agreementPassed ?? true
-            let failureReasons = failureReasons(
+        } catch {
+            return failedCaseResult(
+                corpusCase: corpusCase,
+                expectedMaxDurationSeconds: maxDurationSeconds,
+                durationSeconds: Date().timeIntervalSince(startedAt),
+                error: error
+            )
+        }
+
+        let executionResult: DRCExecutionResult
+        do {
+            executionResult = try await engine.run(primaryRequest(
+                for: corpusCase,
+                preparedInputs: preparedInputs,
+                specDirectory: specDirectory,
+                caseDirectory: caseDirectory
+            ))
+        } catch {
+            return failedCaseResult(
+                corpusCase: corpusCase,
+                expectedMaxDurationSeconds: maxDurationSeconds,
+                durationSeconds: Date().timeIntervalSince(startedAt),
+                error: error
+            )
+        }
+
+        return await successfulCaseResult(
+            corpusCase: corpusCase,
+            executionResult: executionResult,
+            preparedInputs: preparedInputs,
+            specDirectory: specDirectory,
+            caseDirectory: caseDirectory,
+            startedAt: startedAt,
+            maxDurationSeconds: maxDurationSeconds,
+            options: options
+        )
+    }
+
+    private func createCaseDirectory(for corpusCase: DRCCorpusCase, outputDirectory: URL) throws -> URL {
+        let caseDirectory = outputDirectory
+            .appending(path: "cases")
+            .appending(path: safePathComponent(corpusCase.caseID))
+        try FileManager.default.createDirectory(at: caseDirectory, withIntermediateDirectories: true)
+        return caseDirectory
+    }
+
+    private func prepareInputs(
+        for corpusCase: DRCCorpusCase,
+        specDirectory: URL,
+        caseDirectory: URL
+    ) throws -> PreparedDRCCorpusInputs {
+        try DRCCorpusGeneratedInputFactory().prepareInputs(
+            for: corpusCase,
+            specDirectory: specDirectory,
+            caseDirectory: caseDirectory
+        )
+    }
+
+    private func primaryRequest(
+        for corpusCase: DRCCorpusCase,
+        preparedInputs: PreparedDRCCorpusInputs,
+        specDirectory: URL,
+        caseDirectory: URL
+    ) -> DRCRequest {
+        DRCRequest(
+            layoutURL: preparedInputs.layoutURL,
+            topCell: corpusCase.topCell,
+            layoutFormat: preparedInputs.layoutFormat,
+            technologyURL: preparedInputs.technologyURL,
+            waiverURL: corpusCase.waiverPath.map { resolve($0, relativeTo: specDirectory) },
+            workingDirectory: caseDirectory,
+            backendSelection: DRCBackendSelection(backendID: corpusCase.backendID ?? "native"),
+            options: DRCOptions(additionalEnvironment: corpusCase.additionalEnvironment)
+        )
+    }
+
+    private func successfulCaseResult(
+        corpusCase: DRCCorpusCase,
+        executionResult: DRCExecutionResult,
+        preparedInputs: PreparedDRCCorpusInputs,
+        specDirectory: URL,
+        caseDirectory: URL,
+        startedAt: Date,
+        maxDurationSeconds: Double?,
+        options: DRCCorpusRunOptions
+    ) async -> DRCCorpusCaseResult {
+        let durationSeconds = Date().timeIntervalSince(startedAt)
+        let actualRuleIDs = activeErrorRuleIDs(in: executionResult.result.diagnostics)
+        let primaryDiagnosticSummary = diagnosticSummary(executionResult.result.diagnostics)
+        let expectedRuleIDs = corpusCase.expectedActiveErrorRuleIDs.sorted()
+        let expectationMatched = executionResult.result.passed == corpusCase.expectedPassed
+            && actualRuleIDs == expectedRuleIDs
+        let durationBudgetPassed = maxDurationSeconds.map { durationSeconds <= $0 } ?? true
+        let oracleResult = await runOracleIfNeeded(
+            corpusCase: corpusCase,
+            oracleBackendID: options.oracleBackendIDOverride ?? corpusCase.oracleBackendID,
+            specDirectory: specDirectory,
+            caseDirectory: caseDirectory,
+            preparedInputs: preparedInputs,
+            primaryPassed: executionResult.result.passed,
+            primaryBackendID: executionResult.result.backendID,
+            primaryActiveRuleIDs: actualRuleIDs,
+            primaryDiagnosticSummary: primaryDiagnosticSummary
+        )
+        return buildCaseResult(
+            corpusCase: corpusCase,
+            executionResult: executionResult,
+            expectedRuleIDs: expectedRuleIDs,
+            actualRuleIDs: actualRuleIDs,
+            primaryDiagnosticSummary: primaryDiagnosticSummary,
+            expectationMatched: expectationMatched,
+            durationSeconds: durationSeconds,
+            maxDurationSeconds: maxDurationSeconds,
+            durationBudgetPassed: durationBudgetPassed,
+            oracleResult: oracleResult
+        )
+    }
+
+    private func buildCaseResult(
+        corpusCase: DRCCorpusCase,
+        executionResult: DRCExecutionResult,
+        expectedRuleIDs: [String],
+        actualRuleIDs: [String],
+        primaryDiagnosticSummary: DRCDiagnosticSummary,
+        expectationMatched: Bool,
+        durationSeconds: Double,
+        maxDurationSeconds: Double?,
+        durationBudgetPassed: Bool,
+        oracleResult: DRCCorpusOracleResult?
+    ) -> DRCCorpusCaseResult {
+        let oracleComparison = oracleResult.map {
+            self.oracleComparison(
+                primaryBackendID: executionResult.result.backendID,
+                primaryPassed: executionResult.result.passed,
+                primaryActiveRuleIDs: actualRuleIDs,
+                primaryDiagnosticSummary: primaryDiagnosticSummary,
+                oracleResult: $0
+            )
+        }
+        let oracleAgreementPassed = oracleResult?.agreementPassed ?? true
+        return DRCCorpusCaseResult(
+            caseID: corpusCase.caseID,
+            matched: expectationMatched && durationBudgetPassed && oracleAgreementPassed,
+            expectedPassed: corpusCase.expectedPassed,
+            actualPassed: executionResult.result.passed,
+            expectedActiveErrorRuleIDs: expectedRuleIDs,
+            actualActiveErrorRuleIDs: actualRuleIDs,
+            coverageTags: corpusCase.coverageTags,
+            expectationMatched: expectationMatched,
+            durationSeconds: durationSeconds,
+            expectedMaxDurationSeconds: maxDurationSeconds,
+            durationBudgetPassed: durationBudgetPassed,
+            failureReasons: failureReasons(
                 expectationMatched: expectationMatched,
                 durationBudgetPassed: durationBudgetPassed,
                 oracleAgreementPassed: oracleAgreementPassed,
                 oracleFailureReasons: oracleComparison?.mismatchReasons ?? oracleResult?.failureReasons ?? [],
                 durationSeconds: durationSeconds,
                 maxDurationSeconds: maxDurationSeconds
-            )
-            caseResults.append(DRCCorpusCaseResult(
-                caseID: corpusCase.caseID,
-                matched: expectationMatched && durationBudgetPassed && oracleAgreementPassed,
-                expectedPassed: corpusCase.expectedPassed,
-                actualPassed: executionResult.result.passed,
-                expectedActiveErrorRuleIDs: expectedRuleIDs,
-                actualActiveErrorRuleIDs: actualRuleIDs,
-                coverageTags: corpusCase.coverageTags,
-                expectationMatched: expectationMatched,
-                durationSeconds: durationSeconds,
-                expectedMaxDurationSeconds: maxDurationSeconds,
-                durationBudgetPassed: durationBudgetPassed,
-                failureReasons: failureReasons,
-                diagnosticSummary: primaryDiagnosticSummary,
-                reportPath: executionResult.reportURL?.path(percentEncoded: false),
-                manifestPath: executionResult.artifactManifestURL?.path(percentEncoded: false),
-                primaryProvenance: primaryProvenance,
-                oracleResult: oracleResult,
-                oracleComparison: oracleComparison
-            ))
-        }
+            ),
+            diagnosticSummary: primaryDiagnosticSummary,
+            reportPath: executionResult.reportURL?.path(percentEncoded: false),
+            manifestPath: executionResult.artifactManifestURL?.path(percentEncoded: false),
+            primaryProvenance: provenance(for: executionResult),
+            oracleResult: oracleResult,
+            oracleComparison: oracleComparison
+        )
+    }
 
-        let report = DRCCorpusReport(
+    private func makeReport(
+        caseResults: [DRCCorpusCaseResult],
+        options: DRCCorpusRunOptions,
+        qualificationPolicy: DRCCorpusQualificationPolicy
+    ) -> DRCCorpusReport {
+        DRCCorpusReport(
+            generatedAt: ISO8601DateFormatter().string(from: Date()),
             passed: caseResults.allSatisfy(\.matched),
             caseCount: caseResults.count,
             matchedCaseCount: caseResults.filter(\.matched).count,
             budgetExceededCaseCount: caseResults.filter { !$0.durationBudgetPassed }.count,
             totalDurationSeconds: caseResults.reduce(0) { $0 + $1.durationSeconds },
             runOptions: options,
-            qualificationPolicy: spec.qualificationPolicy,
+            qualificationPolicy: qualificationPolicy,
             caseResults: caseResults
         )
+    }
+
+    private func writeReport(_ report: DRCCorpusReport, to outputDirectory: URL) throws {
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let reportData = try encoder.encode(report)
         try reportData.write(to: reportURL, options: [.atomic])
-        return report
     }
 
     private func validateBudget(_ value: Double?, label: String) throws {

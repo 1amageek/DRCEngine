@@ -1,0 +1,24 @@
+{
+  "rectangles" : [
+    {
+      "id" : "m1_not_m2_marker",
+      "layer" : "m1_not_m2_marker",
+      "netID" : "sig",
+      "xMax" : 1.25,
+      "xMin" : 0.25,
+      "yMax" : 1.5,
+      "yMin" : 0.5
+    }
+  ],
+  "rules" : [
+    {
+      "id" : "m1_not_m2_marker.forbidden",
+      "kind" : "forbiddenLayer",
+      "layer" : "m1_not_m2_marker",
+      "value" : 0
+    }
+  ],
+  "technologyID" : "unit-test-tech",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

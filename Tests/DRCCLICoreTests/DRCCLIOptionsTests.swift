@@ -7,5 +7,5 @@ import LayoutCore
 import LayoutTech
 
 
-@Suite("DRC CLI options")
+@Suite("DRC CLI options", .serialized)
 struct DRCCLIOptionsTests {}

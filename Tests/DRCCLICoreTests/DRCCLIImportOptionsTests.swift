@@ -5,6 +5,7 @@ import DRCCLICore
 import DRCNative
 import LayoutCore
 import LayoutTech
+import SignoffToolSupport
 
 
 extension DRCCLIOptionsTests {
@@ -277,12 +278,14 @@ extension DRCCLIOptionsTests {
         #expect(snapshot.corpus.requiredCoverageTags.contains("drc.spacing.parallel-run-length"))
         #expect(snapshot.corpus.requiredCoverageTags.contains("drc.spacing.wide"))
         #expect(snapshot.corpus.requiredCoverageTags.contains("drc.overlap.exact"))
+        #expect(snapshot.corpus.requiredCoverageTags.contains("drc.enclosure.composite"))
 
         let native = try #require(snapshot.backends.first { $0.backendID == "native" })
         #expect(native.executionMode == "in-process")
         #expect(native.diagnosticKinds.contains("exactOverlap"))
         #expect(native.qualificationTags.contains("drc.overlap.exact"))
         #expect(native.qualificationTags.contains("drc.spacing.wide"))
+        #expect(native.qualificationTags.contains("drc.enclosure.composite"))
 
         let nativeGDS = try #require(snapshot.backends.first { $0.backendID == "native-gds" })
         #expect(nativeGDS.executionMode == "in-process")
@@ -312,6 +315,18 @@ extension DRCCLIOptionsTests {
         #expect(snapshot.artifacts.contains { $0.artifactID == "drc-corpus-coverage-audit" })
         #expect(snapshot.artifacts.contains { $0.artifactID == "drc-magic-rule-import-catalog-inventory" })
         #expect(snapshot.artifacts.contains { $0.artifactID == "layout-tech-database" })
+        #expect(snapshot.artifacts.allSatisfy { !$0.integrityEvidenceFields.isEmpty })
+        #expect(snapshot.artifacts.allSatisfy { !$0.currentnessVerifier.isEmpty })
+        #expect(snapshot.artifacts.allSatisfy { !$0.verdictFields.isEmpty })
+        let reportContract = try #require(snapshot.artifacts.first { $0.artifactID == "drc-report" })
+        #expect(reportContract.integrityEvidenceFields == ["path", "byteCount", "sha256"])
+        #expect(reportContract.currentnessVerifier == "drc-artifact-manifest-record")
+        #expect(reportContract.verdictFields.contains("passed"))
+        #expect(reportContract.verdictFields.contains("completed"))
+        let manifestContract = try #require(snapshot.artifacts.first { $0.artifactID == "drc-artifact-manifest" })
+        #expect(manifestContract.integrityEvidenceFields == ["path"])
+        #expect(manifestContract.currentnessVerifier == "outer-run-ledger-reference")
+        #expect(manifestContract.verdictFields.contains("diagnosticSummary"))
         #expect(snapshot.agentContracts.contains { $0.contains("typed request/result") })
         #expect(snapshot.agentContracts.contains { $0.contains("--audit-corpus-coverage") })
         #expect(snapshot.agentContracts.contains { $0.contains("typed repair hints") })
@@ -327,12 +342,15 @@ extension DRCCLIOptionsTests {
         #expect(snapshot.agentContracts.contains { $0.contains("sourceEnclosedHoleRules/sourceEnclosedHoleRuleCount") })
         #expect(snapshot.agentContracts.contains { $0.contains("sourceTempLayerDefinitions/sourceTempLayerOperationCounts") })
         #expect(snapshot.agentContracts.contains { $0.contains("sourceTempLayerMaterializedRuleIDs/sourceTempLayerMaterializedRuleCount") })
+        #expect(snapshot.agentContracts.contains { $0.contains("and/or/and-not/xor/grow/grow-min/shrink/bridge/close") })
         #expect(snapshot.agentContracts.contains { $0.contains("sourceMinimumCutPolicies/sourceMinimumCutPolicyCount") })
+        #expect(snapshot.agentContracts.contains { $0.contains("unique stack inference") })
         #expect(snapshot.agentContracts.contains { $0.contains("LayoutExactOverlapRule") })
         #expect(snapshot.agentContracts.contains { $0.contains("allowedAngleStepDegrees") })
         #expect(snapshot.agentContracts.contains { $0.contains("minEnclosedArea") })
-        #expect(snapshot.openMilestones.contains { $0.contains("real-deck syntax variants") })
-        #expect(snapshot.openMilestones.contains { $0.contains("cifmaxwidth") })
+        #expect(snapshot.agentContracts.contains { $0.contains("composite rectangular cover") })
+        #expect(snapshot.openMilestones.contains { $0.contains("multi-numeric or ambiguous real-deck variants") })
+        #expect(snapshot.openMilestones.contains { $0.contains("future templayer operations") })
         #expect(!snapshot.openMilestones.contains { $0.contains("angle semantics") })
 
         let data = try JSONEncoder().encode(snapshot)
@@ -344,6 +362,69 @@ extension DRCCLIOptionsTests {
         let exitCode = await DRCCLI.run(arguments: ["--capabilities", "--json"])
 
         #expect(exitCode == 0)
+    }
+
+    @Test func capabilitiesCLIEmitsDecodableSnapshot() async throws {
+        let invocation = await DRCCLI.invoke(arguments: ["--capabilities", "--json"])
+
+        #expect(invocation.exitCode == 0)
+        #expect(invocation.standardError.isEmpty)
+
+        let snapshot = try JSONDecoder().decode(
+            DRCCapabilitySnapshot.self,
+            from: Data(invocation.standardOutput.utf8)
+        )
+        #expect(snapshot == DRCCapabilitySnapshotProvider().snapshot())
+        #expect(snapshot.backends.allSatisfy { !$0.backendID.isEmpty && !$0.producedArtifacts.isEmpty })
+        #expect(snapshot.artifacts.allSatisfy { !$0.artifactID.isEmpty && !$0.consumer.isEmpty })
+    }
+
+    @Test func actionDomainCLIEmitsDecodablePlannerContract() async throws {
+        let invocation = await DRCCLI.invoke(arguments: ["--action-domain", "--json"])
+
+        #expect(invocation.exitCode == 0)
+        #expect(invocation.standardError.isEmpty)
+
+        let snapshot = try JSONDecoder().decode(
+            DRCActionDomainSnapshot.self,
+            from: Data(invocation.standardOutput.utf8)
+        )
+        #expect(snapshot.domainID == "drc-signoff")
+        #expect(snapshot.ownerPackages == ["DRCEngine"])
+
+        let operationIDs = Set(snapshot.operations.map(\.operationID))
+        #expect(operationIDs.contains("drc.run-native"))
+        #expect(operationIDs.contains("drc.export-repair-hints"))
+        #expect(operationIDs.contains("drc.qualify-corpus"))
+        #expect(operationIDs.contains("drc.import-foundry-rule-seed"))
+        #expect(snapshot.operations.allSatisfy { !$0.inputRefs.isEmpty && !$0.producedArtifacts.isEmpty })
+
+        let nativeRun = try #require(snapshot.operations.first { $0.operationID == "drc.run-native" })
+        #expect(nativeRun.inputRefs.contains("layout-ref"))
+        #expect(nativeRun.inputRefs.contains("technology-ref"))
+        #expect(nativeRun.verificationGates.contains("artifact-integrity"))
+        #expect(nativeRun.producedArtifacts.contains("drc-artifact-manifest"))
+        #expect(nativeRun.effects.contains("composite-enclosure-coverage-evaluated"))
+
+        let importRuleSeed = try #require(snapshot.operations.first {
+            $0.operationID == "drc.import-foundry-rule-seed"
+        })
+        #expect(importRuleSeed.maturity == "implemented")
+        #expect(importRuleSeed.inputRefs == [
+            "magic-tech-ref-or-signoff-profile",
+            "magic-layouttech-import-profile",
+            "optional-pdk-root",
+        ])
+        #expect(importRuleSeed.producedArtifacts == [
+            "layout-tech-database",
+            "drc-foundry-rule-import-report",
+        ])
+        #expect(importRuleSeed.verificationGates == [
+            "deck-readiness",
+            "profile-coverage",
+            "import-coverage",
+            "artifact-integrity",
+        ])
     }
 
     @Test func repairHintsOptionsParseJSONFlag() throws {
@@ -514,6 +595,78 @@ extension DRCCLIOptionsTests {
         #expect(report.skippedFamilyCounts["cifmaxwidth"] == nil)
     }
 
+    @Test func foundryRuleImportCLIEmitsDecodableAgentEnvelope() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        try writeImportableMagicDRCDeck(root: root)
+        let technologyURL = root.appending(path: "outputs/agent-layout-tech.json")
+        let reportURL = root.appending(path: "outputs/agent-rule-import.json")
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--import-foundry-magic-rules",
+            "--pdk-root", root.path(percentEncoded: false),
+            "--tech-out", technologyURL.path(percentEncoded: false),
+            "--report-out", reportURL.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 0)
+        #expect(invocation.standardError.isEmpty)
+        #expect(invocation.standardOutput.contains(#""semanticReport""#))
+        #expect(invocation.standardOutput.contains(#""importReport""#))
+
+        let output = try JSONDecoder().decode(
+            DRCFoundryRuleImportCLIOutput.self,
+            from: Data(invocation.standardOutput.utf8)
+        )
+        let importReport = try #require(output.importReport)
+
+        #expect(output.status == "complete")
+        #expect(output.technologyPath == technologyURL.path(percentEncoded: false))
+        #expect(output.reportPath == reportURL.path(percentEncoded: false))
+        #expect(output.semanticReport.status == .passed)
+        #expect(output.semanticReport.pdkRoot == root.path(percentEncoded: false))
+        #expect(importReport.kind == "drc-foundry-rule-import")
+        #expect(importReport.status == .complete)
+        #expect(importReport.sourcePath.hasSuffix("sky130A/libs.tech/magic/sky130A.tech"))
+        #expect(importReport.importedFamilyCounts["minimum_cut"] == 1)
+        #expect(importReport.sourceMinimumCutPolicyCount == 1)
+        #expect(FileManager.default.fileExists(atPath: technologyURL.path(percentEncoded: false)))
+        #expect(FileManager.default.fileExists(atPath: reportURL.path(percentEncoded: false)))
+    }
+
+    @Test func foundryRuleImportCLIEmitsBlockedEnvelopeWhenDeckReadinessFails() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let technologyURL = root.appending(path: "outputs/blocked-layout-tech.json")
+        let reportURL = root.appending(path: "outputs/blocked-rule-import.json")
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--import-foundry-magic-rules",
+            "--pdk-root", root.path(percentEncoded: false),
+            "--tech-out", technologyURL.path(percentEncoded: false),
+            "--report-out", reportURL.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 2)
+        #expect(invocation.standardError.isEmpty)
+
+        let output = try JSONDecoder().decode(
+            DRCFoundryRuleImportCLIOutput.self,
+            from: Data(invocation.standardOutput.utf8)
+        )
+
+        #expect(output.status == "blocked")
+        #expect(output.technologyPath == nil)
+        #expect(output.reportPath == nil)
+        #expect(output.importReport == nil)
+        #expect(output.semanticReport.status == .blocked)
+        #expect(output.semanticReport.coverageTagResults.allSatisfy { $0.status == .blocked })
+        #expect(!FileManager.default.fileExists(atPath: technologyURL.path(percentEncoded: false)))
+        #expect(!FileManager.default.fileExists(atPath: reportURL.path(percentEncoded: false)))
+    }
+
     @Test func magicRuleImportCLIWritesLayoutTechFromExternalProfile() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
@@ -604,6 +757,142 @@ extension DRCCLIOptionsTests {
         #expect(report.sourceMinimumCutPolicies.first?.minimumCount == 3)
     }
 
+    @Test func magicRuleImportCLIFailsClosedOnPartialImportByDefault() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let magicTechURL = root.appending(path: "partial.magic.tech")
+        let profileURL = root.appending(path: "partial-profile.json")
+        let technologyURL = root.appending(path: "outputs/partial-layout-tech.json")
+        let reportURL = root.appending(path: "outputs/partial-rule-import.json")
+        try writePartialMagicRuleImportFixture(magicTechURL: magicTechURL, profileURL: profileURL)
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--import-magic-rules",
+            "--magic-tech", magicTechURL.path(percentEncoded: false),
+            "--profile", profileURL.path(percentEncoded: false),
+            "--tech-out", technologyURL.path(percentEncoded: false),
+            "--report-out", reportURL.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 2)
+        #expect(invocation.standardError.isEmpty)
+        let output = try JSONDecoder().decode(
+            DRCMagicRuleImportCLIOutput.self,
+            from: Data(invocation.standardOutput.utf8)
+        )
+        #expect(output.importReport.status == .partial)
+        #expect(output.importReport.skippedFamilyCounts["edge4way"] == 1)
+        #expect(FileManager.default.fileExists(atPath: technologyURL.path(percentEncoded: false)))
+        #expect(FileManager.default.fileExists(atPath: reportURL.path(percentEncoded: false)))
+    }
+
+    @Test func magicRuleImportCLIAllowsPartialImportOnlyWhenExplicitlyRequested() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let magicTechURL = root.appending(path: "partial.magic.tech")
+        let profileURL = root.appending(path: "partial-profile.json")
+        let technologyURL = root.appending(path: "outputs/partial-layout-tech.json")
+        let reportURL = root.appending(path: "outputs/partial-rule-import.json")
+        try writePartialMagicRuleImportFixture(magicTechURL: magicTechURL, profileURL: profileURL)
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--import-magic-rules",
+            "--magic-tech", magicTechURL.path(percentEncoded: false),
+            "--profile", profileURL.path(percentEncoded: false),
+            "--tech-out", technologyURL.path(percentEncoded: false),
+            "--report-out", reportURL.path(percentEncoded: false),
+            "--allow-partial",
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 0)
+        let output = try JSONDecoder().decode(
+            DRCMagicRuleImportCLIOutput.self,
+            from: Data(invocation.standardOutput.utf8)
+        )
+        #expect(output.importReport.status == .partial)
+        #expect(output.importReport.skippedFamilyCounts["edge4way"] == 1)
+    }
+
+    @Test func magicRuleImportCLIBlocksInvalidExternalProfileAsStructuredReport() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let magicTechURL = root.appending(path: "invalid-profile.magic.tech")
+        let profileURL = root.appending(path: "invalid-magic-profile.json")
+        let technologyURL = root.appending(path: "outputs/invalid-layout-tech.json")
+        let reportURL = root.appending(path: "outputs/invalid-rule-import.json")
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.invalid-profile",
+            layerOrder: ["METX", "CUTX", "METY"],
+            cutLayerNames: ["CUTX"],
+            baseLayerNames: ["METX", "CUTX", "METY"],
+            derivedLayerSeeds: [
+                MagicDRCLayoutTechDerivedLayerSeed(
+                    id: "invalid.derived",
+                    targetLayerName: "METY",
+                    sourceLayerNames: ["METX"],
+                    operation: "unsupported-operation"
+                ),
+            ],
+            cutStackConnections: [
+                MagicDRCLayoutTechCutStackConnection(
+                    id: "CUTX",
+                    cutLayerName: "CUTX",
+                    bottomLayerName: "METX",
+                    topLayerName: "METY",
+                    kind: "unsupported-kind"
+                ),
+            ]
+        )
+        try writeJSON(profile, to: profileURL)
+        try writeText(
+            """
+            style gdsii
+            layer METX metx
+              calma 10 0
+            drc
+              width metx 100 "Metal X width"
+            end
+            """,
+            to: magicTechURL
+        )
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--import-magic-rules",
+            "--magic-tech", magicTechURL.path(percentEncoded: false),
+            "--profile", profileURL.path(percentEncoded: false),
+            "--tech-out", technologyURL.path(percentEncoded: false),
+            "--report-out", reportURL.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 2)
+        #expect(invocation.standardError.isEmpty)
+        let output = try JSONDecoder().decode(
+            DRCMagicRuleImportCLIOutput.self,
+            from: Data(invocation.standardOutput.utf8)
+        )
+        let technology = try JSONDecoder().decode(
+            LayoutTechDatabase.self,
+            from: Data(contentsOf: technologyURL)
+        )
+        let persistedReport = try JSONDecoder().decode(
+            MagicDRCLayoutTechImportReport.self,
+            from: Data(contentsOf: reportURL)
+        )
+
+        #expect(output.status == "blocked")
+        #expect(output.importReport.status == .blocked)
+        #expect(output.importReport.diagnostics.first?.code == "magic_drc_layouttech_profile_validation_failed")
+        #expect(output.importReport.diagnostics.first?.message.contains("unsupportedDerivedLayerOperation") == true)
+        #expect(output.importReport.diagnostics.first?.message.contains("unsupportedCutStackKind") == true)
+        #expect(persistedReport == output.importReport)
+        #expect(technology.layers.isEmpty)
+        #expect(technology.derivedLayerRules.isEmpty)
+        #expect(technology.vias.isEmpty)
+    }
+
     @Test func magicRuleImportCLIWritesLayoutTechFromBundledProfileResource() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
@@ -683,7 +972,7 @@ extension DRCCLIOptionsTests {
         #expect(report.sourceMinimumCutPolicyCount == 1)
     }
 
-    @Test func foundryRuleImportCLIRequireCompleteFailsPartialImport() async throws {
+    @Test func foundryRuleImportCLIRequireCompleteAcceptsBridgeTemplayerImport() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         try writeImportableMagicDRCDeck(root: root, includeUnsupportedRule: true)
@@ -699,7 +988,7 @@ extension DRCCLIOptionsTests {
             "--json",
         ])
 
-        #expect(exitCode == 2)
+        #expect(exitCode == 0)
         let technology = try JSONDecoder().decode(
             LayoutTechDatabase.self,
             from: Data(contentsOf: technologyURL)
@@ -708,8 +997,8 @@ extension DRCCLIOptionsTests {
             MagicDRCLayoutTechImportReport.self,
             from: Data(contentsOf: reportURL)
         )
-        #expect(report.status == .partial)
-        #expect(report.skippedFamilyCounts["cifmaxwidth"] == 1)
+        #expect(report.status == .complete)
+        #expect(report.skippedFamilyCounts["cifmaxwidth"] == nil)
         #expect(report.sourceForbiddenMarkerRuleIDs == ["forbiddenMarker.nwell_missing"])
         #expect(report.sourceForbiddenMarkerRuleCount == 1)
         let tempLayer = report.sourceTempLayerDefinitions.first { $0.name == "nwell_missing" }
@@ -718,11 +1007,21 @@ extension DRCCLIOptionsTests {
         #expect(tempLayer?.operations.map(\.command) == ["bridge", "and-not"])
         #expect(tempLayer?.referencedLayerNames == ["DNWELL", "NWELL"])
         #expect(tempLayer?.unresolvedReferences.isEmpty == true)
-        #expect(report.sourceTempLayerMaterializedRuleIDs.isEmpty)
-        #expect(report.sourceTempLayerMaterializedRuleCount == 0)
+        #expect(report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.nwell_missing"])
+        #expect(report.sourceTempLayerMaterializedRuleCount == 1)
+        #expect(technology.derivedLayerRules.contains { rule in
+            rule.id == "magic.templayer.nwell_missing.step1"
+                && rule.operation == .bridge
+                && rule.operationDistance == 0.4
+                && rule.operationWidth == 0.4
+        })
+        #expect(technology.derivedLayerRules.contains { rule in
+            rule.id == "magic.templayer.nwell_missing"
+                && rule.operation == .difference
+        })
         #expect(report.sourceMinimumCutPolicyIDs == ["sourceMinimumCut.VIA1"])
         #expect(report.sourceMinimumCutPolicyCount == 1)
-        #expect(report.diagnostics.contains {
+        #expect(!report.diagnostics.contains {
             $0.code == "magic_drc_cifmaxwidth_marker_materialization_deferred"
         })
         let rule = technology.forbiddenLayerRule(for: "forbiddenMarker.nwell_missing")
@@ -753,6 +1052,7 @@ extension DRCCLIOptionsTests {
         #expect(run.maturity == "implemented")
         #expect(run.producedArtifacts.contains("drc-summary"))
         #expect(run.verificationGates.contains("drc-artifacts"))
+        #expect(run.effects.contains("composite-enclosure-coverage-evaluated"))
 
         let deckSemantics = try #require(snapshot.operations.first {
             $0.operationID == "drc.inspect-foundry-deck-semantics"
@@ -761,8 +1061,53 @@ extension DRCCLIOptionsTests {
         #expect(deckSemantics.preconditions == ["magic-drc-deck-readable"])
         #expect(deckSemantics.verificationGates.contains("semantic-coverage"))
 
+        let ruleSeedImport = try #require(snapshot.operations.first {
+            $0.operationID == "drc.import-foundry-rule-seed"
+        })
+        #expect(ruleSeedImport.maturity == "implemented")
+        #expect(ruleSeedImport.inputRefs == [
+            "magic-tech-ref-or-signoff-profile",
+            "magic-layouttech-import-profile",
+            "optional-pdk-root",
+        ])
+        #expect(ruleSeedImport.effects == [
+            "layout-tech-seed-produced",
+            "foundry-rule-import-report-produced",
+        ])
+        #expect(ruleSeedImport.producedArtifacts == [
+            "layout-tech-database",
+            "drc-foundry-rule-import-report",
+        ])
+        #expect(ruleSeedImport.verificationGates == [
+            "deck-readiness",
+            "profile-coverage",
+            "import-coverage",
+            "artifact-integrity",
+        ])
+
         let audit = try #require(snapshot.operations.first { $0.operationID == "drc.audit-corpus-coverage" })
         #expect(audit.producedArtifacts == ["drc-corpus-coverage-audit"])
         #expect(audit.verificationGates.contains("oracle-readiness"))
+    }
+
+    private func writePartialMagicRuleImportFixture(magicTechURL: URL, profileURL: URL) throws {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.partial",
+            layerOrder: ["METX"],
+            baseLayerNames: ["METX"]
+        )
+        try writeJSON(profile, to: profileURL)
+        try writeText(
+            """
+            style gdsii
+            layer METX metx
+              calma 10 0
+            drc
+              width metx 100 "Metal X width"
+              edge4way metx 100 "Unsupported edge four-way rule"
+            end
+            """,
+            to: magicTechURL
+        )
     }
 }

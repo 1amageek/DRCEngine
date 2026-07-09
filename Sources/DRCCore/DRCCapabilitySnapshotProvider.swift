@@ -23,17 +23,18 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "Generic Magic DRC LayoutTech seed import is exposed through the MagicDRCLayoutTechImporter API and drcengine --import-magic-rules with either explicit --magic-tech plus one of --profile or --profile-resource, or a catalog selector via --catalog, --catalog-id, --pdk-id, --profile-id, and optional --pdk-root; all paths emit structured JSON provenance.",
                 "Installed foundry Magic DRC import is exposed through drcengine --import-foundry-magic-rules using signoff profile readiness plus an explicit or bundled Magic LayoutTech import profile; drcengine --import-sky130-magic-rules is retained only as a deprecated compatibility route.",
                 "Magic rule import catalog readiness is inspectable before import through drcengine --inspect-magic-rule-import-catalog with explicit --catalog inputs or bounded --pdk-root discovery, producing a drc-magic-rule-import-catalog-inventory JSON artifact with required-file and bundled-profile-resource status.",
-                "Sky130 Magic DRC width, same-layer spacing, cross-layer spacing, area, notch, rect-only, angle, surround enclosure, same-layer widespacing, overhang extension, exact-overlap including one-of secondary layer sets, MiM derived-layer, Sky130 hole-empty cifmaxwidth rules, dependency-ordered templayer marker materialization for and/or/and-not/grow/shrink operations, non-hole cifmaxwidth forbidden-marker source contracts, and generic Magic-deck minimum-cut/cut-count source policies can be imported into a partial LayoutTechDatabase seed through the generic drcengine --import-magic-rules catalog/profile-resource path or drcengine --import-foundry-magic-rules with Magic types/aliases layer-expression expansion, source contact-stack connectivity, derived via/contact definitions, derived minimum-cut seed rules, sourceCutLayerNames/sourceCutAliasCount, sourceContactStacks/sourceContactStackCount, sourceContactDefinitionIDs/sourceContactDefinitionCount, sourceExactOverlapRules/sourceExactOverlapRuleCount, sourceEnclosedHoleRules/sourceEnclosedHoleRuleCount evidence, sourceForbiddenMarkerRules/sourceForbiddenMarkerRuleCount evidence, sourceTempLayerDefinitions/sourceTempLayerOperationCounts evidence, sourceTempLayerMaterializedRuleIDs/sourceTempLayerMaterializedRuleCount evidence, sourceMinimumCutPolicies/sourceMinimumCutPolicyCount evidence, LayoutSpacingRule records, LayoutDerivedLayerRule records, LayoutExactOverlapRule records, LayoutForbiddenLayerRule records, allowedAngleStepDegrees records, minEnclosedArea records, LayoutMinimumCutRule minimumCount records, and an auditable drc-foundry-rule-import-report.",
+                "Sky130 Magic DRC width, same-layer spacing, cross-layer spacing, area, notch, rect-only, angle, surround enclosure, same-layer widespacing, overhang extension, exact-overlap including one-of secondary layer sets, MiM derived-layer, Sky130 hole-empty cifmaxwidth rules, dependency-ordered templayer marker materialization for and/or/and-not/xor/grow/grow-min/shrink/bridge/close operations, non-hole cifmaxwidth forbidden-marker source contracts, and generic Magic-deck minimum-cut/cut-count source policies can be imported into a partial LayoutTechDatabase seed through the generic drcengine --import-magic-rules catalog/profile-resource path or drcengine --import-foundry-magic-rules with Magic types/aliases layer-expression expansion, source contact-stack connectivity, unique stack inference for cut/count source policy lines, derived via/contact definitions, derived minimum-cut seed rules, sourceCutLayerNames/sourceCutAliasCount, sourceContactStacks/sourceContactStackCount, sourceContactDefinitionIDs/sourceContactDefinitionCount, sourceExactOverlapRules/sourceExactOverlapRuleCount, sourceEnclosedHoleRules/sourceEnclosedHoleRuleCount evidence, sourceForbiddenMarkerRules/sourceForbiddenMarkerRuleCount evidence, sourceTempLayerDefinitions/sourceTempLayerOperationCounts evidence, sourceTempLayerMaterializedRuleIDs/sourceTempLayerMaterializedRuleCount evidence, sourceMinimumCutPolicies/sourceMinimumCutPolicyCount evidence, LayoutSpacingRule records, LayoutDerivedLayerRule records, LayoutExactOverlapRule records, allowedAngleStepDegrees records, minEnclosedArea records, LayoutMinimumCutRule minimumCount records, and an auditable drc-foundry-rule-import-report.",
                 "Diagnostics carry rule, layer, measured/required values, region, related shape/net IDs, waiver state, and suggested fix fields.",
                 "Saved DRC reports can be converted into typed repair hints for executable layout operations without log scraping.",
                 "Spacing and overlap diagnostics export translation repair hints with executable deltaX/deltaY vectors when backend-provided repair geometry is available, including native JSON and standard layout inputs.",
                 "Minimum-cut diagnostics export via repair hints with inferred viaDefinitionID, candidate position, existing/required/missing cut counts, and typed relatedViaIDs for existing cut references.",
+                "Native minimum-enclosure checks evaluate the union of same-layer rectangles so composite rectangular cover is judged as layout geometry rather than a single best rectangle.",
                 "Minimum enclosed-area diagnostics export fill-rectangle repair hints with explicit origin, size, area evidence, and native LVS verification gating.",
                 "Minimum-density diagnostics export fill-rectangle repair hints with explicit density-window geometry, measured/required density evidence, target fill area, and native LVS verification gating.",
                 "Corpus reports are immutable evidence and can be requalified without rerunning the engine.",
             ],
             openMilestones: [
-                "Broaden Magic multi-cut/cut-count import from the current generic minimum-cut source-policy seed into real-deck syntax variants, remaining unsupported templayer operations for non-hole cifmaxwidth marker rules, golden foundry DRC cases, and broader Magic oracle agreement.",
+                "Broaden Magic cut-count import beyond generic source-policy lines and unique stack inference into multi-numeric or ambiguous real-deck variants, remaining unsupported future templayer operations beyond the typed native materialization set, golden foundry DRC cases, and broader Magic oracle agreement.",
                 "Broaden standard mask input lanes from deterministic clean/equivalence fixtures into larger foundry-oriented coverage.",
                 "Add larger benchmark suites with public PDK-derived rule decks and regression budgets.",
                 "Expand repair hint normalization beyond current width, spacing, overlap, notch, enclosed-area, minimum-density, split, and via-cut edits until every active diagnostic kind has a benchmarked executable layout operation.",
@@ -55,6 +56,9 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "drc.clean",
                 "drc.grid",
                 "drc.width",
+                "drc.width.maximum",
+                "drc.marker",
+                "drc.marker.forbidden-layer",
                 "drc.area",
                 "drc.density",
                 "drc.antenna",
@@ -64,6 +68,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "drc.spacing",
                 "drc.spacing.wide",
                 "drc.enclosure",
+                "drc.enclosure.composite",
                 "drc.extension",
                 "drc.overlap",
                 "drc.overlap.exact",
@@ -126,6 +131,8 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
         [
             "manufacturingGrid",
             "minimumWidth",
+            "maximumWidth",
+            "forbiddenLayer",
             "minimumArea",
             "maximumDensity",
             "minimumDensity",
@@ -148,55 +155,82 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 artifactID: "drc-report",
                 format: "json",
                 producer: "DRCPersistence.DRCArtifactStore",
-                consumer: ["Agent", "Human review", "Xcircuite", "DesignFlowKernel"]
+                consumer: ["Agent", "Human review", "Xcircuite", "DesignFlowKernel"],
+                integrityEvidenceFields: ["path", "byteCount", "sha256"],
+                currentnessVerifier: "drc-artifact-manifest-record",
+                verdictFields: ["passed", "completed", "diagnosticSummary"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "drc-artifact-manifest",
                 format: "json",
                 producer: "DRCPersistence.DRCArtifactStore",
-                consumer: ["artifact-integrity-gate", "Xcircuite", "CI"]
+                consumer: ["artifact-integrity-gate", "Xcircuite", "CI"],
+                integrityEvidenceFields: ["path"],
+                currentnessVerifier: "outer-run-ledger-reference",
+                verdictFields: ["passed", "completed", "diagnosticSummary"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "drc-summary",
                 format: "json",
                 producer: "DRCPersistence.DRCRunSummaryBuilder",
-                consumer: ["Agent planning", "Human review", "Xcircuite planning/problem generator"]
+                consumer: ["Agent planning", "Human review", "Xcircuite planning/problem generator"],
+                integrityEvidenceFields: ["path", "byteCount", "sha256"],
+                currentnessVerifier: "summary-artifact-reference",
+                verdictFields: ["summary.status", "summary.passed", "summary.completed", "summary.diagnosticSummary"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "drc-repair-hints",
                 format: "json",
                 producer: "DRCCore.DRCRepairHintBuilder",
-                consumer: ["Agent planning", "Xcircuite candidate plan generation", "Human review"]
+                consumer: ["Agent planning", "Xcircuite candidate plan generation", "Human review"],
+                integrityEvidenceFields: ["path", "byteCount", "sha256"],
+                currentnessVerifier: "repair-hint-source-report-reference",
+                verdictFields: ["status", "activeDiagnosticCount", "hintCount", "unsupportedDiagnosticIndexes"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "signoff-foundry-deck-semantics",
                 format: "json",
                 producer: "SignoffToolSupport.SignoffDeckSemanticInventory",
-                consumer: ["Agent tool selection", "Xcircuite trust gate", "CI", "Human review"]
+                consumer: ["Agent tool selection", "Xcircuite trust gate", "CI", "Human review"],
+                integrityEvidenceFields: ["path", "byteCount", "sha256"],
+                currentnessVerifier: "deck-semantic-inventory-input-reference",
+                verdictFields: ["status", "coverageTagResults"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "drc-foundry-rule-import-report",
                 format: "json",
                 producer: "DRCNative.MagicDRCLayoutTechImporter",
-                consumer: ["Agent tool selection", "native-gds planning", "CI", "Human review"]
+                consumer: ["Agent tool selection", "native-gds planning", "CI", "Human review"],
+                integrityEvidenceFields: ["path", "byteCount", "sha256"],
+                currentnessVerifier: "magic-rule-import-input-reference",
+                verdictFields: ["status", "importedRuleCount", "skippedRuleCount", "diagnostics"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "drc-corpus-coverage-audit",
                 format: "json",
                 producer: "DRCCore.DRCCorpusCoverageAuditor",
-                consumer: ["Agent gap analysis", "Human review", "CI", "DesignFlowKernel"]
+                consumer: ["Agent gap analysis", "Human review", "CI", "DesignFlowKernel"],
+                integrityEvidenceFields: ["path", "byteCount", "sha256"],
+                currentnessVerifier: "corpus-report-reference",
+                verdictFields: ["status", "coverageTagResults", "blockedReasonCounts"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "drc-magic-rule-import-catalog-inventory",
                 format: "json",
                 producer: "DRCCLICore.DRCMagicRuleImportCatalogInventoryBuilder",
-                consumer: ["Agent preflight", "CI", "Human review"]
+                consumer: ["Agent preflight", "CI", "Human review"],
+                integrityEvidenceFields: ["path", "byteCount", "sha256"],
+                currentnessVerifier: "catalog-input-reference",
+                verdictFields: ["status", "items", "issues"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "layout-tech-database",
                 format: "json",
                 producer: "DRCNative.MagicDRCLayoutTechImporter",
-                consumer: ["DRCNative.LayoutGDSDRCBackend", "Agent planning", "Human review"]
+                consumer: ["DRCNative.LayoutGDSDRCBackend", "Agent planning", "Human review"],
+                integrityEvidenceFields: ["path", "byteCount", "sha256"],
+                currentnessVerifier: "drc-foundry-rule-import-report",
+                verdictFields: ["schemaVersion", "name", "layers", "rules"]
             ),
         ]
     }
@@ -223,6 +257,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "drc.density.minimum",
                 "drc.enclosed-area",
                 "drc.enclosure",
+                "drc.enclosure.composite",
                 "drc.extension",
                 "drc.extension.minimum",
                 "drc.grid",

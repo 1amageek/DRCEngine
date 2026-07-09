@@ -658,6 +658,24 @@ extension DRCCLIOptionsTests {
             oracleBackendID: "magic",
             summary: summary
         )
+        let via2SpacingViolation = passingAuditCaseResult(
+            caseID: "sky130-magic-via2-spacing-violation",
+            coverageTags: [
+                "diagnostic.rule-id",
+                "drc.contact",
+                "drc.contact.spacing",
+                "drc.contact.spacing.external-oracle",
+                "drc.contact.spacing.fail",
+                "drc.contact.spacing.via2",
+                "drc.contact.spacing.via2.external-oracle",
+                "drc.contact.via2",
+                "external.magic",
+                "layout.magic",
+                "sky130",
+            ],
+            oracleBackendID: "magic",
+            summary: summary
+        )
         let via2Metal2EnclosureViolation = passingAuditCaseResult(
             caseID: "sky130-magic-via2-met2-enclosure-violation",
             coverageTags: [
@@ -951,6 +969,24 @@ extension DRCCLIOptionsTests {
             oracleBackendID: "magic",
             summary: summary
         )
+        let via3SpacingViolation = passingAuditCaseResult(
+            caseID: "sky130-magic-via3-spacing-violation",
+            coverageTags: [
+                "diagnostic.rule-id",
+                "drc.contact",
+                "drc.contact.spacing",
+                "drc.contact.spacing.external-oracle",
+                "drc.contact.spacing.fail",
+                "drc.contact.spacing.via3",
+                "drc.contact.spacing.via3.external-oracle",
+                "drc.contact.via3",
+                "external.magic",
+                "layout.magic",
+                "sky130",
+            ],
+            oracleBackendID: "magic",
+            summary: summary
+        )
         let via3Metal3EnclosureViolation = passingAuditCaseResult(
             caseID: "sky130-magic-via3-met3-enclosure-violation",
             coverageTags: [
@@ -1228,6 +1264,74 @@ extension DRCCLIOptionsTests {
             oracleBackendID: "magic",
             summary: summary
         )
+        let via4SpacingViolation = passingAuditCaseResult(
+            caseID: "sky130-magic-via4-spacing-violation",
+            coverageTags: [
+                "diagnostic.rule-id",
+                "drc.contact",
+                "drc.contact.spacing",
+                "drc.contact.spacing.external-oracle",
+                "drc.contact.spacing.fail",
+                "drc.contact.spacing.via4",
+                "drc.contact.spacing.via4.external-oracle",
+                "drc.contact.via4",
+                "external.magic",
+                "layout.magic",
+                "sky130",
+            ],
+            oracleBackendID: "magic",
+            summary: summary
+        )
+        let via4SpacingClean = passingAuditCaseResult(
+            caseID: "sky130-magic-via4-spacing-clean",
+            coverageTags: [
+                "drc.contact",
+                "drc.contact.spacing",
+                "drc.contact.spacing.external-oracle",
+                "drc.contact.spacing.pass",
+                "drc.contact.spacing.via4",
+                "drc.contact.spacing.via4.external-oracle",
+                "drc.contact.via4",
+                "external.magic",
+                "layout.magic",
+                "sky130",
+            ],
+            oracleBackendID: "magic",
+            summary: summary
+        )
+        let via4Metal5EnclosureViolation = passingAuditCaseResult(
+            caseID: "sky130-magic-via4-met5-enclosure-violation",
+            coverageTags: [
+                "diagnostic.rule-id",
+                "drc.enclosure",
+                "drc.enclosure.external-oracle",
+                "drc.enclosure.fail",
+                "drc.enclosure.via4",
+                "drc.enclosure.via4.met5",
+                "drc.enclosure.via4.met5.external-oracle",
+                "external.magic",
+                "layout.magic",
+                "sky130",
+            ],
+            oracleBackendID: "magic",
+            summary: summary
+        )
+        let via4Metal5EnclosureClean = passingAuditCaseResult(
+            caseID: "sky130-magic-via4-met5-enclosure-clean",
+            coverageTags: [
+                "drc.enclosure",
+                "drc.enclosure.external-oracle",
+                "drc.enclosure.pass",
+                "drc.enclosure.via4",
+                "drc.enclosure.via4.met5",
+                "drc.enclosure.via4.met5.external-oracle",
+                "external.magic",
+                "layout.magic",
+                "sky130",
+            ],
+            oracleBackendID: "magic",
+            summary: summary
+        )
         let metal5WidthViolation = passingAuditCaseResult(
             caseID: "sky130-magic-met5-width-violation",
             coverageTags: [
@@ -1346,8 +1450,8 @@ extension DRCCLIOptionsTests {
         )
         return DRCCorpusReport(
             passed: true,
-            caseCount: 89,
-            matchedCaseCount: 89,
+            caseCount: 95,
+            matchedCaseCount: 95,
             budgetExceededCaseCount: 0,
             totalDurationSeconds: 0.03,
             caseResults: [
@@ -1395,6 +1499,7 @@ extension DRCCLIOptionsTests {
                 via2WidthViolation,
                 via2WidthClean,
                 via2SpacingClean,
+                via2SpacingViolation,
                 via2Metal2EnclosureViolation,
                 via2Metal2EnclosureClean,
                 via2Metal3EnclosureViolation,
@@ -1414,6 +1519,7 @@ extension DRCCLIOptionsTests {
                 via3WidthViolation,
                 via3WidthClean,
                 via3SpacingClean,
+                via3SpacingViolation,
                 via3Metal3EnclosureViolation,
                 via3Metal3EnclosureClean,
                 via3Metal4EnclosureViolation,
@@ -1432,6 +1538,10 @@ extension DRCCLIOptionsTests {
                 metal4LargeAttachedSpacingClean,
                 via4WidthViolation,
                 via4WidthClean,
+                via4SpacingViolation,
+                via4SpacingClean,
+                via4Metal5EnclosureViolation,
+                via4Metal5EnclosureClean,
                 metal5WidthViolation,
                 metal5WidthClean,
                 metal5SpacingViolation,

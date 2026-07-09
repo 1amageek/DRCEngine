@@ -146,22 +146,112 @@ public struct DRCArtifactStore: Sendable {
         url: URL,
         baseDirectory: URL
     ) throws -> DRCArtifactRecord {
+        guard url.isFileURL else {
+            throw DRCError.artifactWriteFailed("non-file artifact URL is not supported for \(id): \(url.absoluteString)")
+        }
         let data = try Data(contentsOf: url)
+        let retainedURL = try retainedArtifactURL(
+            for: url,
+            id: id,
+            data: data,
+            baseDirectory: baseDirectory
+        )
         return DRCArtifactRecord(
             id: id,
             kind: kind,
-            path: relativePath(for: url, baseDirectory: baseDirectory),
+            path: relativePath(for: retainedURL, baseDirectory: baseDirectory),
             byteCount: data.count,
             sha256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         )
     }
 
+    private func retainedArtifactURL(
+        for url: URL,
+        id: String,
+        data: Data,
+        baseDirectory: URL
+    ) throws -> URL {
+        if isContained(url, in: baseDirectory) {
+            return url
+        }
+        let fileName = safeFileName(url.lastPathComponent, fallback: "artifact")
+        let retainedDirectory = baseDirectory
+            .appending(path: "retained-artifacts")
+            .appending(path: safeFileName(id, fallback: "artifact"))
+        let retainedURL = retainedDirectory.appending(path: fileName)
+        try FileManager.default.createDirectory(
+            at: retainedDirectory,
+            withIntermediateDirectories: true
+        )
+        try ensureRetainedDirectoryIsInsideBase(retainedDirectory, baseDirectory: baseDirectory)
+        try data.write(to: retainedURL, options: [.atomic])
+        return retainedURL
+    }
+
+    private func isContained(_ url: URL, in baseDirectory: URL) -> Bool {
+        containmentRelativePath(for: url, baseDirectory: baseDirectory) != nil
+    }
+
+    private func safeFileName(_ value: String, fallback: String) -> String {
+        let candidate = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty, candidate != ".", candidate != ".." else {
+            return fallback
+        }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
+        let sanitized = candidate.unicodeScalars.map { scalar in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        }
+        let name = String(sanitized)
+        return name.isEmpty ? fallback : name
+    }
+
     private func relativePath(for url: URL, baseDirectory: URL) -> String {
-        let basePath = baseDirectory.standardizedFileURL.path(percentEncoded: false)
+        if let relativePath = containmentRelativePath(for: url, baseDirectory: baseDirectory) {
+            return relativePath
+        }
+        return url.standardizedFileURL.path(percentEncoded: false)
+    }
+
+    private func ensureRetainedDirectoryIsInsideBase(_ directoryURL: URL, baseDirectory: URL) throws {
+        let resolvedBasePath = directoryPath(normalizedPath(baseDirectory))
+        let resolvedDirectoryPath = directoryPath(normalizedPath(directoryURL))
+        guard resolvedDirectoryPath == resolvedBasePath || resolvedDirectoryPath.hasPrefix(resolvedBasePath + "/") else {
+            throw DRCError.artifactWriteFailed(
+                "retained artifact directory escapes the run directory: \(directoryURL.path(percentEncoded: false))"
+            )
+        }
+    }
+
+    private func containmentRelativePath(for url: URL, baseDirectory: URL) -> String? {
+        let basePath = directoryPath(baseDirectory.standardizedFileURL.path(percentEncoded: false))
         let artifactPath = url.standardizedFileURL.path(percentEncoded: false)
         guard artifactPath.hasPrefix(basePath + "/") else {
-            return artifactPath
+            return nil
         }
+
+        if FileManager.default.fileExists(atPath: artifactPath) {
+            let resolvedBasePath = directoryPath(normalizedPath(baseDirectory))
+            let resolvedArtifactPath = normalizedPath(url)
+            guard resolvedArtifactPath.hasPrefix(resolvedBasePath + "/") else {
+                return nil
+            }
+        }
+
         return String(artifactPath.dropFirst(basePath.count + 1))
+    }
+
+    private func normalizedPath(_ url: URL) -> String {
+        url
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+            .path(percentEncoded: false)
+    }
+
+    private func directoryPath(_ path: String) -> String {
+        var result = path
+        while result.count > 1 && result.hasSuffix("/") {
+            result.removeLast()
+        }
+        return result
     }
 }

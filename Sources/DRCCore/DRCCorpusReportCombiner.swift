@@ -26,6 +26,7 @@ public struct DRCCorpusReportCombiner: Sendable {
             ]
         }
         return DRCCorpusReport(
+            generatedAt: combinedGeneratedAt(from: reports),
             passed: passed,
             caseCount: caseResults.count,
             matchedCaseCount: caseResults.filter(\.matched).count,
@@ -40,5 +41,13 @@ public struct DRCCorpusReportCombiner: Sendable {
             ),
             caseResults: caseResults
         )
+    }
+
+    private func combinedGeneratedAt(from reports: [DRCCorpusReport]) -> String? {
+        let timestamps = reports.compactMap(\.generatedAt)
+        guard timestamps.count == reports.count else {
+            return nil
+        }
+        return timestamps.min()
     }
 }

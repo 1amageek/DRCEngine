@@ -8,6 +8,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     public let requireOracleReadiness: Bool
     public let requireDurationBudget: Bool
     public let minimumCaseCount: Int
+    public let maxReportAgeSeconds: Double?
     public let requirements: [Requirement]
 
     public init(
@@ -18,6 +19,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         requireOracleReadiness: Bool = true,
         requireDurationBudget: Bool = true,
         minimumCaseCount: Int = 1,
+        maxReportAgeSeconds: Double? = nil,
         requirements: [Requirement]
     ) {
         self.schemaVersion = schemaVersion
@@ -27,6 +29,11 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         self.requireOracleReadiness = requireOracleReadiness
         self.requireDurationBudget = requireDurationBudget
         self.minimumCaseCount = max(0, minimumCaseCount)
+        if let maxReportAgeSeconds, maxReportAgeSeconds.isFinite, maxReportAgeSeconds >= 0 {
+            self.maxReportAgeSeconds = maxReportAgeSeconds
+        } else {
+            self.maxReportAgeSeconds = nil
+        }
         self.requirements = requirements.sorted { $0.requirementID < $1.requirementID }
     }
 
@@ -344,6 +351,21 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
                     suggestedActions: ["add_magic_readable_via2_width_cases"]
                 ),
                 Requirement(
+                    requirementID: "magic-via2-spacing-oracle",
+                    title: "Magic VIA2 spacing oracle coverage",
+                    requiredCoverageTags: [
+                        "drc.contact",
+                        "drc.contact.spacing",
+                        "drc.contact.spacing.via2",
+                        "drc.contact.spacing.via2.external-oracle",
+                        "drc.contact.via2",
+                        "external.magic",
+                        "sky130",
+                    ],
+                    minimumCaseCount: 2,
+                    suggestedActions: ["add_magic_readable_via2_spacing_cases"]
+                ),
+                Requirement(
                     requirementID: "magic-via2-metal2-enclosure-oracle",
                     title: "Magic VIA2 Metal2 enclosure oracle coverage",
                     requiredCoverageTags: [
@@ -478,6 +500,21 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
                     suggestedActions: ["add_magic_readable_via3_width_cases"]
                 ),
                 Requirement(
+                    requirementID: "magic-via3-spacing-oracle",
+                    title: "Magic VIA3 spacing oracle coverage",
+                    requiredCoverageTags: [
+                        "drc.contact",
+                        "drc.contact.spacing",
+                        "drc.contact.spacing.via3",
+                        "drc.contact.spacing.via3.external-oracle",
+                        "drc.contact.via3",
+                        "external.magic",
+                        "sky130",
+                    ],
+                    minimumCaseCount: 2,
+                    suggestedActions: ["add_magic_readable_via3_spacing_cases"]
+                ),
+                Requirement(
                     requirementID: "magic-via3-metal3-enclosure-oracle",
                     title: "Magic VIA3 Metal3 enclosure oracle coverage",
                     requiredCoverageTags: [
@@ -524,6 +561,39 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
                     ],
                     minimumCaseCount: 2,
                     suggestedActions: ["add_magic_readable_via4_width_cases"]
+                ),
+                Requirement(
+                    requirementID: "magic-via4-spacing-oracle",
+                    title: "Magic VIA4 spacing oracle coverage",
+                    requiredCoverageTags: [
+                        "drc.contact",
+                        "drc.contact.spacing",
+                        "drc.contact.spacing.external-oracle",
+                        "drc.contact.spacing.via4",
+                        "drc.contact.spacing.via4.external-oracle",
+                        "drc.contact.via4",
+                        "external.magic",
+                        "layout.magic",
+                        "sky130",
+                    ],
+                    minimumCaseCount: 2,
+                    suggestedActions: ["add_magic_readable_via4_spacing_cases"]
+                ),
+                Requirement(
+                    requirementID: "magic-via4-metal5-enclosure-oracle",
+                    title: "Magic VIA4 Metal5 enclosure oracle coverage",
+                    requiredCoverageTags: [
+                        "drc.enclosure",
+                        "drc.enclosure.external-oracle",
+                        "drc.enclosure.via4",
+                        "drc.enclosure.via4.met5",
+                        "drc.enclosure.via4.met5.external-oracle",
+                        "external.magic",
+                        "layout.magic",
+                        "sky130",
+                    ],
+                    minimumCaseCount: 2,
+                    suggestedActions: ["add_magic_readable_via4_metal5_enclosure_cases"]
                 ),
                 Requirement(
                     requirementID: "magic-metal4-width-oracle",
@@ -691,6 +761,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         case requireOracleReadiness
         case requireDurationBudget
         case minimumCaseCount
+        case maxReportAgeSeconds
         case requirements
     }
 
@@ -704,6 +775,15 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         requireOracleReadiness = try container.decodeIfPresent(Bool.self, forKey: .requireOracleReadiness) ?? true
         requireDurationBudget = try container.decodeIfPresent(Bool.self, forKey: .requireDurationBudget) ?? true
         minimumCaseCount = max(0, try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1)
+        if let decodedMaxReportAgeSeconds = try container.decodeIfPresent(
+            Double.self,
+            forKey: .maxReportAgeSeconds
+        ), decodedMaxReportAgeSeconds.isFinite,
+           decodedMaxReportAgeSeconds >= 0 {
+            maxReportAgeSeconds = decodedMaxReportAgeSeconds
+        } else {
+            maxReportAgeSeconds = nil
+        }
         requirements = try container.decodeIfPresent([Requirement].self, forKey: .requirements) ?? []
     }
 

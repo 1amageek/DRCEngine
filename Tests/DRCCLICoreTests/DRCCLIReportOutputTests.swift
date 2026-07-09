@@ -23,8 +23,9 @@ extension DRCCLIOptionsTests {
 
         let report = try JSONDecoder().decode(DRCCorpusReport.self, from: data)
 
-        #expect(report.summary.passRate == 1)
-        #expect(report.qualification.qualified)
+        #expect(report.summary.passRate == 0)
+        #expect(!report.qualification.qualified)
+        #expect(report.qualification.failures.map(\.code).contains("empty_corpus"))
         #expect(report.qualification.policy == .strict)
     }
 
@@ -71,6 +72,55 @@ extension DRCCLIOptionsTests {
         #expect(output.waiverReport?.unusedWaiverIDs == ["unused"])
     }
 
+    @Test func cliOutputUsesRunSummaryForWaivedDiagnostics() {
+        let diagnostic = DRCDiagnostic(
+            severity: .error,
+            message: "Waived minimum width violation",
+            ruleID: "met1.width",
+            kind: "minimumWidth",
+            layer: "met1",
+            measured: 0.1,
+            required: 0.5,
+            unit: "micrometer",
+            relatedShapeIDs: ["thin"],
+            waiverID: "waive-thin",
+            waiverReason: "Fixture waiver",
+            rawLine: "MIN_WIDTH layer=met1 id=thin"
+        )
+        let output = DRCCLIOutput(result: DRCExecutionResult(
+            request: DRCRequest(layoutURL: URL(filePath: "/tmp/layout.json"), topCell: "inv"),
+            result: DRCResult(
+                backendID: "native",
+                toolName: "NativeDRC",
+                success: true,
+                completed: true,
+                logPath: "",
+                diagnostics: [diagnostic]
+            ),
+            waiverReport: DRCWaiverApplicationReport(
+                waivedDiagnosticCount: 1,
+                appliedWaivers: [
+                    DRCAppliedWaiver(
+                        waiverID: "waive-thin",
+                        ruleID: "met1.width",
+                        diagnosticMessage: "Waived minimum width violation"
+                    ),
+                ],
+                unusedWaiverIDs: []
+            )
+        ))
+
+        #expect(output.status == output.runSummary.status)
+        #expect(output.status == "passed")
+        #expect(output.diagnosticSummary == output.runSummary.diagnosticSummary)
+        #expect(output.diagnosticSummary.errorCount == 0)
+        #expect(output.diagnosticSummary.waivedErrorCount == 1)
+        #expect(output.runSummary.activeViolationCount == 0)
+        #expect(output.runSummary.waivedViolationCount == 1)
+        #expect(output.diagnostics == [diagnostic])
+        #expect(output.waiverReport?.waivedDiagnosticCount == 1)
+    }
+
     @Test func legacyExecutionResultDecodesWithoutRepairHintGeometry() throws {
         let data = Data("""
         {
@@ -101,6 +151,81 @@ extension DRCCLIOptionsTests {
         #expect(result.request.topCell == "inv")
         #expect(result.result.backendID == "native")
         #expect(result.repairHintGeometry == nil)
+    }
+
+    @Test func minimumExtensionRepairHintTargetsExtendingShapeWithAxisDeltas() throws {
+        let result = DRCExecutionResult(
+            request: DRCRequest(layoutURL: URL(filePath: "/tmp/minimum-extension.json"), topCell: "inv"),
+            result: DRCResult(
+                backendID: "native",
+                toolName: "NativeDRC",
+                success: true,
+                completed: true,
+                logPath: "",
+                diagnostics: [
+                    DRCDiagnostic(
+                        severity: .error,
+                        message: "Rectangle active on active violates poly horizontal minimum extension 0.1",
+                        ruleID: "poly.active.extension",
+                        count: 1,
+                        kind: "minimumExtension",
+                        layer: "poly",
+                        measured: 0.05,
+                        required: 0.1,
+                        unit: "micrometer",
+                        region: DRCRegion(x: 0.95, y: 0, width: 1.13, height: 1),
+                        relatedShapeIDs: ["active", "poly"],
+                        relatedNetIDs: ["sig"],
+                        suggestedFix: "Extend poly horizontally beyond active by at least 0.1 micrometer.",
+                        rawLine: "MIN_EXTENSION layer=poly enclosedLayer=active direction=horizontal id=active"
+                    ),
+                ]
+            ),
+            repairHintGeometry: DRCRepairHintGeometryContext(
+                source: "native-json",
+                topCell: "inv",
+                unit: "micrometer",
+                rectangles: [
+                    DRCRepairHintGeometryRectangle(
+                        id: "active",
+                        layer: "active",
+                        netID: "sig",
+                        xMin: 1,
+                        yMin: 0,
+                        xMax: 2,
+                        yMax: 1
+                    ),
+                    DRCRepairHintGeometryRectangle(
+                        id: "poly",
+                        layer: "poly",
+                        netID: "sig",
+                        xMin: 0.95,
+                        yMin: 0,
+                        xMax: 2.08,
+                        yMax: 1
+                    ),
+                ]
+            )
+        )
+
+        let report = DRCRepairHintBuilder().build(result: result)
+        let hint = try #require(report.hints.first)
+
+        #expect(hint.operationID == "layout.resize-shape")
+        #expect(hint.stringParameters["shapeID"] == "poly")
+        #expect(hint.stringParameters["extendingShapeID"] == "poly")
+        #expect(hint.stringParameters["enclosedShapeID"] == "active")
+        #expect(hint.stringParameters["extensionDirection"] == "horizontal")
+        #expect(hint.stringParameters["extensionAxis"] == "horizontal")
+        #expect(abs((hint.numericParameters["deltaMinX"] ?? 1) - -0.05) < 0.000001)
+        #expect(hint.numericParameters["deltaMinY"] == 0)
+        #expect(abs((hint.numericParameters["deltaMaxX"] ?? -1) - 0.02) < 0.000001)
+        #expect(hint.numericParameters["deltaMaxY"] == 0)
+        #expect(abs((hint.numericParameters["measuredNegativeSideExtension"] ?? -1) - 0.05) < 0.000001)
+        #expect(abs((hint.numericParameters["measuredPositiveSideExtension"] ?? -1) - 0.08) < 0.000001)
+        #expect(abs((hint.numericParameters["negativeSideExtensionDelta"] ?? -1) - 0.05) < 0.000001)
+        #expect(abs((hint.numericParameters["positiveSideExtensionDelta"] ?? -1) - 0.02) < 0.000001)
+        #expect(hint.numericParameters["requiredExtension"] == 0.1)
     }
 
     @Test func repairHintBuilderMapsDiagnosticsToLayoutOperations() throws {
@@ -252,6 +377,7 @@ extension DRCCLIOptionsTests {
 
         let report = DRCRepairHintBuilder().build(result: result)
 
+        #expect(report.diagnostics.isEmpty)
         #expect(report.status == "ready")
         #expect(report.activeDiagnosticCount == 7)
         #expect(report.hintCount == 7)
@@ -344,6 +470,110 @@ extension DRCCLIOptionsTests {
         #expect(decoded.relatedViaIDs == ["cut-a"])
     }
 
+    @Test func repairHintBuilderReportsUnreadableLayoutContext() throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let layoutURL = root.appending(path: "layout.json")
+        try """
+        {
+          "technologyID" : "test",
+          "topCell" : "inv",
+          "unit" : "micrometer",
+          "rectangles" : [
+        }
+        """.write(to: layoutURL, atomically: true, encoding: .utf8)
+
+        let result = DRCExecutionResult(
+            request: DRCRequest(layoutURL: layoutURL, topCell: "inv"),
+            result: DRCResult(
+                backendID: "native",
+                toolName: "NativeDRC",
+                success: true,
+                completed: true,
+                logPath: "",
+                diagnostics: [
+                    DRCDiagnostic(
+                        severity: .error,
+                        message: "Different net overlap short between two metal rectangles",
+                        ruleID: "met1.differentNetOverlap",
+                        kind: "differentNetOverlap",
+                        layer: "met1",
+                        measured: 0,
+                        required: 0.1,
+                        unit: "micrometer",
+                        relatedShapeIDs: ["short-left", "short-right"],
+                        rawLine: "DIFFERENT_NET_OVERLAP layer=met1 ids=short-left,short-right"
+                    )
+                ]
+            )
+        )
+
+        let report = DRCRepairHintBuilder().build(result: result)
+        let diagnosticCodes = Set(report.diagnostics.map(\.code))
+
+        #expect(report.status == "no-actionable-hints")
+        #expect(report.hints.isEmpty)
+        #expect(report.unsupportedDiagnosticIndexes == [0])
+        #expect(diagnosticCodes.contains("drc.repair_hint.layout_context_unreadable"))
+        #expect(diagnosticCodes.contains("drc.repair_hint.geometry_context_missing"))
+        #expect(report.diagnostics.contains { diagnostic in
+            diagnostic.source == layoutURL.path(percentEncoded: false)
+        })
+    }
+
+    @Test func repairHintBuilderDoesNotReportLayoutContextWhenHintDoesNotNeedGeometry() {
+        let result = DRCExecutionResult(
+            request: DRCRequest(layoutURL: URL(filePath: "/tmp/missing-repair-hint-layout.json"), topCell: "inv"),
+            result: DRCResult(
+                backendID: "native",
+                toolName: "NativeDRC",
+                success: true,
+                completed: true,
+                logPath: "",
+                diagnostics: [
+                    DRCDiagnostic(
+                        severity: .error,
+                        message: "Minimum width violation",
+                        ruleID: "met1.width",
+                        kind: "minimumWidth",
+                        layer: "met1",
+                        measured: 0.1,
+                        required: 0.5,
+                        unit: "micrometer",
+                        relatedShapeIDs: ["thin"],
+                        rawLine: "MIN_WIDTH layer=met1 id=thin"
+                    )
+                ]
+            )
+        )
+
+        let report = DRCRepairHintBuilder().build(result: result)
+
+        #expect(report.status == "ready")
+        #expect(report.hints.map(\.operationID) == ["layout.resize-shape"])
+        #expect(report.diagnostics.isEmpty)
+    }
+
+    @Test func legacyRepairHintReportDecodesWithoutDiagnostics() throws {
+        let data = Data("""
+        {
+          "schemaVersion" : 1,
+          "status" : "ready",
+          "backendID" : "native",
+          "topCell" : "inv",
+          "activeDiagnosticCount" : 0,
+          "hintCount" : 0,
+          "hints" : [],
+          "unsupportedDiagnosticIndexes" : []
+        }
+        """.utf8)
+
+        let report = try JSONDecoder().decode(DRCRepairHintReport.self, from: data)
+
+        #expect(report.diagnostics.isEmpty)
+        #expect(report.status == "ready")
+    }
+
     @Test func legacyRepairHintDecodesWithoutRelatedViaIDs() throws {
         let data = Data("""
         {
@@ -416,5 +646,63 @@ extension DRCCLIOptionsTests {
         #expect(exitCode == 0)
         let report = try DRCRepairHintBuilder().build(reportURL: reportURL)
         #expect(report.hints.map(\.operationID) == ["layout.resize-shape"])
+    }
+
+    @Test func summarizeReportCLIReadsSavedReportAndEmitsRunSummary() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let reportURL = root.appending(path: "drc-report.json")
+        try writeJSON(DRCExecutionResult(
+            request: DRCRequest(layoutURL: URL(filePath: "/tmp/layout.json"), topCell: "inv"),
+            result: DRCResult(
+                backendID: "native",
+                toolName: "NativeDRC",
+                success: true,
+                completed: true,
+                logPath: "",
+                diagnostics: [
+                    DRCDiagnostic(
+                        severity: .error,
+                        message: "Minimum width violation",
+                        ruleID: "met1.width",
+                        kind: "minimumWidth",
+                        layer: "met1",
+                        measured: 0.1,
+                        required: 0.5,
+                        unit: "micrometer",
+                        relatedShapeIDs: ["thin"],
+                        rawLine: "MIN_WIDTH layer=met1 id=thin"
+                    ),
+                ]
+            )
+        ), to: reportURL)
+
+        let result = await DRCCLI.invoke(arguments: [
+            "--summarize-report", reportURL.path(percentEncoded: false),
+            "--json",
+        ])
+        let data = try #require(result.standardOutput.data(using: .utf8))
+        let report = try JSONDecoder().decode(CLIRunSummaryReport.self, from: data)
+
+        #expect(result.exitCode == 0)
+        #expect(report.summary.status == "failed")
+        #expect(report.summary.activeViolationCount == 1)
+        #expect(report.summary.violationBuckets.first?.ruleID == "met1.width")
+        #expect(report.reportURL == reportURL)
+    }
+
+    private struct CLIRunSummaryReport: Decodable {
+        let reportURL: URL?
+        let summary: Summary
+
+        struct Summary: Decodable {
+            let status: String
+            let activeViolationCount: Int
+            let violationBuckets: [Bucket]
+        }
+
+        struct Bucket: Decodable {
+            let ruleID: String?
+        }
     }
 }

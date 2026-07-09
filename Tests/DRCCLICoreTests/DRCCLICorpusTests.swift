@@ -24,13 +24,13 @@ extension DRCCLIOptionsTests {
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
         let report = try JSONDecoder().decode(DRCCorpusReport.self, from: Data(contentsOf: reportURL))
         #expect(report.passed)
-        #expect(report.caseCount == 35)
-        #expect(report.matchedCaseCount == 35)
+        #expect(report.caseCount == 38)
+        #expect(report.matchedCaseCount == 38)
         #expect(report.budgetExceededCaseCount == 0)
         #expect(report.totalDurationSeconds >= 0)
         #expect(report.summary.passRate == 1)
-        #expect(report.summary.oracleCaseCount == 35)
-        #expect(report.summary.oracleAgreementPassedCaseCount == 35)
+        #expect(report.summary.oracleCaseCount == 38)
+        #expect(report.summary.oracleAgreementPassedCaseCount == 38)
         #expect(report.summary.oracleAgreementRate == 1)
         #expect(report.summary.primaryExecutionFailedCaseCount == 0)
         #expect(report.summary.oracleExecutionFailedCaseCount == 0)
@@ -61,13 +61,16 @@ extension DRCCLIOptionsTests {
         #expect(report.summary.coverageTagCounts["drc.input.oasis"] == 1)
         #expect(report.summary.coverageTagCounts["drc.input.cif"] == 1)
         #expect(report.summary.coverageTagCounts["drc.input.dxf"] == 1)
+        #expect(report.summary.coverageTagCounts["drc.marker"] == 1)
+        #expect(report.summary.coverageTagCounts["drc.marker.forbidden-layer"] == 1)
         #expect(report.summary.coverageTagCounts["drc.notch"] == 1)
         #expect(report.summary.coverageTagCounts["drc.overlap"] == 3)
         #expect(report.summary.coverageTagCounts["drc.overlap.different-net"] == 1)
         #expect(report.summary.coverageTagCounts["drc.overlap.exact"] == 1)
         #expect(report.summary.coverageTagCounts["drc.overlap.forbidden"] == 1)
         #expect(report.summary.coverageTagCounts["drc.short"] == 1)
-        #expect(report.summary.coverageTagCounts["drc.width"] == 2)
+        #expect(report.summary.coverageTagCounts["drc.width"] == 3)
+        #expect(report.summary.coverageTagCounts["drc.width.maximum"] == 1)
         #expect(report.summary.coverageTagCounts["drc.spacing"] == 7)
         #expect(report.summary.coverageTagCounts["drc.spacing.different-net"] == 1)
         #expect(report.summary.coverageTagCounts["drc.spacing.directional"] == 1)
@@ -78,7 +81,8 @@ extension DRCCLIOptionsTests {
         #expect(report.summary.coverageTagCounts["drc.spacing.same-net"] == 1)
         #expect(report.summary.coverageTagCounts["drc.spacing.wide"] == 1)
         #expect(report.summary.coverageTagCounts["drc.tech.layer-map"] == 6)
-        #expect(report.summary.coverageTagCounts["drc.enclosure"] == 1)
+        #expect(report.summary.coverageTagCounts["drc.enclosure"] == 2)
+        #expect(report.summary.coverageTagCounts["drc.enclosure.composite"] == 1)
         #expect(report.summary.coverageTagCounts["drc.waiver"] == 1)
         #expect(report.qualification.qualified)
         #expect(report.qualification.policy.requiredCoverageTags == [
@@ -99,6 +103,7 @@ extension DRCCLIOptionsTests {
             "drc.density.minimum",
             "drc.enclosed-area",
             "drc.enclosure",
+            "drc.enclosure.composite",
             "drc.extension",
             "drc.extension.minimum",
             "drc.grid",
@@ -107,6 +112,8 @@ extension DRCCLIOptionsTests {
             "drc.input.dxf",
             "drc.input.gds",
             "drc.input.oasis",
+            "drc.marker",
+            "drc.marker.forbidden-layer",
             "drc.notch",
             "drc.overlap",
             "drc.overlap.different-net",
@@ -125,6 +132,7 @@ extension DRCCLIOptionsTests {
             "drc.tech.layer-map",
             "drc.waiver",
             "drc.width",
+            "drc.width.maximum",
         ])
         #expect(report.qualification.failures.isEmpty)
         #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
@@ -193,6 +201,11 @@ extension DRCCLIOptionsTests {
             $0.caseID == "width-violation" && $0.actualActiveErrorRuleIDs == ["met1.width"]
         })
         #expect(report.caseResults.contains {
+            $0.caseID == "maximum-width-violation"
+                && $0.actualActiveErrorRuleIDs == ["met1.maxWidth"]
+                && $0.coverageTags.contains("drc.width.maximum")
+        })
+        #expect(report.caseResults.contains {
             $0.caseID == "area-violation" && $0.actualActiveErrorRuleIDs == ["met1.area"]
         })
         #expect(report.caseResults.contains {
@@ -259,6 +272,11 @@ extension DRCCLIOptionsTests {
             $0.caseID == "notch-violation" && $0.actualActiveErrorRuleIDs == ["met1.notch"]
         })
         #expect(report.caseResults.contains {
+            $0.caseID == "forbidden-layer-violation"
+                && $0.actualActiveErrorRuleIDs == ["m1_not_m2_marker.forbidden"]
+                && $0.coverageTags.contains("drc.marker.forbidden-layer")
+        })
+        #expect(report.caseResults.contains {
             $0.caseID == "forbidden-overlap-violation"
                 && $0.actualActiveErrorRuleIDs == ["active.nwell.forbiddenOverlap"]
         })
@@ -301,6 +319,12 @@ extension DRCCLIOptionsTests {
         #expect(report.caseResults.contains {
             $0.caseID == "enclosure-violation"
                 && $0.actualActiveErrorRuleIDs == ["met1.via1.enclosure"]
+        })
+        #expect(report.caseResults.contains {
+            $0.caseID == "enclosure-composite-clean"
+                && $0.actualPassed
+                && $0.actualActiveErrorRuleIDs.isEmpty
+                && $0.coverageTags.contains("drc.enclosure.composite")
         })
         #expect(report.caseResults.contains {
             $0.caseID == "minimum-extension-violation"
@@ -375,6 +399,233 @@ extension DRCCLIOptionsTests {
                 && $0.actualPassed
                 && $0.actualActiveErrorRuleIDs.isEmpty
         })
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func magicNativeViaSpacingCorpusCasesRunAgainstMagicOracle() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+
+        let subsetSpecURL = root.appending(path: "drc-via-spacing-magic-native-corpus.json")
+        let outputDirectory = root.appending(path: "via-spacing-magic-native-output")
+        try writeMagicNativeViaSpacingCorpusSpec(to: subsetSpecURL)
+
+        let exitCode = await DRCCLI.run(arguments: [
+            "--corpus", subsetSpecURL.path(percentEncoded: false),
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(exitCode == 0)
+        let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
+        let report = try JSONDecoder().decode(DRCCorpusReport.self, from: Data(contentsOf: reportURL))
+        try assertMagicNativeViaSpacingCorpusReport(report)
+    }
+
+    private struct MagicNativeViaCaseExpectation {
+        let caseID: String
+        let expectedRuleIDs: [String]
+        let expectedPassed: Bool
+    }
+
+    private var magicNativeViaCaseExpectations: [MagicNativeViaCaseExpectation] {
+        [
+            MagicNativeViaCaseExpectation(
+                caseID: "sky130-magic-via2-spacing-violation",
+                expectedRuleIDs: ["via2.2"],
+                expectedPassed: false
+            ),
+            MagicNativeViaCaseExpectation(
+                caseID: "sky130-magic-via3-spacing-violation",
+                expectedRuleIDs: ["via3.2"],
+                expectedPassed: false
+            ),
+            MagicNativeViaCaseExpectation(
+                caseID: "sky130-magic-via4-spacing-violation",
+                expectedRuleIDs: ["via4.2"],
+                expectedPassed: false
+            ),
+            MagicNativeViaCaseExpectation(
+                caseID: "sky130-magic-via4-spacing-clean",
+                expectedRuleIDs: [],
+                expectedPassed: true
+            ),
+            MagicNativeViaCaseExpectation(
+                caseID: "sky130-magic-via4-met5-enclosure-violation",
+                expectedRuleIDs: ["met5.3"],
+                expectedPassed: false
+            ),
+            MagicNativeViaCaseExpectation(
+                caseID: "sky130-magic-via4-met5-enclosure-clean",
+                expectedRuleIDs: [],
+                expectedPassed: true
+            ),
+        ]
+    }
+
+    private func writeMagicNativeViaSpacingCorpusSpec(to subsetSpecURL: URL) throws {
+        let sourceSpecURL = fixtureExternalOracleSpecURL("drc-magic-corpus.json")
+        let sourceSpec = try JSONDecoder().decode(DRCCorpusSpec.self, from: Data(contentsOf: sourceSpecURL))
+        let cases = magicNativeViaSpacingCases(from: sourceSpec)
+        #expect(cases.count == magicNativeViaCaseExpectations.count)
+
+        try writeJSON(DRCCorpusSpec(
+            defaultMaxDurationSeconds: 20,
+            qualificationPolicy: DRCCorpusQualificationPolicy(
+                minimumOracleCaseCount: magicNativeViaCaseExpectations.count,
+                minimumOracleAgreementRate: 1,
+                requiredCoverageTags: magicNativeViaRequiredCoverageTags
+            ),
+            cases: cases
+        ), to: subsetSpecURL)
+    }
+
+    private var magicNativeViaRequiredCoverageTags: [String] {
+        [
+            "drc.contact.spacing.via2.external-oracle",
+            "drc.contact.spacing.via3.external-oracle",
+            "drc.contact.spacing.via4.external-oracle",
+            "drc.enclosure.via4.met5.external-oracle",
+            "external.magic",
+            "layout.magic",
+            "sky130",
+        ]
+    }
+
+    private func magicNativeViaSpacingCases(from sourceSpec: DRCCorpusSpec) -> [DRCCorpusCase] {
+        let caseIDs = Set(magicNativeViaCaseExpectations.map(\.caseID))
+        return sourceSpec.cases
+            .filter { caseIDs.contains($0.caseID) }
+            .map { magicNativeViaSpacingCase(from: $0) }
+    }
+
+    private func magicNativeViaSpacingCase(from corpusCase: DRCCorpusCase) -> DRCCorpusCase {
+        DRCCorpusCase(
+            caseID: corpusCase.caseID,
+            layoutPath: fixtureExternalOracleSpecURL(corpusCase.layoutPath).path(percentEncoded: false),
+            topCell: corpusCase.topCell,
+            layoutFormat: corpusCase.layoutFormat,
+            technologyPath: nil,
+            generatedLayoutFixture: nil,
+            waiverPath: nil,
+            backendID: corpusCase.backendID,
+            oracleBackendID: corpusCase.oracleBackendID,
+            additionalEnvironment: corpusCase.additionalEnvironment,
+            expectedPassed: corpusCase.expectedPassed,
+            expectedActiveErrorRuleIDs: corpusCase.expectedActiveErrorRuleIDs,
+            coverageTags: corpusCase.coverageTags,
+            maxDurationSeconds: 20
+        )
+    }
+
+    private func assertMagicNativeViaSpacingCorpusReport(_ report: DRCCorpusReport) throws {
+        assertMagicNativeViaSpacingSummary(report)
+        try assertMagicNativeViaSpacingCaseResults(report)
+        assertMagicNativeViaSpacingArtifacts(report)
+    }
+
+    private func assertMagicNativeViaSpacingSummary(_ report: DRCCorpusReport) {
+        #expect(report.passed)
+        #expect(report.qualification.qualified)
+        #expect(report.caseCount == 6)
+        #expect(report.matchedCaseCount == 6)
+        #expect(report.summary.oracleCaseCount == 6)
+        #expect(report.summary.oracleAgreementPassedCaseCount == 6)
+        for (tag, count) in magicNativeViaExpectedCoverageCounts {
+            #expect(report.summary.coverageTagCounts[tag] == count)
+        }
+        #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 20 })
+        #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
+        #expect(report.caseResults.allSatisfy { $0.failureReasons.isEmpty })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessStatus == .ready })
+        #expect(report.caseResults.allSatisfy {
+            $0.oracleComparison?.agreementPassed == true
+                && $0.oracleComparison?.mismatchReasons.isEmpty == true
+        })
+    }
+
+    private var magicNativeViaExpectedCoverageCounts: [String: Int] {
+        [
+            "layout.magic": 6,
+            "drc.contact.spacing.via2.external-oracle": 1,
+            "drc.contact.spacing.via3.external-oracle": 1,
+            "drc.contact.spacing.via4.external-oracle": 2,
+            "drc.enclosure.via4.met5.external-oracle": 2,
+        ]
+    }
+
+    private func assertMagicNativeViaSpacingCaseResults(_ report: DRCCorpusReport) throws {
+        let resultsByID = Dictionary(uniqueKeysWithValues: report.caseResults.map { ($0.caseID, $0) })
+        for expectation in magicNativeViaCaseExpectations {
+            let result = try #require(resultsByID[expectation.caseID])
+            #expect(result.actualPassed == expectation.expectedPassed)
+            #expect(result.actualActiveErrorRuleIDs == expectation.expectedRuleIDs)
+            if expectation.expectedPassed {
+                #expect(result.diagnosticSummary.errorCount == 0)
+            } else {
+                #expect(result.diagnosticSummary.errorCount > 0)
+            }
+        }
+    }
+
+    private func assertMagicNativeViaSpacingArtifacts(_ report: DRCCorpusReport) {
+        for result in report.caseResults {
+            #expect(primaryArtifactContractIsComplete(for: result))
+            #expect(oracleArtifactContractIsComplete(for: result))
+        }
+    }
+
+    private func primaryArtifactContractIsComplete(for result: DRCCorpusCaseResult) -> Bool {
+        guard
+            let reportPath = result.reportPath,
+            let manifestPath = result.manifestPath,
+            let provenance = result.primaryProvenance
+        else {
+            return false
+        }
+        return FileManager.default.fileExists(atPath: reportPath)
+            && FileManager.default.fileExists(atPath: manifestPath)
+            && provenance.backendID == "magic"
+            && provenance.reportPath == reportPath
+            && provenance.manifestPath == manifestPath
+            && provenanceContainsMagicLayoutInput(provenance)
+            && provenanceContainsMagicOutputs(provenance)
+    }
+
+    private func oracleArtifactContractIsComplete(for result: DRCCorpusCaseResult) -> Bool {
+        guard
+            let oracleResult = result.oracleResult,
+            let reportPath = oracleResult.reportPath,
+            let manifestPath = oracleResult.manifestPath,
+            let provenance = oracleResult.provenance
+        else {
+            return false
+        }
+        return oracleResult.backendID == "magic"
+            && oracleResult.failureReasons.isEmpty
+            && FileManager.default.fileExists(atPath: reportPath)
+            && FileManager.default.fileExists(atPath: manifestPath)
+            && provenance.backendID == "magic"
+            && provenance.reportPath == reportPath
+            && provenance.manifestPath == manifestPath
+            && provenanceContainsMagicLayoutInput(provenance)
+            && provenanceContainsMagicOutputs(provenance)
+    }
+
+    private func provenanceContainsMagicLayoutInput(_ provenance: DRCCorpusCaseProvenance) -> Bool {
+        provenance.inputArtifacts.contains {
+            $0.id == "input-layout"
+                && $0.kind == .layout
+                && $0.path.hasSuffix(".mag")
+                && ($0.byteCount ?? 0) > 0
+                && ($0.sha256?.isEmpty == false)
+        }
+    }
+
+    private func provenanceContainsMagicOutputs(_ provenance: DRCCorpusCaseProvenance) -> Bool {
+        provenance.outputArtifacts.contains { $0.id == "report" && $0.kind == .report }
+            && provenance.outputArtifacts.contains { $0.id == "log" && $0.kind == .log }
+            && provenance.outputArtifacts.contains { $0.id == "manifest" && $0.kind == .manifest }
     }
 
     @Test func corpusCLIOverridesOracleBackendForQualificationLane() async throws {

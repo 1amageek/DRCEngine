@@ -17,7 +17,8 @@ extension MagicDRCLayoutTechImporter {
         for line in logicalLines {
             let commandLine = textWithoutQuotedTail(line.text)
             let tokens = splitCommand(commandLine)
-            guard let command = tokens.first else { continue }
+            guard let rawCommand = tokens.first else { continue }
+            let command = rawCommand.lowercased()
             if command == "drc" {
                 inDRC = true
                 continue
@@ -26,17 +27,25 @@ extension MagicDRCLayoutTechImporter {
                 inDRC = false
                 continue
             }
-            guard inDRC, observedRuleFamilies.contains(command) else {
+            guard inDRC else {
+                continue
+            }
+            guard observedRuleFamilies.contains(command) else {
+                skip(
+                    line: line,
+                    family: command,
+                    code: "unsupported_magic_drc_family",
+                    state: &state
+                )
                 continue
             }
             guard supportedRuleFamilies.contains(command) else {
-                state.skippedFamilyCounts[command, default: 0] += 1
-                state.diagnostics.append(MagicDRCImportDiagnostic(
+                skip(
+                    line: line,
+                    family: command,
                     code: "unsupported_magic_drc_family",
-                    message: "Magic DRC rule family '\(command)' is not representable in the current LayoutTechDatabase seed model yet.",
-                    sourceLineNumber: line.lineNumber,
-                    sourceLine: line.text
-                ))
+                    state: &state
+                )
                 continue
             }
 
@@ -451,49 +460,292 @@ extension MagicDRCLayoutTechImporter {
         sourceContactStacks: [MagicDRCSourceContactStack],
         state: inout ParsedRuleState
     ) {
-        guard tokens.count >= 5,
-              let minimumCount = parsePositiveInteger(tokens[4]),
-              minimumCount > 0 else {
-            skip(line: line, family: "minimum_cut", code: "magic_drc_minimum_cut_parse_failed", state: &state)
+        let parseResult = parseMinimumCutArguments(
+            tokens: tokens,
+            resolver: resolver,
+            sourceContactStacks: sourceContactStacks
+        )
+        let arguments: [MinimumCutArguments]
+        switch parseResult {
+        case .parsed(let parsedArguments):
+            arguments = parsedArguments
+        case .failed(let code):
+            skip(line: line, family: "minimum_cut", code: code, state: &state)
             return
         }
-        guard let cutLayerName = resolver.resolve(tokens[1]),
-              cutLayerNames(profile: resolver.profile).contains(cutLayerName),
-              let bottomLayerName = resolver.resolve(tokens[2]),
-              let topLayerName = resolver.resolve(tokens[3]) else {
-            skip(line: line, family: "minimum_cut", code: "magic_drc_minimum_cut_layers_unresolved", state: &state)
-            return
+        for argument in arguments {
+            let connectionID = interconnectID(
+                forCutLayer: argument.cutLayerName,
+                bottomLayerName: argument.bottomLayerName,
+                topLayerName: argument.topLayerName,
+                sourceContactStacks: sourceContactStacks,
+                profile: resolver.profile
+            )
+            appendSourceMinimumCutPolicy(
+                MagicDRCSourceMinimumCutPolicy(
+                    id: sourceMinimumCutPolicyID(interconnectID: connectionID),
+                    interconnectID: connectionID,
+                    cutLayerName: argument.cutLayerName,
+                    bottomLayerName: argument.bottomLayerName,
+                    topLayerName: argument.topLayerName,
+                    minimumCount: argument.minimumCount,
+                    sourceLineNumber: line.lineNumber,
+                    sourceLine: line.text
+                ),
+                profile: resolver.profile,
+                state: &state
+            )
+            appendImportedRule(
+                family: "minimum_cut",
+                layerName: argument.cutLayerName,
+                secondaryLayerNames: [argument.bottomLayerName, argument.topLayerName],
+                value: Double(argument.minimumCount),
+                line: line,
+                state: &state
+            )
+        }
+    }
+
+    private struct MinimumCutArguments: Sendable, Hashable {
+        let cutLayerName: String
+        let bottomLayerName: String
+        let topLayerName: String
+        let minimumCount: Int
+    }
+
+    private enum MinimumCutParseResult: Sendable, Hashable {
+        case parsed([MinimumCutArguments])
+        case failed(String)
+    }
+
+    private enum MinimumCutElement: Sendable, Hashable {
+        case layer(String)
+        case count(Int)
+    }
+
+    private static func parseMinimumCutArguments(
+        tokens: [String],
+        resolver: LayerResolver,
+        sourceContactStacks: [MagicDRCSourceContactStack]
+    ) -> MinimumCutParseResult {
+        let ignoredTokens: Set<String> = [
+            "at_least",
+            "atleast",
+            "between",
+            "count",
+            "cuts",
+            "minimum",
+            "min",
+            "on",
+            "require",
+            "requires",
+            "with",
+        ]
+        var elements: [MinimumCutElement] = []
+        for token in tokens.dropFirst() {
+            if let count = parsePositiveInteger(token) {
+                elements.append(.count(count))
+                continue
+            }
+            if ignoredTokens.contains(normalizedToken(token)) {
+                continue
+            }
+            guard let layerName = resolver.resolve(token) else {
+                return .failed("magic_drc_minimum_cut_layers_unresolved")
+            }
+            elements.append(.layer(layerName))
         }
 
-        let connectionID = interconnectID(
-            forCutLayer: cutLayerName,
-            bottomLayerName: bottomLayerName,
-            topLayerName: topLayerName,
-            sourceContactStacks: sourceContactStacks,
-            profile: resolver.profile
-        )
-        appendSourceMinimumCutPolicy(
-            MagicDRCSourceMinimumCutPolicy(
-                id: sourceMinimumCutPolicyID(interconnectID: connectionID),
-                interconnectID: connectionID,
+        let cutLayerNameSet = cutLayerNames(profile: resolver.profile)
+        if let explicitArguments = parseExplicitMinimumCutGroups(
+            elements: elements,
+            cutLayerNames: cutLayerNameSet
+        ) {
+            return .parsed(explicitArguments)
+        }
+
+        let countCandidates = elements.compactMap { element -> Int? in
+            if case .count(let count) = element {
+                return count
+            }
+            return nil
+        }
+        guard countCandidates.count == 1,
+              let minimumCount = countCandidates.first else {
+            return .failed("magic_drc_minimum_cut_count_ambiguous")
+        }
+
+        let resolvedLayerNames = elements.compactMap { element -> String? in
+            if case .layer(let layerName) = element {
+                return layerName
+            }
+            return nil
+        }
+        let cutLayerCandidates = resolvedLayerNames.filter { cutLayerNameSet.contains($0) }
+        guard cutLayerCandidates.count == 1,
+              let cutLayerName = cutLayerCandidates.first else {
+            return .failed("magic_drc_minimum_cut_layers_unresolved")
+        }
+        let conductorLayerNames = resolvedLayerNames.filter { $0 != cutLayerName }
+        if conductorLayerNames.count >= 2 {
+            return .parsed([MinimumCutArguments(
                 cutLayerName: cutLayerName,
-                bottomLayerName: bottomLayerName,
-                topLayerName: topLayerName,
-                minimumCount: minimumCount,
-                sourceLineNumber: line.lineNumber,
-                sourceLine: line.text
-            ),
+                bottomLayerName: conductorLayerNames[0],
+                topLayerName: conductorLayerNames[1],
+                minimumCount: minimumCount
+            )])
+        }
+        guard let inferred = inferMinimumCutConnection(
+            cutLayerName: cutLayerName,
+            conductorLayerNames: conductorLayerNames,
             profile: resolver.profile,
-            state: &state
-        )
-        appendImportedRule(
-            family: "minimum_cut",
-            layerName: cutLayerName,
-            secondaryLayerNames: [bottomLayerName, topLayerName],
-            value: Double(minimumCount),
-            line: line,
-            state: &state
-        )
+            sourceContactStacks: sourceContactStacks
+        ) else {
+            return .failed("magic_drc_minimum_cut_stack_ambiguous")
+        }
+        return .parsed([MinimumCutArguments(
+            cutLayerName: cutLayerName,
+            bottomLayerName: inferred.bottomLayerName,
+            topLayerName: inferred.topLayerName,
+            minimumCount: minimumCount
+        )])
+    }
+
+    private static func parseExplicitMinimumCutGroups(
+        elements: [MinimumCutElement],
+        cutLayerNames: Set<String>
+    ) -> [MinimumCutArguments]? {
+        guard !elements.isEmpty else { return nil }
+        var index = 0
+        var defaultCutLayerName: String?
+        if case .layer(let firstLayerName) = elements[0], cutLayerNames.contains(firstLayerName) {
+            defaultCutLayerName = firstLayerName
+            index = 1
+        }
+
+        var arguments: [MinimumCutArguments] = []
+        while index < elements.count {
+            var cutLayerName = defaultCutLayerName
+            if case .layer(let layerName) = elements[index], cutLayerNames.contains(layerName) {
+                cutLayerName = layerName
+                index += 1
+            }
+            guard let cutLayerName else {
+                return nil
+            }
+
+            if let group = parseMinimumCutGroup(
+                elements: elements,
+                index: index,
+                cutLayerName: cutLayerName,
+                cutLayerNames: cutLayerNames
+            ) {
+                arguments.append(group.argument)
+                index = group.nextIndex
+            } else {
+                return nil
+            }
+        }
+        return arguments.isEmpty ? nil : arguments
+    }
+
+    private static func parseMinimumCutGroup(
+        elements: [MinimumCutElement],
+        index: Int,
+        cutLayerName: String,
+        cutLayerNames: Set<String>
+    ) -> (argument: MinimumCutArguments, nextIndex: Int)? {
+        if let firstLayerName = layerName(at: index, in: elements),
+           let secondLayerName = layerName(at: index + 1, in: elements),
+           let minimumCount = count(at: index + 2, in: elements),
+           !cutLayerNames.contains(firstLayerName),
+           !cutLayerNames.contains(secondLayerName) {
+            return (
+                MinimumCutArguments(
+                    cutLayerName: cutLayerName,
+                    bottomLayerName: firstLayerName,
+                    topLayerName: secondLayerName,
+                    minimumCount: minimumCount
+                ),
+                index + 3
+            )
+        }
+
+        if let minimumCount = count(at: index, in: elements),
+           let firstLayerName = layerName(at: index + 1, in: elements),
+           let secondLayerName = layerName(at: index + 2, in: elements),
+           !cutLayerNames.contains(firstLayerName),
+           !cutLayerNames.contains(secondLayerName) {
+            return (
+                MinimumCutArguments(
+                    cutLayerName: cutLayerName,
+                    bottomLayerName: firstLayerName,
+                    topLayerName: secondLayerName,
+                    minimumCount: minimumCount
+                ),
+                index + 3
+            )
+        }
+        return nil
+    }
+
+    private static func layerName(at index: Int, in elements: [MinimumCutElement]) -> String? {
+        guard elements.indices.contains(index),
+              case .layer(let layerName) = elements[index] else {
+            return nil
+        }
+        return layerName
+    }
+
+    private static func count(at index: Int, in elements: [MinimumCutElement]) -> Int? {
+        guard elements.indices.contains(index),
+              case .count(let count) = elements[index] else {
+            return nil
+        }
+        return count
+    }
+
+    private static func inferMinimumCutConnection(
+        cutLayerName: String,
+        conductorLayerNames: [String],
+        profile: MagicDRCLayoutTechImportProfile,
+        sourceContactStacks: [MagicDRCSourceContactStack]
+    ) -> (bottomLayerName: String, topLayerName: String)? {
+        let profileMatches = profile.cutStackConnections.compactMap { connection -> (String, String)? in
+            guard connection.cutLayerName == cutLayerName else { return nil }
+            return (connection.bottomLayerName, connection.topLayerName)
+        }
+        let sourceMatches = sourceContactStacks.compactMap { stack -> (String, String)? in
+            guard stack.cutLayerName == cutLayerName else { return nil }
+            return (stack.bottomLayerName, stack.topLayerName)
+        }
+        let matches = uniqueMinimumCutConnections(profileMatches + sourceMatches)
+        let filtered = conductorLayerNames.isEmpty
+            ? matches
+            : matches.filter { match in
+                conductorLayerNames.allSatisfy {
+                    $0 == match.bottomLayerName || $0 == match.topLayerName
+                }
+            }
+        guard filtered.count == 1 else {
+            return nil
+        }
+        return filtered[0]
+    }
+
+    private static func uniqueMinimumCutConnections(
+        _ connections: [(bottomLayerName: String, topLayerName: String)]
+    ) -> [(bottomLayerName: String, topLayerName: String)] {
+        var seen: Set<String> = []
+        var result: [(bottomLayerName: String, topLayerName: String)] = []
+        for connection in connections {
+            let key = "\(connection.bottomLayerName)|\(connection.topLayerName)"
+            guard seen.insert(key).inserted else {
+                continue
+            }
+            result.append(connection)
+        }
+        return result
     }
 
     private static func parsePositiveInteger(_ token: String) -> Int? {

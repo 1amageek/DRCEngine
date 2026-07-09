@@ -37,6 +37,18 @@ public enum MagicDRCLayoutTechImporter {
         generatedAt: String? = nil,
         profile: MagicDRCLayoutTechImportProfile
     ) -> MagicDRCLayoutTechImport {
+        do {
+            try profile.validateForImport()
+        } catch {
+            return blockedImport(
+                sourcePath: sourcePath,
+                generatedAt: generatedAt,
+                sourceLayers: [],
+                sourceCutAliases: [],
+                profile: profile,
+                diagnostic: profileValidationDiagnostic(error)
+            )
+        }
         let logicalLines = makeLogicalLines(from: text)
         let sourceLayers = parseSourceLayers(from: logicalLines, profile: profile)
         let sourceCutAliases = parseSourceCutAliases(from: logicalLines, profile: profile)
@@ -63,10 +75,25 @@ public enum MagicDRCLayoutTechImporter {
             resolver: resolver,
             sourceContactStacks: sourceContactStacks
         )
-        let sourceExactOverlapRules = parseSourceExactOverlapRules(
-            from: logicalLines,
-            resolver: resolver
-        )
+        let sourceExactOverlapRules: [MagicDRCSourceExactOverlapRule]
+        do {
+            sourceExactOverlapRules = try parseSourceExactOverlapRules(
+                from: logicalLines,
+                resolver: resolver
+            )
+        } catch {
+            return blockedImport(
+                sourcePath: sourcePath,
+                generatedAt: generatedAt,
+                sourceLayers: sourceLayers,
+                sourceCutAliases: sourceCutAliases,
+                profile: profile,
+                diagnostic: MagicDRCImportDiagnostic(
+                    code: "magic_drc_source_rule_validation_failed",
+                    message: "Magic DRC source rule validation failed: \(error)"
+                )
+            )
+        }
         let sourceEnclosedHoleSeeds = parseSourceEnclosedHoleSeeds(
             from: logicalLines,
             resolver: resolver
@@ -140,6 +167,25 @@ public enum MagicDRCLayoutTechImporter {
                 allowedAngleStepDegrees: state.allowedAngleStepDegrees
             ))
         }
+
+        var ruledLayerIDs = Set(layerRules.map(\.layerID))
+        let derivedTargetLayerIDs = Array(Set(derivedLayerRules.map(\.targetLayer))).sorted {
+            if $0.name == $1.name {
+                return $0.purpose < $1.purpose
+            }
+            return layerSortKey($0.name, $1.name, profile: profile)
+        }
+        for layerID in derivedTargetLayerIDs where ruledLayerIDs.insert(layerID).inserted {
+            layerRules.append(LayoutLayerRuleSet(
+                layerID: layerID,
+                minWidth: 0,
+                minSpacing: 0,
+                minArea: 0,
+                minDensity: 0,
+                maxDensity: 1
+            ))
+        }
+
         let availableLayerNames = Set(layerDefinitions.map(\.id.name)).union(derivedLayerNames)
         let spacingRules = aggregateSpacingRules(parsed.importedRules, profile: profile)
         let enclosureRules = aggregateEnclosureRules(parsed.importedRules, profile: profile)
@@ -232,6 +278,56 @@ public enum MagicDRCLayoutTechImporter {
         return MagicDRCLayoutTechImport(technology: technology, report: report)
     }
 
+    private static func profileValidationDiagnostic(_ error: Error) -> MagicDRCImportDiagnostic {
+        if let validationError = error as? MagicDRCLayoutTechImportProfileValidationError {
+            let issueList = validationError.issues
+                .map { "\($0.code.rawValue)@\($0.field)" }
+                .joined(separator: ", ")
+            return MagicDRCImportDiagnostic(
+                code: "magic_drc_layouttech_profile_validation_failed",
+                message: "Magic DRC LayoutTech import profile validation failed for '\(validationError.profileID)': \(issueList)"
+            )
+        }
+        return MagicDRCImportDiagnostic(
+            code: "magic_drc_layouttech_profile_validation_failed",
+            message: "Magic DRC LayoutTech import profile validation failed: \(error)"
+        )
+    }
+
+    private static func blockedImport(
+        sourcePath: String,
+        generatedAt: String?,
+        sourceLayers: [SourceLayer],
+        sourceCutAliases: [SourceCutAlias],
+        profile: MagicDRCLayoutTechImportProfile,
+        diagnostic: MagicDRCImportDiagnostic
+    ) -> MagicDRCLayoutTechImport {
+        let report = MagicDRCLayoutTechImportReport(
+            generatedAt: generatedAt ?? utcTimestamp(),
+            status: .blocked,
+            sourcePath: sourcePath,
+            supportedRuleFamilies: supportedRuleFamilies,
+            importedRuleCount: 0,
+            skippedRuleCount: 0,
+            importedFamilyCounts: [:],
+            skippedFamilyCounts: [:],
+            importedLayerNames: [],
+            sourceCutLayerNames: sourceCutLayerNames(from: sourceCutAliases, profile: profile),
+            sourceCutAliasCount: sourceCutAliases.count,
+            sourceLayerCount: sourceLayers.count,
+            importedRules: [],
+            diagnostics: [diagnostic]
+        )
+        let technology = LayoutTechDatabase(
+            units: .defaultUnits,
+            grid: 0.001,
+            layers: [],
+            vias: [],
+            layerRules: []
+        )
+        return MagicDRCLayoutTechImport(technology: technology, report: report)
+    }
+
     static let supportedRuleFamilies = [
         "width",
         "spacing",
@@ -267,6 +363,10 @@ public enum MagicDRCLayoutTechImporter {
         "mincut",
         "cutcount",
         "cut_count",
+        "edge4way",
+        "cifspacing",
+        "extend",
+        "cifwidth",
     ]
     struct LogicalLine: Sendable, Hashable {
         let lineNumber: Int
@@ -794,7 +894,7 @@ public enum MagicDRCLayoutTechImporter {
     private static func parseSourceExactOverlapRules(
         from logicalLines: [LogicalLine],
         resolver: LayerResolver
-    ) -> [MagicDRCSourceExactOverlapRule] {
+    ) throws -> [MagicDRCSourceExactOverlapRule] {
         var rules: [MagicDRCSourceExactOverlapRule] = []
         var seen: Set<String> = []
         var inDRC = false
@@ -825,7 +925,7 @@ public enum MagicDRCLayoutTechImporter {
                 guard seen.insert(id).inserted else {
                     continue
                 }
-                rules.append(MagicDRCSourceExactOverlapRule(
+                rules.append(try MagicDRCSourceExactOverlapRule(
                     id: id,
                     primaryLayerName: pair.primaryLayerName,
                     secondaryLayerNames: pair.secondaryLayerNames,

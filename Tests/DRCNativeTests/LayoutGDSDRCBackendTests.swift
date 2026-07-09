@@ -231,6 +231,123 @@ struct LayoutGDSDRCBackendTests {
         return tech
     }
 
+    private func derivedXORMarkerTech() -> LayoutTechDatabase {
+        var tech = LayoutTechDatabase.sampleProcess()
+        let marker = LayoutLayerID(name: "M1_XOR_M2", purpose: "marker")
+        tech.derivedLayerRules = [
+            LayoutDerivedLayerRule(
+                id: "derived.M1_XOR_M2",
+                targetLayer: marker,
+                sourceLayers: [
+                    LayoutLayerID(name: "M1", purpose: "drawing"),
+                    LayoutLayerID(name: "M2", purpose: "drawing"),
+                ],
+                operation: .xor
+            )
+        ]
+        tech.forbiddenLayerRules = [
+            LayoutForbiddenLayerRule(
+                id: "forbiddenMarker.m1_xor_m2",
+                layer: marker,
+                reason: "XOR marker must be empty"
+            )
+        ]
+        return tech
+    }
+
+    private func derivedGrowMinMarkerTech() -> LayoutTechDatabase {
+        var tech = LayoutTechDatabase.sampleProcess()
+        let marker = LayoutLayerID(name: "M1_GROW_MIN", purpose: "marker")
+        tech.derivedLayerRules = [
+            LayoutDerivedLayerRule(
+                id: "derived.M1_GROW_MIN",
+                targetLayer: marker,
+                sourceLayers: [
+                    LayoutLayerID(name: "M1", purpose: "drawing"),
+                ],
+                operation: .growMin,
+                operationDistance: 0.2
+            )
+        ]
+        tech.forbiddenLayerRules = [
+            LayoutForbiddenLayerRule(
+                id: "forbiddenMarker.m1_grow_min",
+                layer: marker,
+                reason: "Grow-min marker must be empty"
+            )
+        ]
+        return tech
+    }
+
+    private func derivedBridgeMarkerTech() -> LayoutTechDatabase {
+        var tech = LayoutTechDatabase.sampleProcess()
+        let source = LayoutLayerID(name: "M1", purpose: "drawing")
+        let bridged = LayoutLayerID(name: "M1_BRIDGED", purpose: "derived")
+        let marker = LayoutLayerID(name: "M1_BRIDGE_ONLY", purpose: "marker")
+        tech.derivedLayerRules = [
+            LayoutDerivedLayerRule(
+                id: "derived.M1_BRIDGED",
+                targetLayer: bridged,
+                sourceLayers: [source],
+                operation: .bridge,
+                operationDistance: 0.4,
+                operationWidth: 0.2
+            ),
+            LayoutDerivedLayerRule(
+                id: "derived.M1_BRIDGE_ONLY",
+                targetLayer: marker,
+                sourceLayers: [bridged, source],
+                operation: .difference
+            ),
+        ]
+        tech.layerRules.append(contentsOf: [
+            LayoutLayerRuleSet(layerID: bridged, minWidth: 0, minSpacing: 0, minArea: 0, minDensity: 0, maxDensity: 1),
+            LayoutLayerRuleSet(layerID: marker, minWidth: 0, minSpacing: 0, minArea: 0, minDensity: 0, maxDensity: 1),
+        ])
+        tech.forbiddenLayerRules = [
+            LayoutForbiddenLayerRule(
+                id: "forbiddenMarker.m1_bridge_only",
+                layer: marker,
+                reason: "Bridge marker must be empty"
+            )
+        ]
+        return tech
+    }
+
+    private func derivedCloseMarkerTech() -> LayoutTechDatabase {
+        var tech = LayoutTechDatabase.sampleProcess()
+        let source = LayoutLayerID(name: "M1", purpose: "drawing")
+        let closed = LayoutLayerID(name: "M1_CLOSED", purpose: "derived")
+        let marker = LayoutLayerID(name: "M1_CLOSE_FILL", purpose: "marker")
+        tech.derivedLayerRules = [
+            LayoutDerivedLayerRule(
+                id: "derived.M1_CLOSED",
+                targetLayer: closed,
+                sourceLayers: [source],
+                operation: .close,
+                operationDistance: 2.0
+            ),
+            LayoutDerivedLayerRule(
+                id: "derived.M1_CLOSE_FILL",
+                targetLayer: marker,
+                sourceLayers: [closed, source],
+                operation: .difference
+            ),
+        ]
+        tech.layerRules.append(contentsOf: [
+            LayoutLayerRuleSet(layerID: closed, minWidth: 0, minSpacing: 0, minArea: 0, minDensity: 0, maxDensity: 1),
+            LayoutLayerRuleSet(layerID: marker, minWidth: 0, minSpacing: 0, minArea: 0, minDensity: 0, maxDensity: 1),
+        ])
+        tech.forbiddenLayerRules = [
+            LayoutForbiddenLayerRule(
+                id: "forbiddenMarker.m1_close_fill",
+                layer: marker,
+                reason: "Close marker must be empty"
+            )
+        ]
+        return tech
+    }
+
     private func derivedBloatAllMarkerTech() -> LayoutTechDatabase {
         let tap = LayoutLayerID(name: "NSC", purpose: "drawing")
         let nwell = LayoutLayerID(name: "NWELL", purpose: "drawing")
@@ -335,6 +452,38 @@ struct LayoutGDSDRCBackendTests {
         return url
     }
 
+    private func writeDerivedXORMarkerTech(in root: URL) throws -> URL {
+        let url = root.appending(path: "derived-xor-marker-tech.json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (try encoder.encode(derivedXORMarkerTech())).write(to: url)
+        return url
+    }
+
+    private func writeDerivedGrowMinMarkerTech(in root: URL) throws -> URL {
+        let url = root.appending(path: "derived-grow-min-marker-tech.json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (try encoder.encode(derivedGrowMinMarkerTech())).write(to: url)
+        return url
+    }
+
+    private func writeDerivedBridgeMarkerTech(in root: URL) throws -> URL {
+        let url = root.appending(path: "derived-bridge-marker-tech.json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (try encoder.encode(derivedBridgeMarkerTech())).write(to: url)
+        return url
+    }
+
+    private func writeDerivedCloseMarkerTech(in root: URL) throws -> URL {
+        let url = root.appending(path: "derived-close-marker-tech.json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (try encoder.encode(derivedCloseMarkerTech())).write(to: url)
+        return url
+    }
+
     private func writeDerivedBloatAllMarkerTech(in root: URL) throws -> URL {
         let url = root.appending(path: "derived-bloat-all-marker-tech.json")
         let encoder = JSONEncoder()
@@ -384,6 +533,16 @@ struct LayoutGDSDRCBackendTests {
     private func m1(_ x: Double, _ y: Double, _ w: Double, _ h: Double) -> LayoutShape {
         LayoutShape(
             layer: LayoutLayerID(name: "M1", purpose: "drawing"),
+            geometry: .rect(LayoutRect(
+                origin: LayoutPoint(x: x, y: y),
+                size: LayoutSize(width: w, height: h)
+            ))
+        )
+    }
+
+    private func met1(_ x: Double, _ y: Double, _ w: Double, _ h: Double) -> LayoutShape {
+        LayoutShape(
+            layer: LayoutLayerID(name: "MET1", purpose: "drawing"),
             geometry: .rect(LayoutRect(
                 origin: LayoutPoint(x: x, y: y),
                 size: LayoutSize(width: w, height: h)
@@ -520,6 +679,30 @@ struct LayoutGDSDRCBackendTests {
         #expect(execution.result.passed)
         #expect(execution.result.diagnostics.isEmpty)
         #expect(FileManager.default.fileExists(atPath: execution.result.logPath))
+    }
+
+    @Test func nativeJSONSingleCellFallbackLogsActualTopCell() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let layoutURL = try writeNativeLayout(
+            shapes: [m1(0, 0, 2.0, 0.3)],
+            cellName: "ACTUAL_TOP",
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "REQUESTED_TOP",
+            layoutFormat: .nativeJSON,
+            technologyURL: try writeTech(in: root),
+            workingDirectory: root
+        ))
+
+        #expect(execution.result.passed)
+        #expect(execution.repairHintGeometry?.topCell == "ACTUAL_TOP")
+        let log = try String(contentsOf: URL(fileURLWithPath: execution.result.logPath), encoding: .utf8)
+        #expect(log.contains("0 violation(s) on ACTUAL_TOP"))
+        #expect(!log.contains("REQUESTED_TOP"))
     }
 
     @Test func spacingFaultFails() async throws {
@@ -694,7 +877,7 @@ struct LayoutGDSDRCBackendTests {
         #expect(diagnostic.region != nil)
     }
 
-    @Test func derivedMIMContactLayerSkipsNonRectangularSourceBounds() async throws {
+    @Test func derivedMIMContactLayerDoesNotUseNonRectangularSourceBounds() async throws {
         let root = try makeRoot()
         defer { removeTemporaryDirectory(root) }
         let exportTech = derivedMIMTech()
@@ -717,6 +900,36 @@ struct LayoutGDSDRCBackendTests {
 
         #expect(execution.result.passed)
         #expect(!execution.result.diagnostics.contains { $0.layer == "MIMCC:cut" })
+    }
+
+    @Test func derivedMIMContactLayerMaterializesManhattanSourcePieces() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let exportTech = derivedMIMTech()
+        let gds = try writeLayout(
+            shapes: [
+                capmPolygon(),
+                via3(0.6, 0.1, 0.2, 0.2),
+            ],
+            cellName: "DERIVED_MIM_MANHATTAN",
+            exportTech: exportTech,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "DERIVED_MIM_MANHATTAN",
+            technologyURL: try writeDerivedMIMTech(in: root),
+            workingDirectory: root
+        ))
+
+        let diagnostic = try #require(execution.result.diagnostics.first {
+            $0.ruleID == "layer.MIMCC.cut.minWidth"
+        })
+        #expect(!execution.result.passed)
+        #expect(diagnostic.layer == "MIMCC:cut")
+        #expect(abs((diagnostic.measured ?? 0) - 0.2) < 0.000001)
+        #expect(diagnostic.required == 0.3)
     }
 
     @Test func derivedDifferenceMarkerLayerFailsThroughStandardInputBackend() async throws {
@@ -769,6 +982,182 @@ struct LayoutGDSDRCBackendTests {
         #expect(diagnostic.ruleID == "forbiddenLayer.M1_OR_M2.marker.forbiddenMarker.m1_or_m2")
         #expect(diagnostic.layer == "M1_OR_M2:marker")
         #expect(diagnostic.region != nil)
+    }
+
+    @Test func derivedXORMarkerLayerFailsOnlyExclusiveRegionsThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let gds = try writeLayout(
+            shapes: [
+                m1(0, 0, 2.0, 1.0),
+                m2(1, 0, 2.0, 1.0),
+            ],
+            cellName: "DERIVED_XOR_MARKER",
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "DERIVED_XOR_MARKER",
+            technologyURL: try writeDerivedXORMarkerTech(in: root),
+            workingDirectory: root
+        ))
+
+        let diagnostics = execution.result.diagnostics
+            .filter { $0.kind == "forbiddenLayer" && $0.layer == "M1_XOR_M2:marker" }
+            .sorted { ($0.region?.x ?? 0) < ($1.region?.x ?? 0) }
+        #expect(!execution.result.passed)
+        #expect(diagnostics.count == 2)
+        #expect(diagnostics.map(\.ruleID) == [
+            "forbiddenLayer.M1_XOR_M2.marker.forbiddenMarker.m1_xor_m2",
+            "forbiddenLayer.M1_XOR_M2.marker.forbiddenMarker.m1_xor_m2",
+        ])
+        #expect(diagnostics[0].region?.x == 0)
+        #expect(diagnostics[0].region?.width == 1)
+        #expect(diagnostics[1].region?.x == 2)
+        #expect(diagnostics[1].region?.width == 1)
+    }
+
+    @Test func derivedGrowMinMarkerLayerFailsThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let gds = try writeLayout(
+            shapes: [m1(0, 0, 0.1, 0.5)],
+            cellName: "DERIVED_GROW_MIN_MARKER",
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "DERIVED_GROW_MIN_MARKER",
+            technologyURL: try writeDerivedGrowMinMarkerTech(in: root),
+            workingDirectory: root
+        ))
+
+        let diagnostic = try #require(execution.result.diagnostics.first { $0.kind == "forbiddenLayer" })
+        #expect(!execution.result.passed)
+        #expect(diagnostic.ruleID == "forbiddenLayer.M1_GROW_MIN.marker.forbiddenMarker.m1_grow_min")
+        #expect(diagnostic.layer == "M1_GROW_MIN:marker")
+        #expect(abs((diagnostic.region?.x ?? 0) + 0.05) < 0.000001)
+        #expect(abs((diagnostic.region?.width ?? 0) - 0.2) < 0.000001)
+        #expect(abs((diagnostic.region?.height ?? 0) - 0.5) < 0.000001)
+    }
+
+    @Test func derivedBridgeMarkerLayerFailsThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let tech = derivedBridgeMarkerTech()
+        let gds = try writeLayout(
+            shapes: [
+                m1(0, 0, 1.0, 1.0),
+                m1(1.2, 1.2, 1.0, 1.0),
+            ],
+            cellName: "DERIVED_BRIDGE_MARKER",
+            exportTech: tech,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "DERIVED_BRIDGE_MARKER",
+            technologyURL: try writeDerivedBridgeMarkerTech(in: root),
+            workingDirectory: root
+        ))
+
+        let diagnostic = try #require(execution.result.diagnostics.first { $0.kind == "forbiddenLayer" })
+        #expect(!execution.result.passed)
+        #expect(diagnostic.ruleID == "forbiddenLayer.M1_BRIDGE_ONLY.marker.forbiddenMarker.m1_bridge_only")
+        #expect(diagnostic.layer == "M1_BRIDGE_ONLY:marker")
+        #expect(abs((diagnostic.region?.x ?? 0) - 1.0) < 0.000001)
+        #expect(abs((diagnostic.region?.y ?? 0) - 1.0) < 0.000001)
+        #expect(abs((diagnostic.region?.width ?? 0) - 0.2) < 0.000001)
+        #expect(abs((diagnostic.region?.height ?? 0) - 0.2) < 0.000001)
+    }
+
+    @Test func derivedBridgeMarkerLayerPassesWhenNoCornerGapThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let tech = derivedBridgeMarkerTech()
+        let gds = try writeLayout(
+            shapes: [
+                m1(0, 0, 1.0, 1.0),
+                m1(1.8, 1.8, 1.0, 1.0),
+            ],
+            cellName: "DERIVED_BRIDGE_MARKER_CLEAN",
+            exportTech: tech,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "DERIVED_BRIDGE_MARKER_CLEAN",
+            technologyURL: try writeDerivedBridgeMarkerTech(in: root),
+            workingDirectory: root
+        ))
+
+        #expect(execution.result.passed)
+        #expect(!execution.result.diagnostics.contains {
+            $0.ruleID == "forbiddenLayer.M1_BRIDGE_ONLY.marker.forbiddenMarker.m1_bridge_only"
+        })
+    }
+
+    @Test func derivedCloseMarkerLayerFailsThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let tech = derivedCloseMarkerTech()
+        let gds = try writeLayout(
+            shapes: [
+                m1(0, 0, 2.0, 0.4),
+                m1(0, 1.6, 2.0, 0.4),
+                m1(0, 0.4, 0.4, 1.2),
+                m1(1.6, 0.4, 0.4, 1.2),
+            ],
+            cellName: "DERIVED_CLOSE_MARKER",
+            exportTech: tech,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "DERIVED_CLOSE_MARKER",
+            technologyURL: try writeDerivedCloseMarkerTech(in: root),
+            workingDirectory: root
+        ))
+
+        let diagnostic = try #require(execution.result.diagnostics.first { $0.kind == "forbiddenLayer" })
+        #expect(!execution.result.passed)
+        #expect(diagnostic.ruleID == "forbiddenLayer.M1_CLOSE_FILL.marker.forbiddenMarker.m1_close_fill")
+        #expect(diagnostic.layer == "M1_CLOSE_FILL:marker")
+        #expect(abs((diagnostic.region?.x ?? 0) - 0.4) < 0.000001)
+        #expect(abs((diagnostic.region?.y ?? 0) - 0.4) < 0.000001)
+        #expect(abs((diagnostic.region?.width ?? 0) - 1.2) < 0.000001)
+        #expect(abs((diagnostic.region?.height ?? 0) - 1.2) < 0.000001)
+    }
+
+    @Test func derivedCloseMarkerLayerPassesWithoutHoleThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let tech = derivedCloseMarkerTech()
+        let gds = try writeLayout(
+            shapes: [
+                m1(0, 0, 2.0, 2.0),
+            ],
+            cellName: "DERIVED_CLOSE_MARKER_CLEAN",
+            exportTech: tech,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "DERIVED_CLOSE_MARKER_CLEAN",
+            technologyURL: try writeDerivedCloseMarkerTech(in: root),
+            workingDirectory: root
+        ))
+
+        #expect(execution.result.passed)
+        #expect(!execution.result.diagnostics.contains {
+            $0.ruleID == "forbiddenLayer.M1_CLOSE_FILL.marker.forbiddenMarker.m1_close_fill"
+        })
     }
 
     @Test func importedDirectBooleanTemplayerMarkerFailsThroughStandardInputBackend() async throws {
@@ -879,6 +1268,227 @@ struct LayoutGDSDRCBackendTests {
         #expect(diagnostic.ruleID == "forbiddenLayer.nwell_missing.marker.forbiddenMarker.nwell_missing")
         #expect(diagnostic.layer == "nwell_missing:marker")
         #expect(diagnostic.region != nil)
+    }
+
+    @Test func importedBridgeTemplayerMarkerFailsThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let profile = try MagicDRCLayoutTechImportProfile.bundledMagicLayoutTechProfile(
+            resourceName: "sky130-magic-layouttech-profile"
+        )
+        let imported = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer NWELL nwell
+              calma 64 20
+            style drc
+              templayer nwell_corner_bridge nwell
+                bridge 400
+                and-not nwell
+            drc
+              width nwell 840 "Nwell width"
+              cifmaxwidth nwell_corner_bridge 0 bend_illegal "Nwell corner bridge marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A.tech",
+            profile: profile,
+            generatedAt: "2026-06-28T00:00:00Z"
+        )
+        #expect(imported.report.status == .complete)
+        #expect(imported.report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.nwell_corner_bridge"])
+        let technologyURL = root.appending(path: "imported-bridge-templayer-tech.json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (try encoder.encode(imported.technology)).write(to: technologyURL)
+        let gds = try writeLayout(
+            shapes: [
+                nwell(0, 0, 1.0, 1.0),
+                nwell(1.2, 1.2, 1.0, 1.0),
+            ],
+            cellName: "IMPORTED_BRIDGE_TEMPLAYER_MARKER",
+            exportTech: imported.technology,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "IMPORTED_BRIDGE_TEMPLAYER_MARKER",
+            technologyURL: technologyURL,
+            workingDirectory: root
+        ))
+
+        let diagnostic = try #require(execution.result.diagnostics.first { $0.kind == "forbiddenLayer" })
+        #expect(!execution.result.passed)
+        #expect(diagnostic.ruleID == "forbiddenLayer.nwell_corner_bridge.marker.forbiddenMarker.nwell_corner_bridge")
+        #expect(diagnostic.layer == "nwell_corner_bridge:marker")
+        #expect(diagnostic.region != nil)
+    }
+
+    @Test func importedBridgeTemplayerMarkerPassesWhenNoCornerGapThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let profile = try MagicDRCLayoutTechImportProfile.bundledMagicLayoutTechProfile(
+            resourceName: "sky130-magic-layouttech-profile"
+        )
+        let imported = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer NWELL nwell
+              calma 64 20
+            style drc
+              templayer nwell_corner_bridge nwell
+                bridge 400
+                and-not nwell
+            drc
+              width nwell 840 "Nwell width"
+              cifmaxwidth nwell_corner_bridge 0 bend_illegal "Nwell corner bridge marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A.tech",
+            profile: profile,
+            generatedAt: "2026-06-28T00:00:00Z"
+        )
+        #expect(imported.report.status == .complete)
+        #expect(imported.report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.nwell_corner_bridge"])
+        let technologyURL = root.appending(path: "imported-bridge-templayer-clean-tech.json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (try encoder.encode(imported.technology)).write(to: technologyURL)
+        let gds = try writeLayout(
+            shapes: [
+                nwell(0, 0, 1.0, 1.0),
+                nwell(1.8, 1.8, 1.0, 1.0),
+            ],
+            cellName: "IMPORTED_BRIDGE_TEMPLAYER_MARKER_CLEAN",
+            exportTech: imported.technology,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "IMPORTED_BRIDGE_TEMPLAYER_MARKER_CLEAN",
+            technologyURL: technologyURL,
+            workingDirectory: root
+        ))
+
+        #expect(execution.result.passed)
+        #expect(!execution.result.diagnostics.contains {
+            $0.ruleID == "forbiddenLayer.nwell_corner_bridge.marker.forbiddenMarker.nwell_corner_bridge"
+        })
+    }
+
+    @Test func importedCloseTemplayerMarkerFailsThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let profile = try MagicDRCLayoutTechImportProfile.bundledMagicLayoutTechProfile(
+            resourceName: "sky130-magic-layouttech-profile"
+        )
+        let imported = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer MET1 allm1
+              calma 68 20
+            types
+              metal1 metal1,m1,met1
+            end
+            style drc
+              templayer m1_closed_holes m1
+                close 2000000
+                and-not m1
+            drc
+              width m1 140 "Metal1 width"
+              cifmaxwidth m1_closed_holes 0 bend_illegal "Metal1 close marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A.tech",
+            profile: profile,
+            generatedAt: "2026-06-28T00:00:00Z"
+        )
+        #expect(imported.report.status == .complete)
+        #expect(imported.report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.m1_closed_holes"])
+        let technologyURL = root.appending(path: "imported-close-templayer-tech.json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (try encoder.encode(imported.technology)).write(to: technologyURL)
+        let gds = try writeLayout(
+            shapes: [
+                met1(0, 0, 2.0, 0.4),
+                met1(0, 1.6, 2.0, 0.4),
+                met1(0, 0.4, 0.4, 1.2),
+                met1(1.6, 0.4, 0.4, 1.2),
+            ],
+            cellName: "IMPORTED_CLOSE_TEMPLAYER_MARKER",
+            exportTech: imported.technology,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "IMPORTED_CLOSE_TEMPLAYER_MARKER",
+            technologyURL: technologyURL,
+            workingDirectory: root
+        ))
+
+        let diagnostic = try #require(execution.result.diagnostics.first { $0.kind == "forbiddenLayer" })
+        #expect(!execution.result.passed)
+        #expect(diagnostic.ruleID == "forbiddenLayer.m1_closed_holes.marker.forbiddenMarker.m1_closed_holes")
+        #expect(diagnostic.layer == "m1_closed_holes:marker")
+        #expect(diagnostic.region != nil)
+    }
+
+    @Test func importedCloseTemplayerMarkerPassesWithoutHoleThroughStandardInputBackend() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let profile = try MagicDRCLayoutTechImportProfile.bundledMagicLayoutTechProfile(
+            resourceName: "sky130-magic-layouttech-profile"
+        )
+        let imported = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer MET1 allm1
+              calma 68 20
+            types
+              metal1 metal1,m1,met1
+            end
+            style drc
+              templayer m1_closed_holes m1
+                close 2000000
+                and-not m1
+            drc
+              width m1 140 "Metal1 width"
+              cifmaxwidth m1_closed_holes 0 bend_illegal "Metal1 close marker"
+            end
+            """,
+            sourcePath: "/tmp/sky130A.tech",
+            profile: profile,
+            generatedAt: "2026-06-28T00:00:00Z"
+        )
+        #expect(imported.report.status == .complete)
+        #expect(imported.report.sourceTempLayerMaterializedRuleIDs == ["magic.templayer.m1_closed_holes"])
+        let technologyURL = root.appending(path: "imported-close-templayer-clean-tech.json")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try (try encoder.encode(imported.technology)).write(to: technologyURL)
+        let gds = try writeLayout(
+            shapes: [
+                met1(0, 0, 2.0, 2.0),
+            ],
+            cellName: "IMPORTED_CLOSE_TEMPLAYER_MARKER_CLEAN",
+            exportTech: imported.technology,
+            in: root
+        )
+
+        let execution = try await LayoutGDSDRCBackend().run(DRCRequest(
+            layoutURL: gds,
+            topCell: "IMPORTED_CLOSE_TEMPLAYER_MARKER_CLEAN",
+            technologyURL: technologyURL,
+            workingDirectory: root
+        ))
+
+        #expect(execution.result.passed)
+        #expect(!execution.result.diagnostics.contains {
+            $0.ruleID == "forbiddenLayer.m1_closed_holes.marker.forbiddenMarker.m1_closed_holes"
+        })
     }
 
     @Test func bloatAllDerivedMarkerFailsOnlyUntappedGuideIslandThroughStandardInputBackend() async throws {

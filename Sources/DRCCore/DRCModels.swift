@@ -425,6 +425,27 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         self.relatedShapeIDs = relatedShapeIDs
         self.messageContains = messageContains
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case reason
+        case ruleID
+        case kind
+        case layer
+        case relatedShapeIDs
+        case messageContains
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        reason = try container.decode(String.self, forKey: .reason)
+        ruleID = try container.decodeIfPresent(String.self, forKey: .ruleID)
+        kind = try container.decodeIfPresent(String.self, forKey: .kind)
+        layer = try container.decodeIfPresent(String.self, forKey: .layer)
+        relatedShapeIDs = try container.decodeIfPresent([String].self, forKey: .relatedShapeIDs) ?? []
+        messageContains = try container.decodeIfPresent(String.self, forKey: .messageContains)
+    }
 }
 
 public struct DRCWaiverApplicationReport: Sendable, Hashable, Codable {
@@ -464,7 +485,7 @@ public protocol DRCBackend: Sendable {
     func run(_ request: DRCRequest) async throws -> DRCExecutionResult
 }
 
-public typealias DRCExecutionCancellationCheck = @Sendable () async -> Bool
+public typealias DRCExecutionCancellationCheck = @Sendable () async throws -> Bool
 
 public protocol DRCCancellableBackend: DRCBackend {
     func run(

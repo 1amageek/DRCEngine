@@ -41,6 +41,30 @@ The snapshot is intentionally separate from `--action-domain`: `--action-domain`
 describes executable planning operations, while `--capabilities` describes the
 trust surface and remaining capability gaps for standalone DRC.
 
+## Developer CLI Check
+
+For local development, validate the executable boundary before changing DRC
+schemas, corpus contracts, or backend behavior:
+
+```bash
+../scripts/check-developer-cli.sh
+```
+
+The check builds `drcengine`, runs the committed DRC corpus through the real
+executable, verifies the generated `drc-corpus-report.json`, asserts
+qualification, pass rate, oracle agreement, and key coverage tags, then confirms
+that unknown CLI arguments fail instead of being ignored.
+
+When debugging manually, use the SwiftPM-built executable:
+
+```bash
+DRC_BIN="$(swift build --show-bin-path)/drcengine"
+"$DRC_BIN" \
+  --corpus Tests/DRCCLICoreTests/Fixtures/DRCCorpus/drc-corpus.json \
+  --out /tmp/drc-corpus-run \
+  --json
+```
+
 ## Agent evidence packet
 
 `drcengine --evidence-packet-from-corpus-report` converts a retained
@@ -206,8 +230,8 @@ geometry is present in standard layout input, `native-gds` emits structured
 recorded as `sourceTempLayerDefinitions`,
 `sourceTempLayerDefinitionCount`, and `sourceTempLayerOperationCounts`, so an
 Agent can inspect the marker dependency graph without scraping the Magic deck.
-Source temp layers using `and`, `or`, `and-not`, `grow`, `shrink`,
-`bloat-all`, Magic `boundary`, and geometry-neutral `mask-hints` aliases are
+Source temp layers using `and`, `or`, `and-not`, `xor`, `grow`, `grow-min`, `shrink`,
+`bridge`, `close`, `bloat-all`, Magic `boundary`, and geometry-neutral `mask-hints` aliases are
 compiled into dependency-ordered `LayoutDerivedLayerRule` records for marker
 materialization, and the import report records
 `sourceTempLayerMaterializedRuleIDs` plus
@@ -216,9 +240,10 @@ Magic seed/guide layer split through `primarySourceLayerCount` instead of
 treating it as an unbounded grow. Magic `boundary` maps to the generic
 `cell-boundary` operation, which reads canonical cell properties such as
 `FIXED_BBOX` / `lsi.fixedBBox` from native layout JSON and materializes the
-cell abutment box as derived marker geometry. Other observed operations such as
-`bridge`, `close`, and `grow-min` remain recorded in source operation counts
-until a deck path requires typed materialization.
+cell abutment box as derived marker geometry. Magic `bridge` materializes
+rectangle bridge fill for diagonal gap and corner-pinch cases, and Magic
+`close` materializes enclosed empty rectangles below the configured area
+threshold before downstream boolean marker operations run.
 Magic MiM / pad layer expressions that depend on derived geometry are recorded
 as `LayoutDerivedLayerRule` entries. The current Sky130 seed materializes
 rectangular `MIMCC = VIA3 ∩ CAPM` and `MIM2CC = VIA4 ∩ CAPM2` intersections
@@ -239,15 +264,25 @@ Swift source. Generic Magic-deck `minimumcut` / `cutcount` source policy lines
 are emitted as `sourceMinimumCutPolicies` / `sourceMinimumCutPolicyIDs` /
 `sourceMinimumCutPolicyCount`, recorded in `importedFamilyCounts.minimum_cut`,
 and override profile defaults when producing `LayoutMinimumCutRule.minimumCount`.
+The parser accepts explicit cut/bottom/top/count forms, repeated explicit
+cut/bottom/top/count groups on one source line, count-before-conductor forms,
+and cut/count forms when the profile or source contact stack identifies one
+unique conductor stack for that cut layer. Ambiguous stack inference and extra
+unmatched counts remain skipped-rule diagnostics instead of guessed native
+rules.
 Imported `angles` rules become `allowedAngleStepDegrees`
 entries in the generated technology seed and drive structured `angle`
 diagnostics in the `native-gds` path. Unsupported or unresolved Magic families
-such as broader real-deck multi-cut syntax variants and Magic `templayer`
-materialization gaps for non-hole `cifmaxwidth` marker rules remain in the
-`drc-foundry-rule-import-report` diagnostics instead of being silently dropped.
-The canonical native JSON backend separately supports `NativeDRCRule.Kind.exactOverlap`
-and reports structured `exactOverlap` diagnostics for primary/secondary
-rectangle bounds that do not match within the rule tolerance.
+such as ambiguous multi-cut stack syntax, extra unmatched cut-count values, and
+any future Magic `templayer` operation outside the typed materialization set
+remain in the `drc-foundry-rule-import-report` diagnostics instead of being
+silently dropped.
+The canonical native JSON backend separately supports
+`NativeDRCRule.Kind.maximumWidth`, `NativeDRCRule.Kind.forbiddenLayer`, and
+`NativeDRCRule.Kind.exactOverlap`. `maximumWidth` reports excessive rectangle
+span, `forbiddenLayer` reports marker geometry that must be empty, and
+`exactOverlap` reports primary/secondary rectangle bounds that do not match
+within the rule tolerance.
 
 ```bash
 drcengine --import-sky130-magic-rules \
@@ -261,10 +296,10 @@ drcengine --import-sky130-magic-rules \
 The normal successful state for a fully represented deck is `complete`. Real
 Sky130 PDK import currently reaches `complete` for represented Magic DRC seed
 families, including `boundary` / `FIXED_BBOX` marker materialization. Real decks
-may still report `partial` when future observed families or alternate real-deck
-multi-cut syntax variants are not yet represented by the native rule model. Add
-`--require-complete` when a release or Agent gate must fail until every observed
-Magic rule family is represented by the native rule model.
+may still report `partial` when future observed families or ambiguous cut-count
+rules are not yet represented by the native rule model. Add `--require-complete`
+when a release or Agent gate must fail until every observed Magic rule family is
+represented by the native rule model.
 
 ## Standard-input backend: `native-gds`
 
@@ -292,10 +327,10 @@ drcengine --layout design.gds --backend native-gds --tech technology.json
 
 ## Agent-facing diagnostics
 
-Native diagnostics are structured for direct API and CLI consumers. Width,
-manufacturing-grid, area, antenna ratio, density, notch, enclosed-area, spacing
+Native diagnostics are structured for direct API and CLI consumers. Minimum-width,
+maximum-width, manufacturing-grid, area, antenna ratio, density, notch, enclosed-area, spacing
 including net-scoped, directional, parallel-run-length, and wide-metal threshold
-spacing, enclosure, extension, angle, forbidden-overlap, and different-net overlap short errors populate
+spacing, enclosure, extension, angle, forbidden-layer, forbidden-overlap, and different-net overlap short errors populate
 `ruleID`, `kind`, `layer`, `measured`, `required`, `unit`, `region`,
 `relatedShapeIDs`, `relatedNetIDs`, and `suggestedFix`, so an Agent can identify
 the offending shapes and propose a targeted edit without scraping a text log.
@@ -325,6 +360,14 @@ let runSummary = DRCRunSummaryBuilder().build(result: executionResult)
 The summary keeps the full report as the source of truth while exposing the
 pass/fail status, active/waived violation counts, unused waivers, and grouped
 rule/layer/kind violation buckets for Agent / CI / Human review.
+
+Saved reports can be summarized again without rerunning DRC. This is the
+developer and Agent entry point for inspecting retained `drc-report.json`
+artifacts from a run directory:
+
+```bash
+drcengine --summarize-report drc-report.json --json
+```
 
 Saved reports can also be converted into typed repair hints without scraping
 logs:
@@ -454,21 +497,22 @@ The committed CLI golden corpus lives under
 `Tests/DRCCLICoreTests/Fixtures/DRCCorpus`. It covers a clean layout, an active
 standard-layout clean fixture for each GDSII/OASIS/CIF/DXF input format, active
 standard-layout GDSII minimum-cut pass and fail fixtures,
-manufacturing-grid failure, an active minimum-width failure, an active minimum-area failure, active maximum-density and
+manufacturing-grid failure, active minimum-width and maximum-width failures, an active minimum-area failure, active maximum-density and
 minimum-density failures, an active multi-layer net-aware maximum-antenna-ratio failure, an active
 process-step maximum-antenna-ratio failure, an active via-aware
 maximum-antenna-ratio failure, an active minimum-cut failure, an active minimum-notch failure, an active
 minimum-enclosed-area failure, active minimum-spacing failures for all-shape,
 same-net, different-net, layer-pair, end-of-line, directional, and
 parallel-run-length rule scopes, an active wide-metal spacing failure, an active cross-layer minimum-enclosure failure, an active
-minimum-extension failure, an active forbidden-overlap failure, an active
+minimum-extension failure, an active forbidden marker-layer failure, an active
+forbidden-overlap failure, an active exact-overlap failure, an active
 different-net overlap short failure, and the width failure accepted only through
 an explicit diagnostic waiver, each with a public CLI oracle result and required
-coverage tags for clean, standard mask input, technology layer-map, manufacturing grid, width, area, antenna, antenna multi-layer accumulation,
+coverage tags for clean, standard mask input, technology layer-map, manufacturing grid, minimum and maximum width, area, antenna, antenna multi-layer accumulation,
 antenna process-step filtering, antenna cut-stack connectivity, maximum and
 minimum cut, standard-input minimum cut, maximum and minimum density, notch, enclosed-area, spacing
 net/layer/end-of-line/directional/parallel-run-length scope, enclosure,
-extension, forbidden overlap, exact overlap, different-net overlap short, and
+extension, forbidden marker-layer, forbidden overlap, exact overlap, different-net overlap short, and
 waiver behavior. The tight-budget fixture proves that a
 correctness-clean run still fails the corpus gate when it exceeds its declared
 benchmark budget. CLI tests additionally prove that a correctness-clean corpus

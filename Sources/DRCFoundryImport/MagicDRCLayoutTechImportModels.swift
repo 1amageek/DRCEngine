@@ -102,6 +102,17 @@ public struct MagicDRCImportDiagnostic: Codable, Sendable, Hashable {
     }
 }
 
+public enum MagicDRCSourceRuleValidationError: Error, Hashable, Sendable, CustomStringConvertible {
+    case emptyExactOverlapSecondaryLayers(ruleID: String)
+
+    public var description: String {
+        switch self {
+        case .emptyExactOverlapSecondaryLayers(let ruleID):
+            return "Exact-overlap source rule \(ruleID) requires at least one secondary layer."
+        }
+    }
+}
+
 public struct MagicDRCSourceExactOverlapRule: Codable, Sendable, Hashable {
     public let id: String
     public let primaryLayerName: String
@@ -117,13 +128,12 @@ public struct MagicDRCSourceExactOverlapRule: Codable, Sendable, Hashable {
         sourceLineNumber: Int,
         sourceLine: String
     ) {
-        self.init(
-            id: id,
-            primaryLayerName: primaryLayerName,
-            secondaryLayerNames: [secondaryLayerName],
-            sourceLineNumber: sourceLineNumber,
-            sourceLine: sourceLine
-        )
+        self.id = id
+        self.primaryLayerName = primaryLayerName
+        self.secondaryLayerName = secondaryLayerName
+        self.secondaryLayerNames = [secondaryLayerName]
+        self.sourceLineNumber = sourceLineNumber
+        self.sourceLine = sourceLine
     }
 
     public init(
@@ -132,14 +142,32 @@ public struct MagicDRCSourceExactOverlapRule: Codable, Sendable, Hashable {
         secondaryLayerNames: [String],
         sourceLineNumber: Int,
         sourceLine: String
-    ) {
-        precondition(!secondaryLayerNames.isEmpty, "Exact-overlap source rules require at least one secondary layer.")
+    ) throws {
+        guard !secondaryLayerNames.isEmpty else {
+            throw MagicDRCSourceRuleValidationError.emptyExactOverlapSecondaryLayers(ruleID: id)
+        }
         self.id = id
         self.primaryLayerName = primaryLayerName
         self.secondaryLayerName = secondaryLayerNames[0]
         self.secondaryLayerNames = secondaryLayerNames
         self.sourceLineNumber = sourceLineNumber
         self.sourceLine = sourceLine
+    }
+
+    public init(
+        validatingID id: String,
+        primaryLayerName: String,
+        secondaryLayerNames: [String],
+        sourceLineNumber: Int,
+        sourceLine: String
+    ) throws {
+        try self.init(
+            id: id,
+            primaryLayerName: primaryLayerName,
+            secondaryLayerNames: secondaryLayerNames,
+            sourceLineNumber: sourceLineNumber,
+            sourceLine: sourceLine
+        )
     }
 
     private enum CodingKeys: String, CodingKey {

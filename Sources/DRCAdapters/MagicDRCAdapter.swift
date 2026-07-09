@@ -98,12 +98,61 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
         _ request: DRCRequest,
         cancellationCheck: DRCExecutionCancellationCheck?
     ) async throws -> DRCExecutionResult {
+        let context = try prepareExecutionContext(for: request)
+        let process = makeProcess(context: context)
+        let processResult = try await runProcess(
+            process,
+            request: request,
+            cancellationCheck: cancellationCheck
+        )
+        let rawOutput = Self.combinedOutput(from: processResult)
+        try writeLog(
+            to: context.logURL,
+            request: request,
+            exitCode: processResult.exitCode,
+            rawOutput: rawOutput
+        )
+        let parsed = parser.parse(
+            logPath: context.logURL.path(percentEncoded: false),
+            rawOutput: rawOutput,
+            success: processResult.exitCode == 0,
+            provenance: makeProvenance(request: request)
+        )
+        return DRCExecutionResult(request: request, result: parsed)
+    }
+
+    private enum MagicInputKind {
+        case gds
+        case magicLayout
+    }
+
+    private struct ExecutionContext {
+        let artifactDirectory: URL
+        let logURL: URL
+        let environment: [String: String]
+    }
+
+    private func prepareExecutionContext(for request: DRCRequest) throws -> ExecutionContext {
         try Self.validateAdditionalEnvironment(request.options.additionalEnvironment)
         try Self.validateMagicDRCStyle(request.options.additionalEnvironment["MAGIC_DRC_STYLE"])
+        try Self.validateTopCell(request.topCell)
+        let inputKind = try Self.resolveInputKind(for: request)
         let artifactDirectory = request.workingDirectory ?? FileManager.default.temporaryDirectory
-        try FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
-        let logURL = artifactDirectory.appending(path: "drc-magic-\(UUID().uuidString).log")
+        do {
+            try FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
+        } catch {
+            throw DRCError.artifactWriteFailed(
+                "Could not create Magic DRC artifact directory '\(artifactDirectory.path(percentEncoded: false))': \(error.localizedDescription)"
+            )
+        }
+        return ExecutionContext(
+            artifactDirectory: artifactDirectory,
+            logURL: artifactDirectory.appending(path: "drc-magic-\(UUID().uuidString).log"),
+            environment: processEnvironment(for: request, inputKind: inputKind)
+        )
+    }
 
+    private func makeProcess(context: ExecutionContext) -> Process {
         let process = Process()
         process.executableURL = toolchain.magicExecutableURL
         process.arguments = [
@@ -113,19 +162,18 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
             toolchain.rcFileURL.path(percentEncoded: false),
             toolchain.driverScriptURL.path(percentEncoded: false),
         ]
-        process.currentDirectoryURL = artifactDirectory
-        let requestEnvironment = [
-            "PDK_ROOT": toolchain.pdkRoot,
-            "DRC_CELL": request.topCell,
-            "MAGTYPE": "mag",
-        ].merging(Self.layoutEnvironment(for: request)) { _, new in new }
-        process.environment = ProcessInfo.processInfo.environment
-            .merging(request.options.additionalEnvironment) { _, new in new }
-            .merging(requestEnvironment) { _, new in new }
+        process.currentDirectoryURL = context.artifactDirectory
+        process.environment = context.environment
+        return process
+    }
 
-        let processResult: TimedProcessResult
+    private func runProcess(
+        _ process: Process,
+        request: DRCRequest,
+        cancellationCheck: DRCExecutionCancellationCheck?
+    ) async throws -> TimedProcessResult {
         do {
-            processResult = try await TimedProcessRunner(
+            return try await TimedProcessRunner(
                 timeoutSeconds: request.options.timeoutSeconds,
                 terminationGraceSeconds: 0.1,
                 pipeDrainGraceSeconds: 0.05
@@ -140,31 +188,43 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
                     .filter { !$0.isEmpty }
                     .joined(separator: "\n")
                 throw DRCError.cancelled(output.isEmpty ? "Magic DRC process was cancelled." : output)
+            case .cancellationCheckFailed(_, let message, let standardOutput, let standardError):
+                let output = [standardOutput, standardError, message]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "\n")
+                throw DRCError.backendFailed(output)
             default:
                 throw error
             }
         }
-        let rawOutput = [processResult.standardOutput, processResult.standardError].joined(separator: "\n")
-        let log = renderLog(request: request, exitCode: processResult.exitCode, rawOutput: rawOutput)
+    }
+
+    private func writeLog(
+        to logURL: URL,
+        request: DRCRequest,
+        exitCode: Int32,
+        rawOutput: String
+    ) throws {
+        let log = renderLog(request: request, exitCode: exitCode, rawOutput: rawOutput)
         do {
             try log.write(to: logURL, atomically: true, encoding: .utf8)
         } catch {
             throw DRCError.artifactWriteFailed(error.localizedDescription)
         }
+    }
 
-        let parsed = parser.parse(
-            logPath: logURL.path(percentEncoded: false),
-            rawOutput: rawOutput,
-            success: processResult.exitCode == 0,
-            provenance: DRCToolProvenance(
-                executablePath: toolchain.magicExecutableURL.path(percentEncoded: false),
-                pdkRoot: toolchain.pdkRoot,
-                rcFilePath: toolchain.rcFileURL.path(percentEncoded: false),
-                driverScriptPath: toolchain.driverScriptURL.path(percentEncoded: false),
-                timeoutSeconds: request.options.timeoutSeconds
-            )
+    private func makeProvenance(request: DRCRequest) -> DRCToolProvenance {
+        DRCToolProvenance(
+            executablePath: toolchain.magicExecutableURL.path(percentEncoded: false),
+            pdkRoot: toolchain.pdkRoot,
+            rcFilePath: toolchain.rcFileURL.path(percentEncoded: false),
+            driverScriptPath: toolchain.driverScriptURL.path(percentEncoded: false),
+            timeoutSeconds: request.options.timeoutSeconds
         )
-        return DRCExecutionResult(request: request, result: parsed)
+    }
+
+    private static func combinedOutput(from result: TimedProcessResult) -> String {
+        [result.standardOutput, result.standardError].joined(separator: "\n")
     }
 
     private func renderLog(request: DRCRequest, exitCode: Int32, rawOutput: String) -> String {
@@ -197,21 +257,58 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
         }
     }
 
-    private static func layoutEnvironment(for request: DRCRequest) -> [String: String] {
-        let layoutPath = request.layoutURL.path(percentEncoded: false)
-        if isMagicLayoutInput(request) {
-            return ["DRC_MAG": layoutPath]
+    private static func validateTopCell(_ topCell: String) throws {
+        guard !topCell.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw DRCError.invalidInput("topCell must not be empty")
         }
-        return ["DRC_GDS": layoutPath]
     }
 
-    private static func isMagicLayoutInput(_ request: DRCRequest) -> Bool {
-        if request.layoutFormat == .magicLayout {
-            return true
+    private static func resolveInputKind(for request: DRCRequest) throws -> MagicInputKind {
+        switch request.layoutFormat ?? .auto {
+        case .gds:
+            return .gds
+        case .magicLayout:
+            return .magicLayout
+        case .auto:
+            return try inferAutoInputKind(from: request.layoutURL)
+        case .oasis, .cif, .dxf, .nativeJSON:
+            throw DRCError.invalidInput(
+                "Magic DRC backend supports only GDSII or Magic layout inputs, got \(request.layoutFormat?.rawValue ?? DRCLayoutFormat.auto.rawValue)"
+            )
         }
-        guard request.layoutFormat == nil || request.layoutFormat == .auto else {
-            return false
+    }
+
+    private static func inferAutoInputKind(from layoutURL: URL) throws -> MagicInputKind {
+        switch layoutURL.pathExtension.lowercased() {
+        case "gds":
+            return .gds
+        case "mag":
+            return .magicLayout
+        default:
+            throw DRCError.invalidInput(
+                "Magic DRC auto layout format requires a .gds or .mag extension: \(layoutURL.lastPathComponent)"
+            )
         }
-        return request.layoutURL.pathExtension.lowercased() == "mag"
+    }
+
+    private func processEnvironment(for request: DRCRequest, inputKind: MagicInputKind) -> [String: String] {
+        let requestEnvironment = [
+            "PDK_ROOT": toolchain.pdkRoot,
+            "DRC_CELL": request.topCell,
+            "MAGTYPE": "mag",
+        ].merging(Self.layoutEnvironment(for: request, inputKind: inputKind)) { _, new in new }
+        return ProcessInfo.processInfo.environment
+            .merging(request.options.additionalEnvironment) { _, new in new }
+            .merging(requestEnvironment) { _, new in new }
+    }
+
+    private static func layoutEnvironment(for request: DRCRequest, inputKind: MagicInputKind) -> [String: String] {
+        let layoutPath = request.layoutURL.path(percentEncoded: false)
+        switch inputKind {
+        case .magicLayout:
+            return ["DRC_MAG": layoutPath]
+        case .gds:
+            return ["DRC_GDS": layoutPath]
+        }
     }
 }

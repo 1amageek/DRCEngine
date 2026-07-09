@@ -84,6 +84,20 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
         return url
     }
 
+    public func validateForImport() throws {
+        let issues = validationIssues()
+        guard issues.isEmpty else {
+            throw MagicDRCLayoutTechImportProfileValidationError(
+                profileID: profileID,
+                issues: issues
+            )
+        }
+    }
+
+    public func validationIssues() -> [MagicDRCLayoutTechImportProfileValidationIssue] {
+        MagicDRCLayoutTechImportProfileValidator(profile: self).issues()
+    }
+
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case profileID

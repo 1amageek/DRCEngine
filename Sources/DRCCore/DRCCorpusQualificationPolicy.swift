@@ -71,6 +71,14 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         summary: DRCCorpusSummary
     ) -> DRCCorpusQualificationResult {
         var failures = validationFailures()
+        if caseCount == 0 {
+            failures.append(DRCCorpusQualificationFailure(
+                code: "empty_corpus",
+                message: "The corpus did not run any cases.",
+                observedCount: 0,
+                requiredCount: 1
+            ))
+        }
         if requireCorpusPassed && !passed {
             failures.append(DRCCorpusQualificationFailure(
                 code: "corpus_not_passed",
@@ -86,7 +94,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         let durationBudgetPassRate = caseCount == 0
-            ? 1
+            ? 0
             : Double(summary.durationBudgetPassedCaseCount) / Double(caseCount)
         if durationBudgetPassRate < minimumDurationBudgetPassRate {
             failures.append(DRCCorpusQualificationFailure(

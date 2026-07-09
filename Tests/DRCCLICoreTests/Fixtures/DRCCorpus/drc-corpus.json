@@ -2,7 +2,7 @@
   "schemaVersion" : 1,
   "defaultMaxDurationSeconds" : 10,
   "qualificationPolicy" : {
-    "requiredCoverageTags" : ["drc.antenna", "drc.antenna.multi-layer", "drc.antenna.process-step", "drc.antenna.via-aware", "drc.antenna.via-topology", "drc.area", "drc.clean", "drc.cut", "drc.cut.minimum", "drc.cut.minimum.fail", "drc.cut.minimum.multi-stack", "drc.cut.minimum.pass", "drc.cut.minimum.standard-input", "drc.density", "drc.density.minimum", "drc.enclosed-area", "drc.enclosure", "drc.extension", "drc.extension.minimum", "drc.grid", "drc.grid.manufacturing", "drc.input.cif", "drc.input.dxf", "drc.input.gds", "drc.input.oasis", "drc.notch", "drc.overlap", "drc.overlap.different-net", "drc.overlap.exact", "drc.overlap.forbidden", "drc.short", "drc.spacing", "drc.spacing.different-net", "drc.spacing.directional", "drc.spacing.end-of-line", "drc.spacing.layer-pair", "drc.spacing.net-scope", "drc.spacing.parallel-run-length", "drc.spacing.same-net", "drc.spacing.wide", "drc.tech.layer-map", "drc.waiver", "drc.width"]
+    "requiredCoverageTags" : ["drc.antenna", "drc.antenna.multi-layer", "drc.antenna.process-step", "drc.antenna.via-aware", "drc.antenna.via-topology", "drc.area", "drc.clean", "drc.cut", "drc.cut.minimum", "drc.cut.minimum.fail", "drc.cut.minimum.multi-stack", "drc.cut.minimum.pass", "drc.cut.minimum.standard-input", "drc.density", "drc.density.minimum", "drc.enclosed-area", "drc.enclosure", "drc.enclosure.composite", "drc.extension", "drc.extension.minimum", "drc.grid", "drc.grid.manufacturing", "drc.input.cif", "drc.input.dxf", "drc.input.gds", "drc.input.oasis", "drc.marker", "drc.marker.forbidden-layer", "drc.notch", "drc.overlap", "drc.overlap.different-net", "drc.overlap.exact", "drc.overlap.forbidden", "drc.short", "drc.spacing", "drc.spacing.different-net", "drc.spacing.directional", "drc.spacing.end-of-line", "drc.spacing.layer-pair", "drc.spacing.net-scope", "drc.spacing.parallel-run-length", "drc.spacing.same-net", "drc.spacing.wide", "drc.tech.layer-map", "drc.waiver", "drc.width", "drc.width.maximum"]
   },
   "cases" : [
     {
@@ -91,6 +91,16 @@
       "expectedActiveErrorRuleIDs" : ["met1.width"],
       "expectedPassed" : false,
       "layoutPath" : "width-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "maximum-width-violation",
+      "coverageTags" : ["drc.width", "drc.width.maximum", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["met1.maxWidth"],
+      "expectedPassed" : false,
+      "layoutPath" : "maximum-width-violation.json",
       "oracleBackendID" : "native",
       "topCell" : "inv"
     },
@@ -244,6 +254,16 @@
     },
     {
       "backendID" : "native",
+      "caseID" : "forbidden-layer-violation",
+      "coverageTags" : ["drc.marker", "drc.marker.forbidden-layer", "diagnostic.rule-id", "failure.expected"],
+      "expectedActiveErrorRuleIDs" : ["m1_not_m2_marker.forbidden"],
+      "expectedPassed" : false,
+      "layoutPath" : "forbidden-layer-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
       "caseID" : "forbidden-overlap-violation",
       "coverageTags" : ["drc.overlap", "drc.overlap.forbidden", "diagnostic.rule-id", "failure.expected"],
       "expectedActiveErrorRuleIDs" : ["active.nwell.forbiddenOverlap"],
@@ -349,6 +369,15 @@
       "expectedActiveErrorRuleIDs" : ["met1.via1.enclosure"],
       "expectedPassed" : false,
       "layoutPath" : "enclosure-violation.json",
+      "oracleBackendID" : "native",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "native",
+      "caseID" : "enclosure-composite-clean",
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.composite", "layout.json"],
+      "expectedPassed" : true,
+      "layoutPath" : "enclosure-composite-clean.json",
       "oracleBackendID" : "native",
       "topCell" : "inv"
     },

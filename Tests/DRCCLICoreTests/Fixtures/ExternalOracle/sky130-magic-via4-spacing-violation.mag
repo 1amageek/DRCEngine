@@ -1,0 +1,12 @@
+magic
+tech sky130A
+magscale 1 2
+timestamp 0
+<< metal4 >>
+rect 0 0 1400 1000
+<< via4 >>
+rect 100 100 336 336
+rect 396 100 632 336
+<< metal5 >>
+rect 0 0 1400 1000
+<< end >>

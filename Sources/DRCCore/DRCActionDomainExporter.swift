@@ -25,7 +25,12 @@ public struct DRCActionDomainExporter: Sendable {
             maturity: "implemented",
             inputRefs: ["layout-ref", "technology-ref", "optional-waiver-ref"],
             preconditions: ["supported-layout-format", "top-cell-known", "qualified-backend-selected"],
-            effects: ["drc-result-produced", "drc-diagnostics-produced", "drc-artifact-manifest-written"],
+            effects: [
+                "drc-result-produced",
+                "drc-diagnostics-produced",
+                "composite-enclosure-coverage-evaluated",
+                "drc-artifact-manifest-written",
+            ],
             producedArtifacts: ["drc-report", "drc-artifact-manifest", "drc-summary"],
             verificationGates: ["tool-trust", "artifact-integrity", "drc-artifacts"],
             reversible: true
@@ -61,7 +66,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func importFoundryRuleSeedOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.import-foundry-rule-seed",
-            maturity: "partial",
+            maturity: "implemented",
             inputRefs: ["magic-tech-ref-or-signoff-profile", "magic-layouttech-import-profile", "optional-pdk-root"],
             preconditions: ["magic-tech-readable-or-signoff-profile-resolved", "magic-layouttech-import-profile-valid"],
             effects: ["layout-tech-seed-produced", "foundry-rule-import-report-produced"],

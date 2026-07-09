@@ -11,6 +11,7 @@ extension DRCCLIOptionsTests {
     func writeMagicRuleImportCatalog(
         root: URL,
         catalogPath: String = "tech/magic-rule-import-catalog.json",
+        requiredFilePath: String = "sky130A/libs.tech/magic/sky130A.tech",
         includeProfileResource: Bool = true
     ) throws -> URL {
         let catalogURL = root.appending(path: catalogPath)
@@ -30,7 +31,7 @@ extension DRCCLIOptionsTests {
                     requiredFiles: [
                         DRCMagicRuleImportCatalog.RequiredFile(
                             purpose: "magic-drc-tech",
-                            path: "sky130A/libs.tech/magic/sky130A.tech"
+                            path: requiredFilePath
                         ),
                     ],
                     metadata: metadata

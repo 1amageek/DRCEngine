@@ -1,3 +1,5 @@
+import Foundation
+
 public struct DRCEvidencePacket: Sendable, Hashable, Codable {
     public static let currentSchemaVersion = 1
 
@@ -49,6 +51,318 @@ public struct DRCEvidencePacket: Sendable, Hashable, Codable {
         self.decisionHints = decisionHints
         self.coverageTags = Array(Set(coverageTags.filter { !$0.isEmpty })).sorted()
         self.relatedEvidenceIDs = Array(Set(relatedEvidenceIDs.filter { !$0.isEmpty })).sorted()
+    }
+
+    public func validateIntegrity() -> [DRCEvidenceIntegrityIssue] {
+        var issues: [DRCEvidenceIntegrityIssue] = []
+        appendRequiredFieldIssues(&issues)
+        appendArtifactIssues(&issues)
+        appendMetricIssues(&issues)
+        appendDiagnosticIssues(&issues)
+        appendDecisionHintIssues(&issues)
+        appendConfidenceIssues(&issues)
+        return issues
+    }
+
+    private func appendRequiredFieldIssues(_ issues: inout [DRCEvidenceIntegrityIssue]) {
+        if schemaVersion != Self.currentSchemaVersion {
+            issues.append(.issue(
+                code: "drc_evidence_schema_version_unsupported",
+                fieldPath: "schemaVersion",
+                message: "DRC evidence packet schemaVersion \(schemaVersion) is not supported.",
+                suggestedActions: ["regenerate_drc_evidence_packet"]
+            ))
+        }
+        appendNonEmptyIssue(&issues, value: packetID, fieldPath: "packetID")
+        appendNonEmptyIssue(&issues, value: domain, fieldPath: "domain")
+        appendNonEmptyIssue(&issues, value: subject.kind, fieldPath: "subject.kind")
+        appendNonEmptyIssue(&issues, value: subject.identifier, fieldPath: "subject.identifier")
+        appendNonEmptyIssue(&issues, value: intent.summary, fieldPath: "intent.summary")
+    }
+
+    private func appendArtifactIssues(_ issues: inout [DRCEvidenceIntegrityIssue]) {
+        var seenArtifactIDs: Set<String> = []
+        for (collectionName, refs) in [("inputs", inputs), ("artifacts", artifacts)] {
+            for (index, ref) in refs.enumerated() {
+                let prefix = "\(collectionName)[\(index)]"
+                appendNonEmptyIssue(&issues, value: ref.artifactID, fieldPath: "\(prefix).artifactID")
+                appendNonEmptyIssue(&issues, value: ref.path, fieldPath: "\(prefix).path")
+                appendNonEmptyIssue(&issues, value: ref.role, fieldPath: "\(prefix).role")
+                appendNonEmptyIssue(&issues, value: ref.kind, fieldPath: "\(prefix).kind")
+                appendNonEmptyIssue(&issues, value: ref.format, fieldPath: "\(prefix).format")
+                if !ref.artifactID.isEmpty, !seenArtifactIDs.insert(ref.artifactID).inserted {
+                    issues.append(.issue(
+                        code: "drc_evidence_duplicate_artifact_id",
+                        fieldPath: "\(prefix).artifactID",
+                        message: "DRC evidence artifact ID \(ref.artifactID) is duplicated.",
+                        suggestedActions: ["regenerate_drc_evidence_packet", "inspect_drc_evidence_artifact_ids"]
+                    ))
+                }
+                appendPathIssues(&issues, path: ref.path, fieldPath: "\(prefix).path")
+                if let sha256 = ref.sha256, !Self.isValidSHA256(sha256) {
+                    issues.append(.issue(
+                        code: "drc_evidence_invalid_sha256",
+                        fieldPath: "\(prefix).sha256",
+                        message: "DRC evidence artifact \(ref.artifactID) has an invalid SHA-256 digest.",
+                        suggestedActions: ["recompute_drc_evidence_artifact_hash", "regenerate_drc_evidence_packet"]
+                    ))
+                }
+            }
+        }
+
+        let knownArtifactIDs = Set((inputs + artifacts).map(\.artifactID).filter { !$0.isEmpty })
+        appendArtifactReferenceIssues(
+            &issues,
+            values: readiness.flatMap(\.artifactIDs),
+            knownArtifactIDs: knownArtifactIDs,
+            fieldPath: "readiness.artifactIDs"
+        )
+        appendArtifactReferenceIssues(
+            &issues,
+            values: normalizedViews.flatMap(\.sourceArtifactIDs),
+            knownArtifactIDs: knownArtifactIDs,
+            fieldPath: "normalizedViews.sourceArtifactIDs"
+        )
+        appendArtifactReferenceIssues(
+            &issues,
+            values: diagnostics.flatMap(\.artifactIDs),
+            knownArtifactIDs: knownArtifactIDs,
+            fieldPath: "diagnostics.artifactIDs"
+        )
+    }
+
+    private func appendMetricIssues(_ issues: inout [DRCEvidenceIntegrityIssue]) {
+        var seenMetricIDs: Set<String> = []
+        for (index, metric) in metrics.enumerated() {
+            let prefix = "metrics[\(index)]"
+            appendNonEmptyIssue(&issues, value: metric.metricID, fieldPath: "\(prefix).metricID")
+            appendNonEmptyIssue(&issues, value: metric.name, fieldPath: "\(prefix).name")
+            if !metric.metricID.isEmpty, !seenMetricIDs.insert(metric.metricID).inserted {
+                issues.append(.issue(
+                    code: "drc_evidence_duplicate_metric_id",
+                    fieldPath: "\(prefix).metricID",
+                    message: "DRC evidence metric ID \(metric.metricID) is duplicated.",
+                    suggestedActions: ["regenerate_drc_evidence_packet", "inspect_drc_evidence_metric_ids"]
+                ))
+            }
+            if let value = metric.value, !value.isFinite {
+                issues.append(.issue(
+                    code: "drc_evidence_non_finite_metric_value",
+                    fieldPath: "\(prefix).value",
+                    message: "DRC evidence metric \(metric.metricID) has a non-finite value.",
+                    suggestedActions: ["inspect_drc_corpus_metrics", "regenerate_drc_evidence_packet"]
+                ))
+            }
+            if let count = metric.count, count < 0 {
+                issues.append(.issue(
+                    code: "drc_evidence_negative_metric_count",
+                    fieldPath: "\(prefix).count",
+                    message: "DRC evidence metric \(metric.metricID) has a negative count.",
+                    suggestedActions: ["inspect_drc_corpus_metrics", "regenerate_drc_evidence_packet"]
+                ))
+            }
+        }
+    }
+
+    private func appendDiagnosticIssues(_ issues: inout [DRCEvidenceIntegrityIssue]) {
+        var seenDiagnosticIDs: Set<String> = []
+        for (index, diagnostic) in diagnostics.enumerated() {
+            let prefix = "diagnostics[\(index)]"
+            appendNonEmptyIssue(&issues, value: diagnostic.diagnosticID, fieldPath: "\(prefix).diagnosticID")
+            appendNonEmptyIssue(&issues, value: diagnostic.category, fieldPath: "\(prefix).category")
+            appendNonEmptyIssue(&issues, value: diagnostic.message, fieldPath: "\(prefix).message")
+            if !diagnostic.diagnosticID.isEmpty, !seenDiagnosticIDs.insert(diagnostic.diagnosticID).inserted {
+                issues.append(.issue(
+                    code: "drc_evidence_duplicate_diagnostic_id",
+                    fieldPath: "\(prefix).diagnosticID",
+                    message: "DRC evidence diagnostic ID \(diagnostic.diagnosticID) is duplicated.",
+                    suggestedActions: ["regenerate_drc_evidence_packet", "inspect_drc_evidence_diagnostic_ids"]
+                ))
+            }
+            if let observedValue = diagnostic.observedValue, !observedValue.isFinite {
+                issues.append(.issue(
+                    code: "drc_evidence_non_finite_observed_value",
+                    fieldPath: "\(prefix).observedValue",
+                    message: "DRC evidence diagnostic \(diagnostic.diagnosticID) has a non-finite observed value.",
+                    suggestedActions: ["inspect_drc_diagnostic_values", "regenerate_drc_evidence_packet"]
+                ))
+            }
+            if let requiredValue = diagnostic.requiredValue, !requiredValue.isFinite {
+                issues.append(.issue(
+                    code: "drc_evidence_non_finite_required_value",
+                    fieldPath: "\(prefix).requiredValue",
+                    message: "DRC evidence diagnostic \(diagnostic.diagnosticID) has a non-finite required value.",
+                    suggestedActions: ["inspect_drc_diagnostic_values", "regenerate_drc_evidence_packet"]
+                ))
+            }
+        }
+    }
+
+    private func appendDecisionHintIssues(_ issues: inout [DRCEvidenceIntegrityIssue]) {
+        var seenHintIDs: Set<String> = []
+        let knownDiagnosticIDs = Set(diagnostics.map(\.diagnosticID).filter { !$0.isEmpty })
+        for (index, hint) in decisionHints.enumerated() {
+            let prefix = "decisionHints[\(index)]"
+            appendNonEmptyIssue(&issues, value: hint.hintID, fieldPath: "\(prefix).hintID")
+            appendNonEmptyIssue(&issues, value: hint.summary, fieldPath: "\(prefix).summary")
+            if !hint.hintID.isEmpty, !seenHintIDs.insert(hint.hintID).inserted {
+                issues.append(.issue(
+                    code: "drc_evidence_duplicate_decision_hint_id",
+                    fieldPath: "\(prefix).hintID",
+                    message: "DRC evidence decision hint ID \(hint.hintID) is duplicated.",
+                    suggestedActions: ["regenerate_drc_evidence_packet", "inspect_drc_evidence_decision_hint_ids"]
+                ))
+            }
+            for diagnosticID in hint.diagnosticIDs where !knownDiagnosticIDs.contains(diagnosticID) {
+                issues.append(.issue(
+                    code: "drc_evidence_dangling_diagnostic_reference",
+                    fieldPath: "\(prefix).diagnosticIDs",
+                    message: "DRC evidence decision hint \(hint.hintID) references unknown diagnostic ID \(diagnosticID).",
+                    suggestedActions: ["inspect_drc_evidence_decision_hints", "regenerate_drc_evidence_packet"]
+                ))
+            }
+        }
+    }
+
+    private func appendConfidenceIssues(_ issues: inout [DRCEvidenceIntegrityIssue]) {
+        appendNonEmptyIssue(&issues, value: confidence.reason, fieldPath: "confidence.reason")
+        if confidence.evidenceCount < 0 {
+            issues.append(.issue(
+                code: "drc_evidence_negative_confidence_evidence_count",
+                fieldPath: "confidence.evidenceCount",
+                message: "DRC evidence confidence evidenceCount cannot be negative.",
+                suggestedActions: ["inspect_drc_evidence_confidence", "regenerate_drc_evidence_packet"]
+            ))
+        }
+        if confidence.limitationCount < 0 {
+            issues.append(.issue(
+                code: "drc_evidence_negative_confidence_limitation_count",
+                fieldPath: "confidence.limitationCount",
+                message: "DRC evidence confidence limitationCount cannot be negative.",
+                suggestedActions: ["inspect_drc_evidence_confidence", "regenerate_drc_evidence_packet"]
+            ))
+        }
+    }
+
+    private func appendNonEmptyIssue(
+        _ issues: inout [DRCEvidenceIntegrityIssue],
+        value: String,
+        fieldPath: String
+    ) {
+        if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            issues.append(.issue(
+                code: "drc_evidence_required_field_empty",
+                fieldPath: fieldPath,
+                message: "DRC evidence field \(fieldPath) must not be empty.",
+                suggestedActions: ["regenerate_drc_evidence_packet", "inspect_drc_evidence_required_fields"]
+            ))
+        }
+    }
+
+    private func appendPathIssues(
+        _ issues: inout [DRCEvidenceIntegrityIssue],
+        path: String,
+        fieldPath: String
+    ) {
+        guard !path.isEmpty else {
+            return
+        }
+        if path.trimmingCharacters(in: .whitespacesAndNewlines) != path {
+            issues.append(.issue(
+                code: "drc_evidence_artifact_path_has_whitespace",
+                fieldPath: fieldPath,
+                message: "DRC evidence artifact path \(path) contains leading or trailing whitespace.",
+                suggestedActions: ["normalize_drc_evidence_artifact_path", "regenerate_drc_evidence_packet"]
+            ))
+        }
+        if path.contains("://") {
+            issues.append(.issue(
+                code: "drc_evidence_artifact_path_has_url_scheme",
+                fieldPath: fieldPath,
+                message: "DRC evidence artifact path \(path) contains a URL scheme.",
+                suggestedActions: ["use_local_drc_evidence_artifact_path", "regenerate_drc_evidence_packet"]
+            ))
+        }
+        if path.hasPrefix("~") {
+            issues.append(.issue(
+                code: "drc_evidence_artifact_path_has_home_shortcut",
+                fieldPath: fieldPath,
+                message: "DRC evidence artifact path \(path) starts with a home-directory shortcut.",
+                suggestedActions: ["expand_drc_evidence_artifact_path", "regenerate_drc_evidence_packet"]
+            ))
+        }
+        let components = path.split(separator: "/", omittingEmptySubsequences: false)
+        if components.contains(".") || components.contains("..") {
+            issues.append(.issue(
+                code: "drc_evidence_artifact_path_has_relative_component",
+                fieldPath: fieldPath,
+                message: "DRC evidence artifact path \(path) contains current-directory or parent-directory components.",
+                suggestedActions: ["normalize_drc_evidence_artifact_path", "regenerate_drc_evidence_packet"]
+            ))
+        }
+    }
+
+    private func appendArtifactReferenceIssues(
+        _ issues: inout [DRCEvidenceIntegrityIssue],
+        values: [String],
+        knownArtifactIDs: Set<String>,
+        fieldPath: String
+    ) {
+        for artifactID in values {
+            if artifactID.isEmpty {
+                issues.append(.issue(
+                    code: "drc_evidence_empty_artifact_reference",
+                    fieldPath: fieldPath,
+                    message: "DRC evidence artifact reference in \(fieldPath) must not be empty.",
+                    suggestedActions: ["regenerate_drc_evidence_packet", "inspect_drc_evidence_artifact_references"]
+                ))
+            } else if !knownArtifactIDs.contains(artifactID) {
+                issues.append(.issue(
+                    code: "drc_evidence_dangling_artifact_reference",
+                    fieldPath: fieldPath,
+                    message: "DRC evidence references unknown artifact ID \(artifactID).",
+                    suggestedActions: ["inspect_drc_evidence_artifact_references", "regenerate_drc_evidence_packet"]
+                ))
+            }
+        }
+    }
+
+    private static func isValidSHA256(_ value: String) -> Bool {
+        let hexCharacters = Set("0123456789abcdefABCDEF")
+        return value.count == 64 && value.allSatisfy { hexCharacters.contains($0) }
+    }
+}
+
+public struct DRCEvidenceIntegrityIssue: Sendable, Hashable, Codable {
+    public let code: String
+    public let fieldPath: String
+    public let message: String
+    public let suggestedActions: [String]
+
+    public init(
+        code: String,
+        fieldPath: String,
+        message: String,
+        suggestedActions: [String] = []
+    ) {
+        self.code = code
+        self.fieldPath = fieldPath
+        self.message = message
+        self.suggestedActions = suggestedActions
+    }
+
+    public static func issue(
+        code: String,
+        fieldPath: String,
+        message: String,
+        suggestedActions: [String]
+    ) -> DRCEvidenceIntegrityIssue {
+        DRCEvidenceIntegrityIssue(
+            code: code,
+            fieldPath: fieldPath,
+            message: message,
+            suggestedActions: suggestedActions
+        )
     }
 }
 

@@ -125,9 +125,16 @@ public struct DefaultDRCEngine: Sendable {
         do {
             let data = try Data(contentsOf: url)
             let file = try JSONDecoder().decode(DRCWaiverFile.self, from: data)
-            let ids = file.waivers.map(\.id)
-            guard Set(ids).count == ids.count else {
-                throw DRCError.waiverApplicationFailed("Waiver IDs must be unique.")
+            let validationIssues = file.validate()
+            guard validationIssues.isEmpty else {
+                let issueSummary = validationIssues
+                    .map { issue in
+                        [issue.code, issue.waiverID, issue.fieldPath, issue.message]
+                            .compactMap { $0 }
+                            .joined(separator: " ")
+                    }
+                    .joined(separator: "; ")
+                throw DRCError.waiverApplicationFailed("Waiver file failed validation: \(issueSummary)")
             }
             return file
         } catch let error as DRCError {

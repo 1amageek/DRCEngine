@@ -40,6 +40,100 @@ struct DefaultDRCEngineTests {
         #expect(report.byteCount == data.count)
     }
 
+    @Test func artifactManifestRetainsExternalInputsInsideRunDirectory() async throws {
+        let inputDirectory = try makeTemporaryDirectory()
+        let outputDirectory = try makeTemporaryDirectory()
+        defer {
+            removeTemporaryDirectory(inputDirectory)
+            removeTemporaryDirectory(outputDirectory)
+        }
+        let layoutURL = inputDirectory.appending(path: "external-inverter.gds")
+        try Data([0x10, 0x20, 0x30]).write(to: layoutURL)
+        let request = DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            workingDirectory: outputDirectory,
+            backendSelection: DRCBackendSelection(backendID: "stub")
+        )
+
+        let result = try await DefaultDRCEngine(backend: StubDRCBackend()).run(request)
+
+        let manifestURL = try #require(result.artifactManifestURL)
+        let manifest = try JSONDecoder().decode(DRCArtifactManifest.self, from: Data(contentsOf: manifestURL))
+        let inputLayout = try artifact("input-layout", in: manifest.inputs)
+        #expect(!inputLayout.path.hasPrefix("/"))
+        #expect(inputLayout.path.hasPrefix("retained-artifacts/input-layout/"))
+        let retainedURL = outputDirectory.appending(path: inputLayout.path)
+        #expect(FileManager.default.fileExists(atPath: retainedURL.path(percentEncoded: false)))
+        #expect(try Data(contentsOf: retainedURL) == Data(contentsOf: layoutURL))
+        #expect(inputLayout.sha256 == (try sha256(layoutURL)))
+    }
+
+    @Test func artifactManifestRetainsSymlinkedInputTargetInsideRunDirectory() async throws {
+        let externalDirectory = try makeTemporaryDirectory()
+        let outputDirectory = try makeTemporaryDirectory()
+        defer {
+            removeTemporaryDirectory(externalDirectory)
+            removeTemporaryDirectory(outputDirectory)
+        }
+        let externalLayoutURL = externalDirectory.appending(path: "external-inverter.gds")
+        let symlinkLayoutURL = outputDirectory.appending(path: "linked-layout.gds")
+        try Data([0x33, 0x44, 0x55]).write(to: externalLayoutURL)
+        try FileManager.default.createSymbolicLink(
+            at: symlinkLayoutURL,
+            withDestinationURL: externalLayoutURL
+        )
+        let request = DRCRequest(
+            layoutURL: symlinkLayoutURL,
+            topCell: "inv",
+            workingDirectory: outputDirectory,
+            backendSelection: DRCBackendSelection(backendID: "stub")
+        )
+
+        let result = try await DefaultDRCEngine(backend: StubDRCBackend()).run(request)
+
+        let manifestURL = try #require(result.artifactManifestURL)
+        let manifest = try JSONDecoder().decode(DRCArtifactManifest.self, from: Data(contentsOf: manifestURL))
+        let inputLayout = try artifact("input-layout", in: manifest.inputs)
+        #expect(inputLayout.path.hasPrefix("retained-artifacts/input-layout/"))
+        let retainedURL = outputDirectory.appending(path: inputLayout.path)
+        #expect(FileManager.default.fileExists(atPath: retainedURL.path(percentEncoded: false)))
+        #expect(try Data(contentsOf: retainedURL) == Data(contentsOf: externalLayoutURL))
+        #expect(inputLayout.sha256 == (try sha256(externalLayoutURL)))
+    }
+
+    @Test func artifactStoreRejectsRetainedDirectorySymlinkEscape() async throws {
+        let inputDirectory = try makeTemporaryDirectory()
+        let outputDirectory = try makeTemporaryDirectory()
+        let escapeDirectory = try makeTemporaryDirectory()
+        defer {
+            removeTemporaryDirectory(inputDirectory)
+            removeTemporaryDirectory(outputDirectory)
+            removeTemporaryDirectory(escapeDirectory)
+        }
+        let layoutURL = inputDirectory.appending(path: "external-inverter.gds")
+        try Data([0x66, 0x77, 0x88]).write(to: layoutURL)
+        let retainedRoot = outputDirectory.appending(path: "retained-artifacts")
+        try FileManager.default.createDirectory(at: retainedRoot, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: retainedRoot.appending(path: "input-layout"),
+            withDestinationURL: escapeDirectory
+        )
+        let request = DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            workingDirectory: outputDirectory,
+            backendSelection: DRCBackendSelection(backendID: "stub")
+        )
+
+        do {
+            _ = try await DefaultDRCEngine(backend: StubDRCBackend()).run(request)
+            #expect(Bool(false), "Expected retained artifact directory symlink escape to fail")
+        } catch let error as DRCError {
+            #expect(error.errorDescription?.contains("retained artifact directory escapes") == true)
+        }
+    }
+
     @Test func rejectsMismatchedBackendSelection() async throws {
         let request = DRCRequest(
             layoutURL: URL(filePath: "/tmp/inverter.gds"),
@@ -219,6 +313,55 @@ struct DefaultDRCEngineTests {
         #expect(manifest.diagnosticSummary.waivedErrorCount == 1)
         #expect(manifest.waiverReport == waiverReport)
         #expect(manifest.inputs.contains { $0.id == "input-waivers" && $0.kind == .waiver && $0.sha256 != nil })
+    }
+
+    @Test func waiverValidationReportsUnscopedWaiversAsInvalid() throws {
+        let issues = DRCWaiverFile(waivers: [
+            DRCWaiver(
+                id: "blanket-waiver",
+                reason: "Too broad"
+            ),
+        ]).validate()
+
+        #expect(issues.contains { $0.code == "drc_waiver_unscoped" })
+        #expect(issues.allSatisfy { !$0.fieldPath.isEmpty })
+        #expect(issues.allSatisfy { !$0.suggestedActions.isEmpty })
+    }
+
+    @Test func unscopedWaiverFileIsRejectedBeforeChangingVerdict() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = directory.appending(path: "layout.json")
+        let waiverURL = directory.appending(path: "drc-waivers.json")
+        try Data([0x01, 0x02, 0x03]).write(to: layoutURL)
+        try writeWaivers(
+            DRCWaiverFile(waivers: [
+                DRCWaiver(
+                    id: "blanket-waiver",
+                    reason: "Too broad"
+                ),
+            ]),
+            to: waiverURL
+        )
+
+        var didRejectWaiver = false
+        do {
+            _ = try await DefaultDRCEngine(backend: WaiverStubDRCBackend()).run(DRCRequest(
+                layoutURL: layoutURL,
+                topCell: "inv",
+                waiverURL: waiverURL,
+                workingDirectory: directory,
+                backendSelection: DRCBackendSelection(backendID: "waiver-stub")
+            ))
+        } catch let error as DRCError {
+            if case .waiverApplicationFailed(let message) = error {
+                didRejectWaiver = message.contains("drc_waiver_unscoped")
+                    && message.contains("must include at least one scope selector")
+            }
+        }
+
+        #expect(didRejectWaiver)
+        #expect(try artifactCount(in: directory, prefix: "drc-report-") == 0)
+        #expect(try artifactCount(in: directory, prefix: "drc-artifact-manifest-") == 0)
     }
 
     @Test func corpusRunnerFailsWhenOracleBackendDisagrees() async throws {
@@ -455,6 +598,14 @@ struct DefaultDRCEngineTests {
         return directory
     }
 
+    private func removeTemporaryDirectory(_ directory: URL) {
+        do {
+            try FileManager.default.removeItem(at: directory)
+        } catch {
+            Issue.record("Failed to remove temporary directory: \(error.localizedDescription)")
+        }
+    }
+
     private func artifact(_ id: String, in records: [DRCArtifactRecord]) throws -> DRCArtifactRecord {
         try #require(records.first { $0.id == id })
     }
@@ -473,6 +624,16 @@ struct DefaultDRCEngineTests {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(value)
         try data.write(to: url, options: [.atomic])
+    }
+
+    private func artifactCount(in directory: URL, prefix: String) throws -> Int {
+        guard FileManager.default.fileExists(atPath: directory.path(percentEncoded: false)) else {
+            return 0
+        }
+        return try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.hasPrefix(prefix) }.count
     }
 
     private struct StubDRCBackend: DRCBackend {

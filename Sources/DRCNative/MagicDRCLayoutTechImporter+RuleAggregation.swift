@@ -488,12 +488,14 @@ extension MagicDRCLayoutTechImporter {
             guard let enclosedLayerName = rule.secondaryLayerName else {
                 continue
             }
-            let key = ExtensionRuleKey(
-                extendingLayerName: rule.layerName,
-                enclosedLayerName: enclosedLayerName,
-                direction: .horizontal
-            )
-            minimumExtensionByKey[key] = max(minimumExtensionByKey[key] ?? 0, rule.value)
+            for direction in [LayoutExtensionRule.Direction.horizontal, .vertical] {
+                let key = ExtensionRuleKey(
+                    extendingLayerName: rule.layerName,
+                    enclosedLayerName: enclosedLayerName,
+                    direction: direction
+                )
+                minimumExtensionByKey[key] = max(minimumExtensionByKey[key] ?? 0, rule.value)
+            }
         }
         return minimumExtensionByKey
             .map { entry in

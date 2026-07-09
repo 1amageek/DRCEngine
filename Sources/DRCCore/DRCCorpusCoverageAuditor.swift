@@ -1,3 +1,5 @@
+import Foundation
+
 public struct DRCCorpusCoverageAuditor: Sendable {
     public init() {}
 
@@ -5,7 +7,8 @@ public struct DRCCorpusCoverageAuditor: Sendable {
         report: DRCCorpusReport,
         reportPath: String? = nil,
         policy: DRCCorpusCoverageAuditPolicy = .magicFoundryExpansion,
-        auditID: String? = nil
+        auditID: String? = nil,
+        checkedAt: Date? = nil
     ) -> DRCCorpusCoverageAudit {
         let observedTags = Set(report.summary.coverageTagCounts.keys)
         let requiredTags = Set(policy.requirements.flatMap(\.requiredCoverageTags))
@@ -14,6 +17,14 @@ public struct DRCCorpusCoverageAuditor: Sendable {
             policy: policy,
             observedTags: observedTags
         )
+        let freshness = reportFreshness(
+            report: report,
+            policy: policy,
+            checkedAt: checkedAt
+        )
+        if let missingRequirement = freshness.missingRequirement {
+            missingRequirements.append(missingRequirement)
+        }
 
         if policy.requireQualifiedCorpus, !report.qualification.qualified {
             missingRequirements.append(DRCCorpusCoverageAudit.MissingRequirement(
@@ -53,7 +64,10 @@ public struct DRCCorpusCoverageAuditor: Sendable {
                 requirementID: "oracle-readiness",
                 title: "Oracle readiness",
                 missingCoverageTags: [],
-                observedCaseCount: report.summary.oracleCaseCount - report.summary.oracleReadinessBlockedCaseCount,
+                observedCaseCount: max(
+                    0,
+                    report.summary.oracleCaseCount - report.summary.oracleReadinessBlockedCaseCount
+                ),
                 requiredCaseCount: report.summary.oracleCaseCount,
                 reason: "One or more oracle cases are blocked before benchmark comparison.",
                 suggestedActions: ["inspect_drc_oracle_readiness", "fix_drc_magic_input_technology_mapping"]
@@ -94,14 +108,22 @@ public struct DRCCorpusCoverageAuditor: Sendable {
         }
         let status: DRCCorpusCoverageAuditStatus = missingRequirements.isEmpty ? .satisfied : .incomplete
         let coveredRequiredTags = requiredTags.intersection(observedTags)
+        let coverageFamilies = coverageFamilySummaries(
+            report: report,
+            policy: policy,
+            observedTags: observedTags,
+            requiredTags: requiredTags,
+            missingRequirementIDs: missingRequirementIDs
+        )
         let requiredRequirementCount = policy.requirements.count
             + (policy.requireQualifiedCorpus ? 1 : 0)
             + (policy.requireOracleAgreement ? 1 : 0)
             + (policy.requireOracleReadiness ? 1 : 0)
             + (policy.requireDurationBudget ? 1 : 0)
+            + (policy.maxReportAgeSeconds == nil ? 0 : 1)
             + (policy.minimumCaseCount > 0 ? 1 : 0)
         let durationBudgetPassRate = report.caseCount == 0
-            ? 1
+            ? 0
             : Double(report.summary.durationBudgetPassedCaseCount) / Double(report.caseCount)
 
         return DRCCorpusCoverageAudit(
@@ -124,9 +146,13 @@ public struct DRCCorpusCoverageAuditor: Sendable {
                 missingRequirementCount: missingRequirementIDs.count,
                 observedCoverageTagCount: observedTags.count,
                 requiredCoverageTagCount: requiredTags.count,
-                coveredRequiredCoverageTagCount: coveredRequiredTags.count
+                coveredRequiredCoverageTagCount: coveredRequiredTags.count,
+                reportGeneratedAt: report.generatedAt,
+                checkedAt: freshness.checkedAtString,
+                reportAgeSeconds: freshness.ageSeconds
             ),
             observedCoverageTags: observedTags.sorted(),
+            coverageFamilies: coverageFamilies,
             missingRequirements: missingRequirements,
             suggestedActions: uniqueSuggestedActions(suggestedActions)
         )
@@ -161,6 +187,56 @@ public struct DRCCorpusCoverageAuditor: Sendable {
         }
     }
 
+    private func coverageFamilySummaries(
+        report: DRCCorpusReport,
+        policy: DRCCorpusCoverageAuditPolicy,
+        observedTags: Set<String>,
+        requiredTags: Set<String>,
+        missingRequirementIDs: Set<String>
+    ) -> [DRCCorpusCoverageAudit.CoverageFamilySummary] {
+        let familyIDs = Set(observedTags.union(requiredTags).map(familyID(for:)))
+        return familyIDs.sorted().map { familyID in
+            let observedFamilyTags = observedTags.filter { self.familyID(for: $0) == familyID }
+            let requiredFamilyTags = requiredTags.filter { self.familyID(for: $0) == familyID }
+            let coveredRequiredTags = requiredFamilyTags.filter { observedTags.contains($0) }
+            let missingRequiredTags = requiredFamilyTags.filter { !observedTags.contains($0) }
+            let relatedRequirements = policy.requirements.filter { requirement in
+                requirement.requiredCoverageTags.contains { self.familyID(for: $0) == familyID }
+            }
+            let missingRequirementCount = relatedRequirements.filter {
+                missingRequirementIDs.contains($0.requirementID)
+            }.count
+            let observedCaseCount = report.caseResults.filter { result in
+                result.coverageTags.contains { self.familyID(for: $0) == familyID }
+            }.count
+            let coveragePassRate = requiredFamilyTags.isEmpty
+                ? 1
+                : Double(coveredRequiredTags.count) / Double(requiredFamilyTags.count)
+
+            return DRCCorpusCoverageAudit.CoverageFamilySummary(
+                familyID: familyID,
+                observedCoverageTags: observedFamilyTags.sorted(),
+                requiredCoverageTags: requiredFamilyTags.sorted(),
+                coveredRequiredCoverageTags: coveredRequiredTags.sorted(),
+                missingRequiredCoverageTags: missingRequiredTags.sorted(),
+                observedCaseCount: observedCaseCount,
+                requiredRequirementCount: relatedRequirements.count,
+                satisfiedRequirementCount: max(0, relatedRequirements.count - missingRequirementCount),
+                missingRequirementCount: missingRequirementCount,
+                coveragePassRate: coveragePassRate
+            )
+        }
+    }
+
+    private func familyID(for coverageTag: String) -> String {
+        let parts = coverageTag.split(separator: ".").map(String.init)
+        guard let firstPart = parts.first else { return coverageTag }
+        if firstPart == "drc", parts.count >= 2 {
+            return parts.prefix(2).joined(separator: ".")
+        }
+        return firstPart
+    }
+
     private func uniqueSuggestedActions(
         _ actions: [DRCCorpusCoverageAudit.SuggestedAction]
     ) -> [DRCCorpusCoverageAudit.SuggestedAction] {
@@ -180,5 +256,110 @@ public struct DRCCorpusCoverageAuditor: Sendable {
             return "drc-corpus-coverage-audit:\(policyID)"
         }
         return "drc-corpus-coverage-audit:\(policyID):\(reportPath)"
+    }
+
+    private func reportFreshness(
+        report: DRCCorpusReport,
+        policy: DRCCorpusCoverageAuditPolicy,
+        checkedAt: Date?
+    ) -> (
+        checkedAtString: String?,
+        ageSeconds: Double?,
+        missingRequirement: DRCCorpusCoverageAudit.MissingRequirement?
+    ) {
+        guard let maxReportAgeSeconds = policy.maxReportAgeSeconds else {
+            return (checkedAt.map { iso8601String(from: $0) }, nil, nil)
+        }
+        guard let checkedAt else {
+            return (
+                nil,
+                nil,
+                freshnessMissingRequirement(
+                    observedAgeSeconds: nil,
+                    requiredAgeSeconds: maxReportAgeSeconds,
+                    reason: "The coverage audit policy requires a checkedAt timestamp."
+                )
+            )
+        }
+        let checkedAtString = iso8601String(from: checkedAt)
+        guard let generatedAt = report.generatedAt, !generatedAt.isEmpty else {
+            return (
+                checkedAtString,
+                nil,
+                freshnessMissingRequirement(
+                    observedAgeSeconds: nil,
+                    requiredAgeSeconds: maxReportAgeSeconds,
+                    reason: "The retained DRC corpus report does not include generatedAt."
+                )
+            )
+        }
+        guard let generatedAtDate = iso8601Date(from: generatedAt) else {
+            return (
+                checkedAtString,
+                nil,
+                freshnessMissingRequirement(
+                    observedAgeSeconds: nil,
+                    requiredAgeSeconds: maxReportAgeSeconds,
+                    reason: "The retained DRC corpus report generatedAt timestamp is invalid."
+                )
+            )
+        }
+        let ageSeconds = checkedAt.timeIntervalSince(generatedAtDate)
+        if ageSeconds < 0 {
+            return (
+                checkedAtString,
+                ageSeconds,
+                freshnessMissingRequirement(
+                    observedAgeSeconds: ageSeconds,
+                    requiredAgeSeconds: maxReportAgeSeconds,
+                    reason: "The retained DRC corpus report generatedAt timestamp is newer than checkedAt."
+                )
+            )
+        }
+        if ageSeconds > maxReportAgeSeconds {
+            return (
+                checkedAtString,
+                ageSeconds,
+                freshnessMissingRequirement(
+                    observedAgeSeconds: ageSeconds,
+                    requiredAgeSeconds: maxReportAgeSeconds,
+                    reason: "The retained DRC corpus report is older than the coverage audit policy allows."
+                )
+            )
+        }
+        return (checkedAtString, ageSeconds, nil)
+    }
+
+    private func freshnessMissingRequirement(
+        observedAgeSeconds: Double?,
+        requiredAgeSeconds: Double,
+        reason: String
+    ) -> DRCCorpusCoverageAudit.MissingRequirement {
+        DRCCorpusCoverageAudit.MissingRequirement(
+            requirementID: "retained-report-freshness",
+            title: "Retained report freshness",
+            missingCoverageTags: [],
+            observedCaseCount: observedAgeSeconds.map { max(0, Int($0)) } ?? 0,
+            requiredCaseCount: Int(requiredAgeSeconds),
+            reason: reason,
+            suggestedActions: ["rerun_drc_corpus_and_retain_report"]
+        )
+    }
+
+    private func iso8601Date(from string: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [
+            .withInternetDateTime,
+            .withFractionalSeconds,
+        ]
+        if let date = formatter.date(from: string) {
+            return date
+        }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: string)
+    }
+
+    private func iso8601String(from date: Date) -> String {
+        ISO8601DateFormatter().string(from: date)
     }
 }

@@ -5,40 +5,7 @@ import DRCNative
 
 @Suite("Native DRC backend")
 struct NativeDRCBackendTests {
-    @Test func cleanLayoutPassesWithoutExternalTool() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(id: "m1_a", layer: "met1", xMin: 0, yMin: 0, xMax: 1, yMax: 1),
-                    NativeDRCRectangle(id: "m1_b", layer: "met1", xMin: 2, yMin: 0, xMax: 3, yMax: 1),
-                ],
-                rules: [
-                    NativeDRCRule(id: "met1.grid", kind: .manufacturingGrid, layer: "met1", value: 0.001),
-                    NativeDRCRule(id: "met1.width", kind: .minimumWidth, layer: "met1", value: 0.5),
-                    NativeDRCRule(id: "met1.space", kind: .minimumSpacing, layer: "met1", value: 0.5),
-                    NativeDRCRule(id: "met1.area", kind: .minimumArea, layer: "met1", value: 0.5),
-                    NativeDRCRule(id: "met1.density", kind: .maximumDensity, layer: "met1", value: 1.0),
-                    NativeDRCRule(id: "met1.notch", kind: .minimumNotch, layer: "met1", value: 0.5),
-                    NativeDRCRule(id: "met1.antenna", kind: .maximumAntennaRatio, layer: "met1", value: 10),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(result.result.passed)
-        #expect(result.result.provenance?.executablePath == "in-process")
-    }
-
-    @Test func manufacturingGridViolationFails() async throws {
+    @Test func emptyRuleDeckIsInvalidInput() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = try writeLayout(
             NativeDRCLayout(
@@ -46,622 +13,28 @@ struct NativeDRCBackendTests {
                 topCell: "inv",
                 rectangles: [
                     NativeDRCRectangle(
-                        id: "offgrid",
+                        id: "wire",
                         layer: "met1",
                         xMin: 0,
                         yMin: 0,
-                        xMax: 1.015,
-                        yMax: 1,
-                        netID: "sig"
-                    ),
-                ],
-                rules: [
-                    NativeDRCRule(id: "met1.grid", kind: .manufacturingGrid, layer: "met1", value: 0.01),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(!result.result.passed)
-        #expect(result.result.diagnostics.count == 1)
-        let diagnostic = result.result.diagnostics[0]
-        #expect(diagnostic.ruleID == "met1.grid")
-        #expect(diagnostic.kind == "manufacturingGrid")
-        #expect(diagnostic.layer == "met1")
-        #expect(abs((diagnostic.measured ?? 0) - 0.005) < 0.000001)
-        #expect(diagnostic.required == 0.01)
-        #expect(diagnostic.unit == "micrometer")
-        #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 1.015, height: 1))
-        #expect(diagnostic.relatedShapeIDs == ["offgrid"])
-        #expect(diagnostic.relatedNetIDs == ["sig"])
-        #expect(diagnostic.rawLine.contains("coordinates=xMax"))
-        #expect(diagnostic.suggestedFix != nil)
-    }
-
-    @Test func minimumWidthViolationFails() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(id: "thin", layer: "met1", xMin: 0, yMin: 0, xMax: 0.1, yMax: 1),
-                ],
-                rules: [
-                    NativeDRCRule(id: "met1.width", kind: .minimumWidth, layer: "met1", value: 0.5),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(!result.result.passed)
-        #expect(result.result.diagnostics.count == 1)
-        let diagnostic = result.result.diagnostics[0]
-        #expect(diagnostic.ruleID == "met1.width")
-        #expect(diagnostic.kind == "minimumWidth")
-        #expect(diagnostic.layer == "met1")
-        #expect(diagnostic.measured == 0.1)
-        #expect(diagnostic.required == 0.5)
-        #expect(diagnostic.unit == "micrometer")
-        #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 0.1, height: 1))
-        #expect(diagnostic.relatedShapeIDs == ["thin"])
-        #expect(diagnostic.suggestedFix != nil)
-    }
-
-    @Test func minimumAreaViolationFails() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(id: "small", layer: "met1", xMin: 0, yMin: 0, xMax: 0.4, yMax: 0.4),
-                ],
-                rules: [
-                    NativeDRCRule(id: "met1.area", kind: .minimumArea, layer: "met1", value: 0.5),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(!result.result.passed)
-        #expect(result.result.diagnostics.count == 1)
-        let diagnostic = result.result.diagnostics[0]
-        #expect(diagnostic.ruleID == "met1.area")
-        #expect(diagnostic.kind == "minimumArea")
-        #expect(diagnostic.layer == "met1")
-        #expect(abs((diagnostic.measured ?? 0) - 0.16) < 0.000001)
-        #expect(diagnostic.required == 0.5)
-        #expect(diagnostic.unit == "micrometer^2")
-        #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 0.4, height: 0.4))
-        #expect(diagnostic.relatedShapeIDs == ["small"])
-        #expect(diagnostic.suggestedFix != nil)
-    }
-
-    @Test func forbiddenOverlapViolationFails() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(
-                        id: "active",
-                        layer: "active",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 2,
-                        yMax: 1,
-                        netID: "source"
-                    ),
-                    NativeDRCRectangle(
-                        id: "nwell",
-                        layer: "nwell",
-                        xMin: 1.5,
-                        yMin: 0.25,
-                        xMax: 2.5,
-                        yMax: 0.75,
-                        netID: "bulk"
-                    ),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "active.nwell.forbiddenOverlap",
-                        kind: .forbiddenOverlap,
-                        layer: "active",
-                        value: 0,
-                        secondaryLayer: "nwell"
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(!result.result.passed)
-        #expect(result.result.diagnostics.count == 1)
-        let diagnostic = result.result.diagnostics[0]
-        #expect(diagnostic.ruleID == "active.nwell.forbiddenOverlap")
-        #expect(diagnostic.kind == "forbiddenOverlap")
-        #expect(diagnostic.layer == "active,nwell")
-        #expect(abs((diagnostic.measured ?? 0) - 0.25) < 0.000001)
-        #expect(diagnostic.required == 0)
-        #expect(diagnostic.unit == "micrometer^2")
-        #expect(diagnostic.region == DRCRegion(x: 1.5, y: 0.25, width: 0.5, height: 0.5))
-        #expect(diagnostic.relatedShapeIDs == ["active", "nwell"])
-        #expect(diagnostic.relatedNetIDs == ["bulk", "source"])
-        #expect(diagnostic.rawLine.contains("FORBIDDEN_OVERLAP"))
-        #expect(diagnostic.suggestedFix != nil)
-    }
-
-    @Test func forbiddenOverlapThresholdAllowsBoundedOverlap() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(
-                        id: "active",
-                        layer: "active",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 2,
-                        yMax: 1
-                    ),
-                    NativeDRCRectangle(
-                        id: "nwell",
-                        layer: "nwell",
-                        xMin: 1.5,
-                        yMin: 0.25,
-                        xMax: 2.5,
-                        yMax: 0.75
-                    ),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "active.nwell.forbiddenOverlap",
-                        kind: .forbiddenOverlap,
-                        layer: "active",
-                        value: 0.25,
-                        secondaryLayer: "nwell"
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(result.result.passed)
-        #expect(result.result.diagnostics.isEmpty)
-    }
-
-    @Test func forbiddenOverlapRequiresSecondaryLayer() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(
-                        id: "active",
-                        layer: "active",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 2,
+                        xMax: 1,
                         yMax: 1
                     ),
                 ],
-                rules: [
-                    NativeDRCRule(
-                        id: "active.nwell.forbiddenOverlap",
-                        kind: .forbiddenOverlap,
-                        layer: "active",
-                        value: 0
-                    ),
-                ]
+                rules: []
             ),
             in: directory
         )
 
-        var didThrowExpectedError = false
-        do {
+        await #expect(throws: DRCError.invalidInput(
+            "Native DRC rule deck is empty for technology unit-test-tech. Provide at least one physical rule."
+        )) {
             _ = try await NativeDRCBackend().run(DRCRequest(
                 layoutURL: layoutURL,
                 topCell: "inv",
                 backendSelection: DRCBackendSelection(backendID: "native")
             ))
-        } catch let error as DRCError {
-            didThrowExpectedError = error == .invalidInput("Rule active.nwell.forbiddenOverlap requires secondaryLayer for forbiddenOverlap")
-        } catch {
-            throw error
         }
-
-        #expect(didThrowExpectedError)
-    }
-
-    @Test func differentNetOverlapViolationFails() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(
-                        id: "sig",
-                        layer: "met1",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 2,
-                        yMax: 1,
-                        netID: "sig"
-                    ),
-                    NativeDRCRectangle(
-                        id: "clk",
-                        layer: "met1",
-                        xMin: 1.25,
-                        yMin: 0.25,
-                        xMax: 2.25,
-                        yMax: 0.75,
-                        netID: "clk"
-                    ),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "met1.short",
-                        kind: .differentNetOverlap,
-                        layer: "met1",
-                        value: 0
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(!result.result.passed)
-        #expect(result.result.diagnostics.count == 1)
-        let diagnostic = result.result.diagnostics[0]
-        #expect(diagnostic.ruleID == "met1.short")
-        #expect(diagnostic.kind == "differentNetOverlap")
-        #expect(diagnostic.layer == "met1")
-        #expect(abs((diagnostic.measured ?? 0) - 0.375) < 0.000001)
-        #expect(diagnostic.required == 0)
-        #expect(diagnostic.unit == "micrometer^2")
-        #expect(diagnostic.region == DRCRegion(x: 1.25, y: 0.25, width: 0.75, height: 0.5))
-        #expect(diagnostic.relatedShapeIDs == ["sig", "clk"])
-        #expect(diagnostic.relatedNetIDs == ["clk", "sig"])
-        #expect(diagnostic.rawLine.contains("DIFFERENT_NET_OVERLAP"))
-        #expect(diagnostic.suggestedFix != nil)
-    }
-
-    @Test func differentNetOverlapIgnoresSameNetAndUnassignedShapes() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(
-                        id: "sig-a",
-                        layer: "met1",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 2,
-                        yMax: 1,
-                        netID: "sig"
-                    ),
-                    NativeDRCRectangle(
-                        id: "sig-b",
-                        layer: "met1",
-                        xMin: 1,
-                        yMin: 0.25,
-                        xMax: 2.25,
-                        yMax: 0.75,
-                        netID: "sig"
-                    ),
-                    NativeDRCRectangle(
-                        id: "unassigned",
-                        layer: "met1",
-                        xMin: 1.25,
-                        yMin: 0.5,
-                        xMax: 2.5,
-                        yMax: 1.25
-                    ),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "met1.short",
-                        kind: .differentNetOverlap,
-                        layer: "met1",
-                        value: 0
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(result.result.passed)
-        #expect(result.result.diagnostics.isEmpty)
-    }
-
-    @Test func exactOverlapViolationFails() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(
-                        id: "via1",
-                        layer: "via1",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 0.2,
-                        yMax: 0.2,
-                        netID: "sig"
-                    ),
-                    NativeDRCRectangle(
-                        id: "marker",
-                        layer: "via1_marker",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 0.25,
-                        yMax: 0.2,
-                        netID: "sig"
-                    ),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "via1.marker.exactOverlap",
-                        kind: .exactOverlap,
-                        layer: "via1",
-                        value: 0,
-                        secondaryLayer: "via1_marker"
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(!result.result.passed)
-        #expect(result.result.diagnostics.count == 1)
-        let diagnostic = result.result.diagnostics[0]
-        #expect(diagnostic.ruleID == "via1.marker.exactOverlap")
-        #expect(diagnostic.kind == "exactOverlap")
-        #expect(diagnostic.layer == "via1,via1_marker")
-        #expect(abs((diagnostic.measured ?? 0) - 0.05) < 0.000001)
-        #expect(diagnostic.required == 0)
-        #expect(diagnostic.unit == "micrometer")
-        #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 0.2, height: 0.2))
-        #expect(diagnostic.relatedShapeIDs == ["via1", "marker"])
-        #expect(diagnostic.relatedNetIDs == ["sig"])
-        #expect(diagnostic.rawLine.contains("EXACT_OVERLAP"))
-        #expect(diagnostic.suggestedFix != nil)
-    }
-
-    @Test func exactOverlapPassesWithMatchingSecondaryRectangle() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(
-                        id: "via1",
-                        layer: "via1",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 0.2,
-                        yMax: 0.2
-                    ),
-                    NativeDRCRectangle(
-                        id: "marker",
-                        layer: "via1_marker",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 0.2,
-                        yMax: 0.2
-                    ),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "via1.marker.exactOverlap",
-                        kind: .exactOverlap,
-                        layer: "via1",
-                        value: 0,
-                        secondaryLayer: "via1_marker"
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(result.result.passed)
-        #expect(result.result.diagnostics.isEmpty)
-    }
-
-    @Test func exactOverlapRequiresSecondaryLayer() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(
-                        id: "via1",
-                        layer: "via1",
-                        xMin: 0,
-                        yMin: 0,
-                        xMax: 0.2,
-                        yMax: 0.2
-                    ),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "via1.marker.exactOverlap",
-                        kind: .exactOverlap,
-                        layer: "via1",
-                        value: 0
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        var didThrowExpectedError = false
-        do {
-            _ = try await NativeDRCBackend().run(DRCRequest(
-                layoutURL: layoutURL,
-                topCell: "inv",
-                backendSelection: DRCBackendSelection(backendID: "native")
-            ))
-        } catch let error as DRCError {
-            didThrowExpectedError = error == .invalidInput("Rule via1.marker.exactOverlap requires secondaryLayer for exactOverlap")
-        } catch {
-            throw error
-        }
-
-        #expect(didThrowExpectedError)
-    }
-
-    @Test func maximumDensityViolationFails() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(id: "dense", layer: "met1", xMin: 0, yMin: 0, xMax: 1, yMax: 1),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "met1.density",
-                        kind: .maximumDensity,
-                        layer: "met1",
-                        value: 0.6,
-                        windowWidth: 1,
-                        windowHeight: 1
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(!result.result.passed)
-        #expect(result.result.diagnostics.count == 1)
-        let diagnostic = result.result.diagnostics[0]
-        #expect(diagnostic.ruleID == "met1.density")
-        #expect(diagnostic.kind == "maximumDensity")
-        #expect(diagnostic.layer == "met1")
-        #expect(diagnostic.measured == 1)
-        #expect(diagnostic.required == 0.6)
-        #expect(diagnostic.unit == "ratio")
-        #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 1, height: 1))
-        #expect(diagnostic.relatedShapeIDs == ["dense"])
-        #expect(diagnostic.suggestedFix != nil)
-    }
-
-    @Test func minimumDensityViolationFails() async throws {
-        let directory = try makeTemporaryDirectory()
-        let layoutURL = try writeLayout(
-            NativeDRCLayout(
-                technologyID: "unit-test-tech",
-                topCell: "inv",
-                rectangles: [
-                    NativeDRCRectangle(id: "sparse", layer: "met1", xMin: 0, yMin: 0, xMax: 0.25, yMax: 0.25),
-                ],
-                rules: [
-                    NativeDRCRule(
-                        id: "met1.minimumDensity",
-                        kind: .minimumDensity,
-                        layer: "met1",
-                        value: 0.2,
-                        windowWidth: 1,
-                        windowHeight: 1,
-                        windowOriginX: 0,
-                        windowOriginY: 0
-                    ),
-                ]
-            ),
-            in: directory
-        )
-
-        let result = try await NativeDRCBackend().run(DRCRequest(
-            layoutURL: layoutURL,
-            topCell: "inv",
-            backendSelection: DRCBackendSelection(backendID: "native")
-        ))
-
-        #expect(!result.result.passed)
-        #expect(result.result.diagnostics.count == 1)
-        let diagnostic = result.result.diagnostics[0]
-        #expect(diagnostic.ruleID == "met1.minimumDensity")
-        #expect(diagnostic.kind == "minimumDensity")
-        #expect(diagnostic.layer == "met1")
-        #expect(abs((diagnostic.measured ?? 0) - 0.0625) < 0.000001)
-        #expect(diagnostic.required == 0.2)
-        #expect(diagnostic.unit == "ratio")
-        #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 1, height: 1))
-        #expect(diagnostic.relatedShapeIDs == ["sparse"])
-        #expect(diagnostic.suggestedFix != nil)
     }
 
     @Test func maximumAntennaRatioViolationFails() async throws {
@@ -1743,6 +1116,199 @@ struct NativeDRCBackendTests {
         #expect(diagnostic.rawLine.contains("upperLayer=met2"))
     }
 
+    @Test func minimumCutMissingAllCutsFails() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "lower",
+                        layer: "met1",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 2,
+                        yMax: 2,
+                        netID: "sig"
+                    ),
+                    NativeDRCRectangle(
+                        id: "upper",
+                        layer: "met2",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 2,
+                        yMax: 2,
+                        netID: "sig"
+                    ),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "via1.minimumCut",
+                        kind: .minimumCut,
+                        layer: "via1",
+                        value: 1,
+                        lowerLayer: "met1",
+                        upperLayer: "met2"
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(!result.result.passed)
+        #expect(result.result.diagnostics.count == 1)
+        let diagnostic = result.result.diagnostics[0]
+        #expect(diagnostic.ruleID == "via1.minimumCut")
+        #expect(diagnostic.kind == "minimumCut")
+        #expect(diagnostic.layer == "via1")
+        #expect(diagnostic.measured == 0)
+        #expect(diagnostic.required == 1)
+        #expect(diagnostic.relatedShapeIDs == ["lower", "upper"])
+        #expect(diagnostic.relatedViaIDs.isEmpty)
+        #expect(diagnostic.relatedNetIDs == ["sig"])
+        #expect(diagnostic.suggestedFix?.contains("Add 1 via1 cut") == true)
+        #expect(diagnostic.rawLine.contains("cuts="))
+    }
+
+    @Test func minimumEnclosurePassesWithCompositeUnionCover() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "m1_left",
+                        layer: "met1",
+                        xMin: 0.4,
+                        yMin: 0.4,
+                        xMax: 1.0,
+                        yMax: 1.6,
+                        netID: "sig"
+                    ),
+                    NativeDRCRectangle(
+                        id: "m1_right",
+                        layer: "met1",
+                        xMin: 1.0,
+                        yMin: 0.4,
+                        xMax: 1.6,
+                        yMax: 1.6,
+                        netID: "sig"
+                    ),
+                    NativeDRCRectangle(
+                        id: "via1",
+                        layer: "via1",
+                        xMin: 0.5,
+                        yMin: 0.5,
+                        xMax: 1.5,
+                        yMax: 1.5,
+                        netID: "sig"
+                    ),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "met1.via1.enclosure",
+                        kind: .minimumEnclosure,
+                        layer: "met1",
+                        value: 0.1,
+                        enclosedLayer: "via1"
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(result.result.passed)
+        #expect(result.result.diagnostics.isEmpty)
+    }
+
+    @Test func minimumEnclosureReportsCompositeUnionDeficit() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "m1_left",
+                        layer: "met1",
+                        xMin: 0.5,
+                        yMin: 0.5,
+                        xMax: 1.0,
+                        yMax: 1.5,
+                        netID: "sig"
+                    ),
+                    NativeDRCRectangle(
+                        id: "m1_right",
+                        layer: "met1",
+                        xMin: 1.0,
+                        yMin: 0.5,
+                        xMax: 1.5,
+                        yMax: 1.5,
+                        netID: "sig"
+                    ),
+                    NativeDRCRectangle(
+                        id: "via1",
+                        layer: "via1",
+                        xMin: 0.5,
+                        yMin: 0.5,
+                        xMax: 1.5,
+                        yMax: 1.5,
+                        netID: "sig"
+                    ),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "met1.via1.enclosure",
+                        kind: .minimumEnclosure,
+                        layer: "met1",
+                        value: 0.1,
+                        enclosedLayer: "via1"
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(!result.result.passed)
+        #expect(result.result.diagnostics.count == 1)
+        let diagnostic = result.result.diagnostics[0]
+        #expect(diagnostic.ruleID == "met1.via1.enclosure")
+        #expect(diagnostic.kind == "minimumEnclosure")
+        #expect(diagnostic.layer == "met1")
+        #expect(abs((diagnostic.measured ?? 0) - 0.0) < 0.000001)
+        #expect(diagnostic.required == 0.1)
+        #expect(diagnostic.unit == "micrometer")
+        let region = try #require(diagnostic.region)
+        #expect(abs(region.x - 0.4) < 0.000001)
+        #expect(abs(region.y - 0.4) < 0.000001)
+        #expect(abs(region.width - 1.2) < 0.000001)
+        #expect(abs(region.height - 1.2) < 0.000001)
+        #expect(diagnostic.relatedShapeIDs == ["via1", "m1_left", "m1_right"])
+        #expect(diagnostic.relatedNetIDs == ["sig"])
+        #expect(diagnostic.rawLine.contains("mode=union"))
+        #expect(diagnostic.suggestedFix?.contains("union") == true)
+    }
+
     @Test func minimumEnclosureViolationFails() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = try writeLayout(
@@ -1781,8 +1347,9 @@ struct NativeDRCBackendTests {
         #expect(abs((diagnostic.measured ?? 0) - -0.2) < 0.000001)
         #expect(diagnostic.required == 0.1)
         #expect(diagnostic.unit == "micrometer")
-        #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 1.2, height: 1))
+        #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 1.3, height: 1))
         #expect(diagnostic.relatedShapeIDs == ["via1_bad", "m1_cover"])
+        #expect(diagnostic.rawLine.contains("mode=union"))
         #expect(diagnostic.suggestedFix != nil)
     }
 
@@ -1849,6 +1416,119 @@ struct NativeDRCBackendTests {
         #expect(diagnostic.relatedNetIDs == ["sig"])
         #expect(diagnostic.rawLine.contains("direction=horizontal"))
         #expect(diagnostic.suggestedFix != nil)
+    }
+
+    @Test func minimumExtensionIgnoresPartialOverlapThatDoesNotCoverEnclosedInterval() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "gate",
+                        layer: "active",
+                        xMin: 4,
+                        yMin: 0,
+                        xMax: 5,
+                        yMax: 1,
+                        netID: "sig"
+                    ),
+                    NativeDRCRectangle(
+                        id: "unrelated-strip",
+                        layer: "poly",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 20,
+                        yMax: 0.5,
+                        netID: "sig"
+                    ),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "poly.active.extension",
+                        kind: .minimumExtension,
+                        layer: "poly",
+                        value: 0.1,
+                        enclosedLayer: "active",
+                        extensionDirection: .horizontal
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(!result.result.passed)
+        let diagnostic = try #require(result.result.diagnostics.first)
+        #expect(diagnostic.ruleID == "poly.active.extension")
+        #expect(diagnostic.kind == "minimumExtension")
+        #expect(diagnostic.measured == 0)
+        #expect(diagnostic.relatedShapeIDs == ["gate"])
+    }
+
+    @Test func verticalMinimumExtensionReportsMissingEndcap() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "active",
+                        layer: "active",
+                        xMin: 1,
+                        yMin: 1,
+                        xMax: 2,
+                        yMax: 2,
+                        netID: "sig"
+                    ),
+                    NativeDRCRectangle(
+                        id: "poly",
+                        layer: "poly",
+                        xMin: 1,
+                        yMin: 0.96,
+                        xMax: 2,
+                        yMax: 2.05,
+                        netID: "sig"
+                    ),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "poly.active.vertical-extension",
+                        kind: .minimumExtension,
+                        layer: "poly",
+                        value: 0.1,
+                        enclosedLayer: "active",
+                        extensionDirection: .vertical
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(!result.result.passed)
+        #expect(result.result.diagnostics.count == 1)
+        let diagnostic = try #require(result.result.diagnostics.first)
+        #expect(diagnostic.ruleID == "poly.active.vertical-extension")
+        #expect(diagnostic.kind == "minimumExtension")
+        #expect(diagnostic.layer == "poly")
+        #expect(abs((diagnostic.measured ?? 0) - 0.04) < 0.000001)
+        #expect(diagnostic.required == 0.1)
+        #expect(diagnostic.relatedShapeIDs == ["active", "poly"])
+        #expect(diagnostic.relatedNetIDs == ["sig"])
+        #expect(diagnostic.rawLine.contains("direction=vertical"))
     }
 
     @Test func minimumEnclosedAreaViolationFails() async throws {

@@ -64,7 +64,7 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
             oracleReadinessBlockedCaseCount: oracleResults.filter { $0.readinessStatus == .blocked }.count,
             failureCategoryCounts: Self.failureCategoryCounts(in: caseResults),
             coverageTagCounts: Self.coverageTagCounts(in: caseResults),
-            passRate: caseCount == 0 ? 1 : Double(caseResults.filter(\.matched).count) / Double(caseCount),
+            passRate: caseCount == 0 ? 0 : Double(caseResults.filter(\.matched).count) / Double(caseCount),
             oracleAgreementRate: oracleResults.isEmpty
                 ? nil
                 : Double(oracleResults.filter(\.agreementPassed).count) / Double(oracleResults.count)

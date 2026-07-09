@@ -17,10 +17,23 @@ public struct DRCRepairHintBuilder: Sendable {
         result: DRCExecutionResult,
         reportURL: URL? = nil
     ) -> DRCRepairHintReport {
-        let layoutContext = RepairHintLayoutContext.load(from: result.repairHintGeometry)
-            ?? RepairHintLayoutContext.load(from: result.request.layoutURL)
         let activeDiagnostics = result.result.diagnostics.enumerated().filter {
             $0.element.severity == .error && !$0.element.isWaived
+        }
+        let embeddedLayoutContext = RepairHintLayoutContext.load(from: result.repairHintGeometry)
+        let needsLayoutContext = activeDiagnostics.contains { pair in
+            requiresLayoutContext(for: pair.element)
+        }
+        let fileLayoutContext: RepairHintLayoutContextLoadResult
+        if embeddedLayoutContext.context == nil && needsLayoutContext {
+            fileLayoutContext = RepairHintLayoutContext.load(from: result.request.layoutURL)
+        } else {
+            fileLayoutContext = RepairHintLayoutContextLoadResult(context: nil)
+        }
+        let layoutContext = embeddedLayoutContext.context ?? fileLayoutContext.context
+        var reportDiagnostics = embeddedLayoutContext.diagnostics
+        if embeddedLayoutContext.context == nil && needsLayoutContext {
+            reportDiagnostics.append(contentsOf: fileLayoutContext.diagnostics)
         }
         var unsupportedIndexes: [Int] = []
         let hints = activeDiagnostics.compactMap { pair -> DRCRepairHint? in
@@ -32,6 +45,11 @@ public struct DRCRepairHintBuilder: Sendable {
                 layoutContext: layoutContext
             ) else {
                 unsupportedIndexes.append(index)
+                reportDiagnostics.append(unsupportedDiagnostic(
+                    for: diagnostic,
+                    sourceDiagnosticIndex: index,
+                    layoutContext: layoutContext
+                ))
                 return nil
             }
             return hint
@@ -44,7 +62,8 @@ public struct DRCRepairHintBuilder: Sendable {
             activeDiagnosticCount: activeDiagnostics.count,
             hintCount: hints.count,
             hints: hints,
-            unsupportedDiagnosticIndexes: unsupportedIndexes
+            unsupportedDiagnosticIndexes: unsupportedIndexes,
+            diagnostics: reportDiagnostics
         )
     }
 
@@ -58,9 +77,15 @@ public struct DRCRepairHintBuilder: Sendable {
             return nil
         }
 
+        let normalizedKind = normalizedKind(for: diagnostic)
         var numericParameters = baseNumericParameters(for: diagnostic)
         var stringParameters = baseStringParameters(for: diagnostic)
-        if operationTargetsExistingShape(operationID), let shapeID = diagnostic.relatedShapeIDs.first {
+        if operationTargetsExistingShape(operationID),
+           let shapeID = targetShapeID(
+                for: diagnostic,
+                operationID: operationID,
+                normalizedKind: normalizedKind
+           ) {
             stringParameters["shapeID"] = shapeID
         }
         if operationID == "layout.add-rect", let region = diagnostic.region {
@@ -69,7 +94,7 @@ public struct DRCRepairHintBuilder: Sendable {
             numericParameters["originY"] = rect.y
             numericParameters["width"] = rect.width
             numericParameters["height"] = rect.height
-            if shouldFillEnclosedArea(for: normalizedKind(for: diagnostic)) {
+            if shouldFillEnclosedArea(for: normalizedKind) {
                 stringParameters["fillPurpose"] = "minimumEnclosedArea"
                 if let measured = diagnostic.measured {
                     numericParameters["enclosedArea"] = measured
@@ -78,7 +103,7 @@ public struct DRCRepairHintBuilder: Sendable {
                     numericParameters["requiredEnclosedArea"] = required
                 }
             }
-            if shouldFillMinimumDensity(for: normalizedKind(for: diagnostic)) {
+            if shouldFillMinimumDensity(for: normalizedKind) {
                 stringParameters["fillPurpose"] = "minimumDensity"
                 numericParameters["densityWindowX"] = region.x
                 numericParameters["densityWindowY"] = region.y
@@ -104,30 +129,51 @@ public struct DRCRepairHintBuilder: Sendable {
             )
         }
         if operationID == "layout.resize-shape" {
-            let growth = resizeGrowth(for: diagnostic)
-            numericParameters["deltaMinX"] = 0
-            numericParameters["deltaMinY"] = 0
-            numericParameters["deltaMaxX"] = growth.width
-            numericParameters["deltaMaxY"] = growth.height
+            if let extensionGuidance = minimumExtensionResizeGuidance(
+                for: diagnostic,
+                layoutContext: layoutContext
+            ) {
+                numericParameters["deltaMinX"] = extensionGuidance.deltaMinX
+                numericParameters["deltaMinY"] = extensionGuidance.deltaMinY
+                numericParameters["deltaMaxX"] = extensionGuidance.deltaMaxX
+                numericParameters["deltaMaxY"] = extensionGuidance.deltaMaxY
+                numericParameters["requiredExtension"] = extensionGuidance.requiredExtension
+                numericParameters["measuredNegativeSideExtension"] = extensionGuidance.negativeSideExtension
+                numericParameters["measuredPositiveSideExtension"] = extensionGuidance.positiveSideExtension
+                numericParameters["negativeSideExtensionDelta"] = extensionGuidance.negativeSideDelta
+                numericParameters["positiveSideExtensionDelta"] = extensionGuidance.positiveSideDelta
+                stringParameters["shapeID"] = extensionGuidance.extendingShapeID
+                stringParameters["extendingShapeID"] = extensionGuidance.extendingShapeID
+                stringParameters["enclosedShapeID"] = extensionGuidance.enclosedShapeID
+                stringParameters["extensionDirection"] = extensionGuidance.direction
+                stringParameters["extensionAxis"] = extensionGuidance.direction
+            } else {
+                let growth = resizeGrowth(for: diagnostic)
+                numericParameters["deltaMinX"] = 0
+                numericParameters["deltaMinY"] = 0
+                numericParameters["deltaMaxX"] = growth.width
+                numericParameters["deltaMaxY"] = growth.height
+            }
         }
         if operationID == "layout.translate-shape" {
             numericParameters["minimumSeparationDelta"] = max(0, (diagnostic.required ?? 0) - (diagnostic.measured ?? 0))
-            if let translation = translationGuidance(for: diagnostic, layoutContext: layoutContext) {
-                numericParameters["deltaX"] = translation.deltaX
-                numericParameters["deltaY"] = translation.deltaY
-                numericParameters["translationDistance"] = translation.distance
-                stringParameters["translationAxis"] = translation.axis
-                stringParameters["translationReason"] = translation.reason
-                stringParameters["anchorShapeID"] = translation.anchorShapeID
-                if let overlapWidth = translation.overlapWidth {
-                    numericParameters["overlapWidth"] = overlapWidth
-                }
-                if let overlapHeight = translation.overlapHeight {
-                    numericParameters["overlapHeight"] = overlapHeight
-                }
-                if let overlapArea = translation.overlapArea {
-                    numericParameters["overlapArea"] = overlapArea
-                }
+            guard let translation = translationGuidance(for: diagnostic, layoutContext: layoutContext) else {
+                return nil
+            }
+            numericParameters["deltaX"] = translation.deltaX
+            numericParameters["deltaY"] = translation.deltaY
+            numericParameters["translationDistance"] = translation.distance
+            stringParameters["translationAxis"] = translation.axis
+            stringParameters["translationReason"] = translation.reason
+            stringParameters["anchorShapeID"] = translation.anchorShapeID
+            if let overlapWidth = translation.overlapWidth {
+                numericParameters["overlapWidth"] = overlapWidth
+            }
+            if let overlapHeight = translation.overlapHeight {
+                numericParameters["overlapHeight"] = overlapHeight
+            }
+            if let overlapArea = translation.overlapArea {
+                numericParameters["overlapArea"] = overlapArea
             }
         }
         if operationID == "layout.split-shape" {
@@ -193,6 +239,52 @@ public struct DRCRepairHintBuilder: Sendable {
             return "layout.translate-shape"
         }
         return "layout-command-replay"
+    }
+
+    private func requiresLayoutContext(for diagnostic: DRCDiagnostic) -> Bool {
+        operationID(for: diagnostic) == "layout.translate-shape"
+    }
+
+    private func unsupportedDiagnostic(
+        for diagnostic: DRCDiagnostic,
+        sourceDiagnosticIndex: Int,
+        layoutContext: RepairHintLayoutContext?
+    ) -> DRCRepairHintDiagnostic {
+        let operationID = operationID(for: diagnostic)
+        if operationID == "layout.translate-shape" {
+            if layoutContext == nil {
+                return DRCRepairHintDiagnostic(
+                    severity: "warning",
+                    code: "drc.repair_hint.geometry_context_missing",
+                    message: "Repair hint translation requires layout geometry, but no readable geometry context was available.",
+                    sourceDiagnosticIndex: sourceDiagnosticIndex,
+                    suggestedActions: [
+                        "rerun-drc-with-repair-hint-geometry",
+                        "provide-readable-native-layout-json"
+                    ]
+                )
+            }
+            return DRCRepairHintDiagnostic(
+                severity: "warning",
+                code: "drc.repair_hint.translation_guidance_unavailable",
+                message: "Repair hint translation could not determine an executable delta from the diagnostic geometry.",
+                sourceDiagnosticIndex: sourceDiagnosticIndex,
+                suggestedActions: [
+                    "inspect-related-shape-ids",
+                    "provide-overlapping-or-spaced-shape-geometry"
+                ]
+            )
+        }
+        return DRCRepairHintDiagnostic(
+            severity: "warning",
+            code: "drc.repair_hint.unsupported_diagnostic",
+            message: "The DRC diagnostic does not map to an executable layout repair operation.",
+            sourceDiagnosticIndex: sourceDiagnosticIndex,
+            suggestedActions: [
+                "inspect-drc-diagnostic-kind",
+                "add-repair-hint-mapping"
+            ]
+        )
     }
 
     private func baseNumericParameters(for diagnostic: DRCDiagnostic) -> [String: Double] {
@@ -364,6 +456,19 @@ public struct DRCRepairHintBuilder: Sendable {
             || operationID == "layout.split-shape"
     }
 
+    private func targetShapeID(
+        for diagnostic: DRCDiagnostic,
+        operationID: String,
+        normalizedKind: String
+    ) -> String? {
+        if operationID == "layout.resize-shape",
+           normalizedKind.contains("extension"),
+           diagnostic.relatedShapeIDs.count >= 2 {
+            return diagnostic.relatedShapeIDs[1]
+        }
+        return diagnostic.relatedShapeIDs.first
+    }
+
     private func splitAxis(for diagnostic: DRCDiagnostic) -> String {
         let normalized = normalizedKind(for: diagnostic)
         if normalized.contains("horizontal") || normalized.contains("y-") || normalized.contains("y_") {
@@ -516,6 +621,79 @@ public struct DRCRepairHintBuilder: Sendable {
         return (width: missing, height: 0.0)
     }
 
+    private func minimumExtensionResizeGuidance(
+        for diagnostic: DRCDiagnostic,
+        layoutContext: RepairHintLayoutContext?
+    ) -> RepairHintExtensionResize? {
+        guard normalizedKind(for: diagnostic).contains("extension"),
+              diagnostic.relatedShapeIDs.count >= 2,
+              let required = diagnostic.required,
+              required > 0,
+              let direction = extensionDirection(for: diagnostic),
+              let layoutContext,
+              let enclosed = layoutContext.rectangle(id: diagnostic.relatedShapeIDs[0]),
+              let extending = layoutContext.rectangle(id: diagnostic.relatedShapeIDs[1]) else {
+            return nil
+        }
+
+        switch direction {
+        case "horizontal":
+            let negativeSideExtension = enclosed.xMin - extending.xMin
+            let positiveSideExtension = extending.xMax - enclosed.xMax
+            let negativeSideDelta = max(0, required - negativeSideExtension)
+            let positiveSideDelta = max(0, required - positiveSideExtension)
+            return RepairHintExtensionResize(
+                enclosedShapeID: enclosed.id,
+                extendingShapeID: extending.id,
+                direction: direction,
+                requiredExtension: required,
+                negativeSideExtension: negativeSideExtension,
+                positiveSideExtension: positiveSideExtension,
+                negativeSideDelta: negativeSideDelta,
+                positiveSideDelta: positiveSideDelta,
+                deltaMinX: -negativeSideDelta,
+                deltaMinY: 0,
+                deltaMaxX: positiveSideDelta,
+                deltaMaxY: 0
+            )
+        case "vertical":
+            let negativeSideExtension = enclosed.yMin - extending.yMin
+            let positiveSideExtension = extending.yMax - enclosed.yMax
+            let negativeSideDelta = max(0, required - negativeSideExtension)
+            let positiveSideDelta = max(0, required - positiveSideExtension)
+            return RepairHintExtensionResize(
+                enclosedShapeID: enclosed.id,
+                extendingShapeID: extending.id,
+                direction: direction,
+                requiredExtension: required,
+                negativeSideExtension: negativeSideExtension,
+                positiveSideExtension: positiveSideExtension,
+                negativeSideDelta: negativeSideDelta,
+                positiveSideDelta: positiveSideDelta,
+                deltaMinX: 0,
+                deltaMinY: -negativeSideDelta,
+                deltaMaxX: 0,
+                deltaMaxY: positiveSideDelta
+            )
+        default:
+            return nil
+        }
+    }
+
+    private func extensionDirection(for diagnostic: DRCDiagnostic) -> String? {
+        let text = [diagnostic.rawLine, diagnostic.message, diagnostic.kind, diagnostic.ruleID]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
+        if text.contains("direction=horizontal") || text.contains(" horizontal") || text.contains("horizontally") {
+            return "horizontal"
+        }
+        if text.contains("direction=vertical") || text.contains(" vertical") || text.contains("vertically") {
+            return "vertical"
+        }
+        return nil
+    }
+
     private func confidence(for operationID: String, diagnostic: DRCDiagnostic) -> String {
         switch operationID {
         case "layout.resize-shape":
@@ -574,24 +752,38 @@ private struct RepairHintLayoutContext: Sendable {
         self.rectanglesByID = rectanglesByID
     }
 
-    static func load(from url: URL) -> RepairHintLayoutContext? {
+    static func load(from url: URL) -> RepairHintLayoutContextLoadResult {
         guard url.pathExtension.lowercased() == "json" else {
-            return nil
+            return RepairHintLayoutContextLoadResult(context: nil)
         }
         do {
             let data = try Data(contentsOf: url)
             let layout = try JSONDecoder().decode(RepairHintNativeLayout.self, from: data)
-            return RepairHintLayoutContext(rectangles: layout.rectangles)
+            return RepairHintLayoutContextLoadResult(context: RepairHintLayoutContext(rectangles: layout.rectangles))
         } catch {
-            return nil
+            return RepairHintLayoutContextLoadResult(
+                context: nil,
+                diagnostics: [
+                    DRCRepairHintDiagnostic(
+                        severity: "warning",
+                        code: "drc.repair_hint.layout_context_unreadable",
+                        message: "Unable to load repair-hint layout geometry: \(error.localizedDescription)",
+                        source: url.path(percentEncoded: false),
+                        suggestedActions: [
+                            "provide-readable-native-layout-json",
+                            "rerun-drc-with-repair-hint-geometry"
+                        ]
+                    )
+                ]
+            )
         }
     }
 
-    static func load(from context: DRCRepairHintGeometryContext?) -> RepairHintLayoutContext? {
+    static func load(from context: DRCRepairHintGeometryContext?) -> RepairHintLayoutContextLoadResult {
         guard let context else {
-            return nil
+            return RepairHintLayoutContextLoadResult(context: nil)
         }
-        return RepairHintLayoutContext(rectangles: context.rectangles.map {
+        return RepairHintLayoutContextLoadResult(context: RepairHintLayoutContext(rectangles: context.rectangles.map {
             RepairHintRectangle(
                 id: $0.id,
                 xMin: $0.xMin,
@@ -599,11 +791,24 @@ private struct RepairHintLayoutContext: Sendable {
                 xMax: $0.xMax,
                 yMax: $0.yMax
             )
-        })
+        }))
     }
 
     func rectangle(id: String) -> RepairHintRectangle? {
         rectanglesByID[id]
+    }
+}
+
+private struct RepairHintLayoutContextLoadResult: Sendable {
+    let context: RepairHintLayoutContext?
+    let diagnostics: [DRCRepairHintDiagnostic]
+
+    init(
+        context: RepairHintLayoutContext?,
+        diagnostics: [DRCRepairHintDiagnostic] = []
+    ) {
+        self.context = context
+        self.diagnostics = diagnostics
     }
 }
 
@@ -688,4 +893,19 @@ private struct RepairHintTranslation: Sendable {
         self.overlapHeight = overlapHeight
         self.overlapArea = overlapArea
     }
+}
+
+private struct RepairHintExtensionResize: Sendable {
+    let enclosedShapeID: String
+    let extendingShapeID: String
+    let direction: String
+    let requiredExtension: Double
+    let negativeSideExtension: Double
+    let positiveSideExtension: Double
+    let negativeSideDelta: Double
+    let positiveSideDelta: Double
+    let deltaMinX: Double
+    let deltaMinY: Double
+    let deltaMaxX: Double
+    let deltaMaxY: Double
 }

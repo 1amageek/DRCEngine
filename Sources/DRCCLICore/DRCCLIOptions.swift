@@ -14,63 +14,16 @@ public struct DRCCLIOptions: Sendable, Hashable {
     public let emitJSON: Bool
 
     public init(arguments: [String]) throws {
-        var layoutURL: URL?
-        var topCell: String?
-        var layoutFormat: DRCLayoutFormat?
-        var technologyURL: URL?
-        var waiverURL: URL?
-        var backendID: String?
-        var outputDirectory: URL?
-        var timeoutSeconds = 300.0
-        var emitJSON = false
-        var index = 0
-        while index < arguments.count {
-            let argument = arguments[index]
-            switch argument {
-            case "--layout":
-                layoutURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
-            case "--top-cell":
-                topCell = try Self.value(after: argument, in: arguments, index: &index)
-            case "--format":
-                let value = try Self.value(after: argument, in: arguments, index: &index)
-                guard let format = DRCLayoutFormat(rawValue: value) else {
-                    throw DRCCLIError.invalidValue(
-                        argument: argument,
-                        value: value,
-                        expected: "auto, gds, oasis, cif, dxf, native-json, or magic-layout"
-                    )
-                }
-                layoutFormat = format
-            case "--out":
-                outputDirectory = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
-            case "--tech":
-                technologyURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
-            case "--waivers":
-                waiverURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
-            case "--backend":
-                backendID = try Self.value(after: argument, in: arguments, index: &index)
-            case "--timeout":
-                timeoutSeconds = try Self.positiveFiniteDouble(after: argument, in: arguments, index: &index)
-            case "--json":
-                emitJSON = true
-            default:
-                throw DRCCLIError.unknownArgument(argument)
-            }
-            index += 1
-        }
-
-        guard let layoutURL else { throw DRCCLIError.missingRequired("--layout") }
-        guard let topCell else { throw DRCCLIError.missingRequired("--top-cell") }
-        guard let outputDirectory else { throw DRCCLIError.missingRequired("--out") }
-        self.layoutURL = layoutURL
-        self.topCell = topCell
-        self.layoutFormat = layoutFormat
-        self.technologyURL = technologyURL
-        self.waiverURL = waiverURL
-        self.backendID = backendID
-        self.outputDirectory = outputDirectory
-        self.timeoutSeconds = timeoutSeconds
-        self.emitJSON = emitJSON
+        let parsed = try Self.parseArguments(arguments)
+        self.layoutURL = try parsed.requireLayoutURL()
+        self.topCell = try parsed.requireTopCell()
+        self.layoutFormat = parsed.layoutFormat
+        self.technologyURL = parsed.technologyURL
+        self.waiverURL = parsed.waiverURL
+        self.backendID = parsed.backendID
+        self.outputDirectory = try parsed.requireOutputDirectory()
+        self.timeoutSeconds = parsed.timeoutSeconds
+        self.emitJSON = parsed.emitJSON
     }
 
     public func makeRequest() -> DRCRequest {
@@ -89,13 +42,87 @@ public struct DRCCLIOptions: Sendable, Hashable {
         )
     }
 
-    private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
+    private struct ParsedArguments {
+        var layoutURL: URL?
+        var topCell: String?
+        var layoutFormat: DRCLayoutFormat?
+        var technologyURL: URL?
+        var waiverURL: URL?
+        var backendID: String?
+        var outputDirectory: URL?
+        var timeoutSeconds = 300.0
+        var emitJSON = false
+
+        mutating func apply(_ argument: String, cursor: inout DRCCLIArgumentCursor) throws {
+            switch argument {
+            case "--layout":
+                layoutURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--top-cell":
+                topCell = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty top cell")
+            case "--format":
+                layoutFormat = try Self.parseFormat(try cursor.requireValue(for: argument), argument: argument)
+            case "--out":
+                outputDirectory = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--tech":
+                technologyURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--waivers":
+                waiverURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--backend":
+                backendID = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty backend identifier")
+            case "--timeout":
+                timeoutSeconds = try Self.parseTimeout(try cursor.requireValue(for: argument), argument: argument)
+            case "--json":
+                emitJSON = true
+            default:
+                throw DRCCLIError.unknownArgument(argument)
+            }
         }
-        index = valueIndex
-        return arguments[valueIndex]
+
+        func requireLayoutURL() throws -> URL {
+            guard let layoutURL else { throw DRCCLIError.missingRequired("--layout") }
+            return layoutURL
+        }
+
+        func requireTopCell() throws -> String {
+            guard let topCell else { throw DRCCLIError.missingRequired("--top-cell") }
+            return topCell
+        }
+
+        func requireOutputDirectory() throws -> URL {
+            guard let outputDirectory else { throw DRCCLIError.missingRequired("--out") }
+            return outputDirectory
+        }
+
+        private static func parseFormat(_ value: String, argument: String) throws -> DRCLayoutFormat {
+            guard let format = DRCLayoutFormat(rawValue: value) else {
+                throw DRCCLIError.invalidValue(
+                    argument: argument,
+                    value: value,
+                    expected: "auto, gds, oasis, cif, dxf, native-json, or magic-layout"
+                )
+            }
+            return format
+        }
+
+        private static func parseTimeout(_ rawValue: String, argument: String) throws -> Double {
+            guard let value = Double(rawValue), value.isFinite, value > 0 else {
+                throw DRCCLIError.invalidValue(argument: argument, value: rawValue, expected: "positive finite seconds")
+            }
+            return value
+        }
+    }
+
+    private static func parseArguments(_ arguments: [String]) throws -> ParsedArguments {
+        var parsed = ParsedArguments()
+        var cursor = DRCCLIArgumentCursor(arguments: arguments)
+        while let argument = cursor.next() {
+            try parsed.apply(argument, cursor: &cursor)
+        }
+        return parsed
+    }
+
+    private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 
     private static func positiveFiniteDouble(after argument: String, in arguments: [String], index: inout Int) throws -> Double {
@@ -148,12 +175,7 @@ public struct DRCCorpusCLIOptions: Sendable, Hashable {
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
-        }
-        index = valueIndex
-        return arguments[valueIndex]
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 
     private static func nonEmptyValue(after argument: String, in arguments: [String], index: inout Int) throws -> String {
@@ -196,12 +218,39 @@ public struct DRCCorpusQualificationCLIOptions: Sendable, Hashable {
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
+    }
+}
+
+public struct DRCReportSummaryCLIOptions: Sendable, Hashable {
+    public let reportURL: URL
+    public let emitJSON: Bool
+
+    public init(arguments: [String]) throws {
+        var reportURL: URL?
+        var emitJSON = false
+        var index = 0
+        while index < arguments.count {
+            let argument = arguments[index]
+            switch argument {
+            case "--summarize-report":
+                reportURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
+            case "--json":
+                emitJSON = true
+            default:
+                throw DRCCLIError.unknownArgument(argument)
+            }
+            index += 1
         }
-        index = valueIndex
-        return arguments[valueIndex]
+        guard let reportURL else {
+            throw DRCCLIError.missingRequired("--summarize-report")
+        }
+        self.reportURL = reportURL
+        self.emitJSON = emitJSON
+    }
+
+    private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 }
 
@@ -211,6 +260,7 @@ public struct DRCCorpusCoverageAuditCLIOptions: Sendable, Hashable {
     public let policyURL: URL?
     public let outputURL: URL?
     public let auditID: String?
+    public let checkedAt: Date?
     public let emitJSON: Bool
 
     public init(arguments: [String]) throws {
@@ -219,6 +269,7 @@ public struct DRCCorpusCoverageAuditCLIOptions: Sendable, Hashable {
         var policyURL: URL?
         var outputURL: URL?
         var auditID: String?
+        var checkedAt: Date?
         var emitJSON = false
         var index = 0
         while index < arguments.count {
@@ -234,6 +285,9 @@ public struct DRCCorpusCoverageAuditCLIOptions: Sendable, Hashable {
                 outputURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
             case "--audit-id":
                 auditID = try Self.value(after: argument, in: arguments, index: &index)
+            case "--checked-at":
+                let value = try Self.value(after: argument, in: arguments, index: &index)
+                checkedAt = try Self.iso8601Date(argument: argument, value: value)
             case "--json":
                 emitJSON = true
             default:
@@ -249,16 +303,32 @@ public struct DRCCorpusCoverageAuditCLIOptions: Sendable, Hashable {
         self.policyURL = policyURL
         self.outputURL = outputURL
         self.auditID = auditID
+        self.checkedAt = checkedAt
         self.emitJSON = emitJSON
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
+    }
+
+    private static func iso8601Date(argument: String, value: String) throws -> Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [
+            .withInternetDateTime,
+            .withFractionalSeconds,
+        ]
+        if let date = formatter.date(from: value) {
+            return date
         }
-        index = valueIndex
-        return arguments[valueIndex]
+        formatter.formatOptions = [.withInternetDateTime]
+        if let date = formatter.date(from: value) {
+            return date
+        }
+        throw DRCCLIError.invalidValue(
+            argument: argument,
+            value: value,
+            expected: "ISO 8601 timestamp"
+        )
     }
 }
 
@@ -299,12 +369,7 @@ public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
-        }
-        index = valueIndex
-        return arguments[valueIndex]
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 
     private static func iso8601Date(argument: String, value: String) throws -> Date {
@@ -366,12 +431,7 @@ public struct DRCEvidencePacketCLIOptions: Sendable, Hashable {
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
-        }
-        index = valueIndex
-        return arguments[valueIndex]
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 }
 
@@ -441,12 +501,7 @@ public struct DRCFoundryDeckSemanticCLIOptions: Sendable, Hashable {
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
-        }
-        index = valueIndex
-        return arguments[valueIndex]
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 
     private static func nonEmptyValue(after argument: String, in arguments: [String], index: inout Int) throws -> String {
@@ -468,58 +523,21 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
     public let technologyOutputURL: URL
     public let reportOutputURL: URL?
     public let requireComplete: Bool
+    public let allowPartial: Bool
     public let emitJSON: Bool
 
     public init(arguments: [String]) throws {
-        var sawImport = false
-        var pdkRoot: String?
-        var profileURL: URL?
-        var profileResourceName: String?
-        var technologyOutputURL: URL?
-        var reportOutputURL: URL?
-        var requireComplete = false
-        var emitJSON = false
-        var index = 0
-        while index < arguments.count {
-            let argument = arguments[index]
-            switch argument {
-            case Self.importFlag, Self.deprecatedCompatibilityImportFlag:
-                sawImport = true
-            case "--pdk-root":
-                pdkRoot = try Self.nonEmptyValue(after: argument, in: arguments, index: &index)
-            case "--profile":
-                profileURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
-            case "--profile-resource":
-                profileResourceName = try Self.nonEmptyResourceName(after: argument, in: arguments, index: &index)
-            case "--tech-out":
-                technologyOutputURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
-            case "--report-out":
-                reportOutputURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
-            case "--require-complete":
-                requireComplete = true
-            case "--json":
-                emitJSON = true
-            default:
-                throw DRCCLIError.unknownArgument(argument)
-            }
-            index += 1
-        }
-        guard sawImport else { throw DRCCLIError.missingRequired(Self.importFlag) }
-        if let profileURL, let profileResourceName {
-            throw DRCCLIError.invalidValue(
-                argument: "--profile-resource",
-                value: profileResourceName,
-                expected: "only one of --profile or --profile-resource; received \(profileURL.path(percentEncoded: false))"
-            )
-        }
-        guard let technologyOutputURL else { throw DRCCLIError.missingRequired("--tech-out") }
-        self.pdkRoot = pdkRoot
-        self.profileURL = profileURL
-        self.profileResourceName = profileResourceName
-        self.technologyOutputURL = technologyOutputURL
-        self.reportOutputURL = reportOutputURL
-        self.requireComplete = requireComplete
-        self.emitJSON = emitJSON
+        let parsed = try Self.parseArguments(arguments)
+        try parsed.validateImportFlag()
+        try parsed.validateProfileSelection()
+        self.pdkRoot = parsed.pdkRoot
+        self.profileURL = parsed.profileURL
+        self.profileResourceName = parsed.profileResourceName
+        self.technologyOutputURL = try parsed.requireTechnologyOutputURL()
+        self.reportOutputURL = parsed.reportOutputURL
+        self.requireComplete = parsed.requireComplete
+        self.allowPartial = parsed.allowPartial
+        self.emitJSON = parsed.emitJSON
     }
 
     public func environment(overriding base: [String: String]) -> [String: String] {
@@ -530,13 +548,76 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
         return environment
     }
 
-    private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
+    private struct ParsedArguments {
+        var sawImport = false
+        var pdkRoot: String?
+        var profileURL: URL?
+        var profileResourceName: String?
+        var technologyOutputURL: URL?
+        var reportOutputURL: URL?
+        var requireComplete = false
+        var allowPartial = false
+        var emitJSON = false
+
+        mutating func apply(_ argument: String, cursor: inout DRCCLIArgumentCursor) throws {
+            switch argument {
+            case DRCFoundryRuleImportCLIOptions.importFlag,
+                 DRCFoundryRuleImportCLIOptions.deprecatedCompatibilityImportFlag:
+                sawImport = true
+            case "--pdk-root":
+                pdkRoot = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path")
+            case "--profile":
+                profileURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--profile-resource":
+                profileResourceName = try cursor.requireNonEmptyValue(
+                    for: argument,
+                    expected: "non-empty profile resource name"
+                )
+            case "--tech-out":
+                technologyOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--report-out":
+                reportOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--require-complete":
+                requireComplete = true
+            case "--allow-partial":
+                allowPartial = true
+            case "--json":
+                emitJSON = true
+            default:
+                throw DRCCLIError.unknownArgument(argument)
+            }
         }
-        index = valueIndex
-        return arguments[valueIndex]
+
+        func validateImportFlag() throws {
+            guard sawImport else { throw DRCCLIError.missingRequired(DRCFoundryRuleImportCLIOptions.importFlag) }
+        }
+
+        func validateProfileSelection() throws {
+            guard let profileURL, let profileResourceName else { return }
+            throw DRCCLIError.invalidValue(
+                argument: "--profile-resource",
+                value: profileResourceName,
+                expected: "only one of --profile or --profile-resource; received \(profileURL.path(percentEncoded: false))"
+            )
+        }
+
+        func requireTechnologyOutputURL() throws -> URL {
+            guard let technologyOutputURL else { throw DRCCLIError.missingRequired("--tech-out") }
+            return technologyOutputURL
+        }
+    }
+
+    private static func parseArguments(_ arguments: [String]) throws -> ParsedArguments {
+        var parsed = ParsedArguments()
+        var cursor = DRCCLIArgumentCursor(arguments: arguments)
+        while let argument = cursor.next() {
+            try parsed.apply(argument, cursor: &cursor)
+        }
+        return parsed
+    }
+
+    private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 
     private static func nonEmptyValue(after argument: String, in arguments: [String], index: inout Int) throws -> String {
@@ -567,9 +648,29 @@ public struct DRCMagicRuleImportCLIOptions: Sendable, Hashable {
     public let technologyOutputURL: URL
     public let reportOutputURL: URL?
     public let requireComplete: Bool
+    public let allowPartial: Bool
     public let emitJSON: Bool
 
     public init(arguments: [String]) throws {
+        var parsed = try Self.parseArguments(arguments)
+        try parsed.validateImportFlag()
+        try parsed.validateProfileSelection()
+        try parsed.resolveCatalogIfNeeded()
+        self.magicTechURL = try parsed.requireMagicTechURL()
+        self.profileURL = try parsed.resolvedProfileURL()
+        self.profileResourceName = parsed.profileResourceName
+        self.catalogURL = parsed.catalogURL
+        self.technologyCatalogID = parsed.technologyCatalogID
+        self.pdkID = parsed.pdkID
+        self.profileID = parsed.profileID
+        self.technologyOutputURL = try parsed.requireTechnologyOutputURL()
+        self.reportOutputURL = parsed.reportOutputURL
+        self.requireComplete = parsed.requireComplete
+        self.allowPartial = parsed.allowPartial
+        self.emitJSON = parsed.emitJSON
+    }
+
+    private struct ParsedArguments {
         var sawImport = false
         var magicTechURL: URL?
         var profileURL: URL?
@@ -582,51 +683,62 @@ public struct DRCMagicRuleImportCLIOptions: Sendable, Hashable {
         var technologyOutputURL: URL?
         var reportOutputURL: URL?
         var requireComplete = false
+        var allowPartial = false
         var emitJSON = false
-        var index = 0
-        while index < arguments.count {
-            let argument = arguments[index]
+
+        mutating func apply(_ argument: String, cursor: inout DRCCLIArgumentCursor) throws {
             switch argument {
             case "--import-magic-rules":
                 sawImport = true
             case "--magic-tech":
-                magicTechURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
+                magicTechURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--profile":
-                profileURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
+                profileURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--profile-resource":
-                profileResourceName = try Self.nonEmptyResourceName(after: argument, in: arguments, index: &index)
+                profileResourceName = try cursor.requireNonEmptyValue(
+                    for: argument,
+                    expected: "non-empty profile resource name"
+                )
             case "--catalog":
-                catalogURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
+                catalogURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--catalog-id":
-                technologyCatalogID = try Self.nonEmptyResourceName(after: argument, in: arguments, index: &index)
+                technologyCatalogID = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty catalog identifier")
             case "--pdk-id":
-                pdkID = try Self.nonEmptyResourceName(after: argument, in: arguments, index: &index)
+                pdkID = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty PDK identifier")
             case "--profile-id":
-                profileID = try Self.nonEmptyResourceName(after: argument, in: arguments, index: &index)
+                profileID = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty profile identifier")
             case "--pdk-root":
-                pdkRootURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
+                pdkRootURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--tech-out":
-                technologyOutputURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
+                technologyOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--report-out":
-                reportOutputURL = URL(filePath: try Self.nonEmptyValue(after: argument, in: arguments, index: &index))
+                reportOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--require-complete":
                 requireComplete = true
+            case "--allow-partial":
+                allowPartial = true
             case "--json":
                 emitJSON = true
             default:
                 throw DRCCLIError.unknownArgument(argument)
             }
-            index += 1
         }
-        guard sawImport else { throw DRCCLIError.missingRequired("--import-magic-rules") }
-        if let profileURL, let profileResourceName {
+
+        func validateImportFlag() throws {
+            guard sawImport else { throw DRCCLIError.missingRequired("--import-magic-rules") }
+        }
+
+        func validateProfileSelection() throws {
+            guard let profileURL, let profileResourceName else { return }
             throw DRCCLIError.invalidValue(
                 argument: "--profile-resource",
                 value: profileResourceName,
                 expected: "only one of --profile or --profile-resource; received \(profileURL.path(percentEncoded: false))"
             )
         }
-        if let catalogURL {
+
+        mutating func resolveCatalogIfNeeded() throws {
+            guard let catalogURL else { return }
             let resolvedImport = try DRCMagicRuleImportCatalogResolver(
                 catalogURL: catalogURL,
                 pdkRootURL: pdkRootURL
@@ -646,38 +758,41 @@ public struct DRCMagicRuleImportCLIOptions: Sendable, Hashable {
             pdkID = pdkID ?? resolvedImport.pdkID
             profileID = profileID ?? resolvedImport.profileID
         }
-        guard let magicTechURL else { throw DRCCLIError.missingRequired("--magic-tech or --catalog") }
-        let resolvedProfileURL: URL
-        if let profileURL {
-            resolvedProfileURL = profileURL
-        } else if let profileResourceName {
-            resolvedProfileURL = try MagicDRCLayoutTechImportProfile.bundledMagicLayoutTechProfileURL(
-                resourceName: profileResourceName
-            )
-        } else {
+
+        func requireMagicTechURL() throws -> URL {
+            guard let magicTechURL else { throw DRCCLIError.missingRequired("--magic-tech or --catalog") }
+            return magicTechURL
+        }
+
+        func resolvedProfileURL() throws -> URL {
+            if let profileURL {
+                return profileURL
+            }
+            if let profileResourceName {
+                return try MagicDRCLayoutTechImportProfile.bundledMagicLayoutTechProfileURL(
+                    resourceName: profileResourceName
+                )
+            }
             throw DRCCLIError.missingRequired("--profile or --profile-resource")
         }
-        guard let technologyOutputURL else { throw DRCCLIError.missingRequired("--tech-out") }
-        self.magicTechURL = magicTechURL
-        self.profileURL = resolvedProfileURL
-        self.profileResourceName = profileResourceName
-        self.catalogURL = catalogURL
-        self.technologyCatalogID = technologyCatalogID
-        self.pdkID = pdkID
-        self.profileID = profileID
-        self.technologyOutputURL = technologyOutputURL
-        self.reportOutputURL = reportOutputURL
-        self.requireComplete = requireComplete
-        self.emitJSON = emitJSON
+
+        func requireTechnologyOutputURL() throws -> URL {
+            guard let technologyOutputURL else { throw DRCCLIError.missingRequired("--tech-out") }
+            return technologyOutputURL
+        }
+    }
+
+    private static func parseArguments(_ arguments: [String]) throws -> ParsedArguments {
+        var parsed = ParsedArguments()
+        var cursor = DRCCLIArgumentCursor(arguments: arguments)
+        while let argument = cursor.next() {
+            try parsed.apply(argument, cursor: &cursor)
+        }
+        return parsed
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
-        }
-        index = valueIndex
-        return arguments[valueIndex]
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 
     private static func nonEmptyValue(after argument: String, in arguments: [String], index: inout Int) throws -> String {
@@ -744,12 +859,7 @@ public struct DRCMagicRuleImportCatalogInventoryCLIOptions: Sendable, Hashable {
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
-        }
-        index = valueIndex
-        return arguments[valueIndex]
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 
     private static func nonEmptyValue(after argument: String, in arguments: [String], index: inout Int) throws -> String {
@@ -811,11 +921,6 @@ public struct DRCRepairHintsCLIOptions: Sendable, Hashable {
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
-        let valueIndex = index + 1
-        guard valueIndex < arguments.count else {
-            throw DRCCLIError.missingValue(argument)
-        }
-        index = valueIndex
-        return arguments[valueIndex]
+        try DRCCLIArgumentCursor.value(after: argument, in: arguments, index: &index)
     }
 }

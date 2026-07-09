@@ -155,7 +155,7 @@ public struct DRCMagicRuleImportCatalogResolver: Sendable {
             )
         }
         guard let match = matches.first else { return nil }
-        let url = resolvedURL(for: match.path)
+        let url = try resolvedURL(for: match.path, purpose: match.purpose)
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
             throw DRCCLIError.invalidValue(
                 argument: "--catalog",
@@ -166,16 +166,40 @@ public struct DRCMagicRuleImportCatalogResolver: Sendable {
         return url
     }
 
-    private func resolvedURL(for path: String) -> URL {
+    private func resolvedURL(for path: String, purpose: String) throws -> URL {
+        let url: URL
         if path.hasPrefix("/") {
-            return URL(filePath: path)
-        }
-        if let pdkRootURL {
+            url = URL(filePath: path)
+        } else if let pdkRootURL {
             let pdkRelativeURL = pdkRootURL.appending(path: path)
             if FileManager.default.fileExists(atPath: pdkRelativeURL.path(percentEncoded: false)) {
-                return pdkRelativeURL
+                url = pdkRelativeURL
+            } else {
+                url = catalogURL.deletingLastPathComponent().appending(path: path)
+            }
+        } else {
+            url = catalogURL.deletingLastPathComponent().appending(path: path)
+        }
+
+        if let pdkRootURL {
+            let resolvedPath = url.standardizedFileURL.resolvingSymlinksInPath().path(percentEncoded: false)
+            let rootPath = pdkRootURL.standardizedFileURL.resolvingSymlinksInPath().path(percentEncoded: false)
+            guard isPath(resolvedPath, insideOrEqualTo: rootPath) else {
+                throw DRCCLIError.invalidValue(
+                    argument: "--catalog",
+                    value: path,
+                    expected: "required file for purpose \(purpose) inside PDK root"
+                )
             }
         }
-        return catalogURL.deletingLastPathComponent().appending(path: path)
+
+        return url
+    }
+
+    private func isPath(_ path: String, insideOrEqualTo rootPath: String) -> Bool {
+        let normalizedRoot = rootPath.hasSuffix("/")
+            ? String(rootPath.dropLast())
+            : rootPath
+        return path == normalizedRoot || path.hasPrefix("\(normalizedRoot)/")
     }
 }
