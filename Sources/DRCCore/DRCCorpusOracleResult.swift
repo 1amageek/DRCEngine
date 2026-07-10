@@ -72,13 +72,7 @@ public struct DRCCorpusOracleResult: Sendable, Hashable, Codable {
         reportPath = try container.decodeIfPresent(String.self, forKey: .reportPath)
         manifestPath = try container.decodeIfPresent(String.self, forKey: .manifestPath)
         provenance = try container.decodeIfPresent(DRCCorpusCaseProvenance.self, forKey: .provenance)
-        readinessStatus = try container.decodeIfPresent(
-            DRCCorpusOracleReadinessStatus.self,
-            forKey: .readinessStatus
-        ) ?? (executionError == nil ? .ready : .blocked)
-        readinessDiagnostics = try container.decodeIfPresent(
-            [String].self,
-            forKey: .readinessDiagnostics
-        ) ?? []
+        readinessStatus = try container.decode(DRCCorpusOracleReadinessStatus.self, forKey: .readinessStatus)
+        readinessDiagnostics = try container.decode([String].self, forKey: .readinessDiagnostics)
     }
 }

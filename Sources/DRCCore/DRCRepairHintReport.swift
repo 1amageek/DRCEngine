@@ -1,6 +1,8 @@
 import Foundation
 
 public struct DRCRepairHintReport: Codable, Sendable, Hashable {
+    public static let currentSchemaVersion = 1
+
     public let schemaVersion: Int
     public let status: String
     public let reportURL: URL?
@@ -13,7 +15,7 @@ public struct DRCRepairHintReport: Codable, Sendable, Hashable {
     public let diagnostics: [DRCRepairHintDiagnostic]
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = DRCRepairHintReport.currentSchemaVersion,
         status: String,
         reportURL: URL?,
         backendID: String,
@@ -51,8 +53,16 @@ public struct DRCRepairHintReport: Codable, Sendable, Hashable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported DRC repair hint report schema version: \(schemaVersion)."
+            )
+        }
         self.init(
-            schemaVersion: try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1,
+            schemaVersion: schemaVersion,
             status: try container.decode(String.self, forKey: .status),
             reportURL: try container.decodeIfPresent(URL.self, forKey: .reportURL),
             backendID: try container.decode(String.self, forKey: .backendID),
@@ -64,10 +74,7 @@ public struct DRCRepairHintReport: Codable, Sendable, Hashable {
                 [Int].self,
                 forKey: .unsupportedDiagnosticIndexes
             ),
-            diagnostics: try container.decodeIfPresent(
-                [DRCRepairHintDiagnostic].self,
-                forKey: .diagnostics
-            ) ?? []
+            diagnostics: try container.decode([DRCRepairHintDiagnostic].self, forKey: .diagnostics)
         )
     }
 }

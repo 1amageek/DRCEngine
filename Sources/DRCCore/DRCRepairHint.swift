@@ -85,7 +85,7 @@ public struct DRCRepairHint: Codable, Sendable, Hashable {
         self.kind = try container.decodeIfPresent(String.self, forKey: .kind)
         self.layer = try container.decodeIfPresent(String.self, forKey: .layer)
         self.targetShapeIDs = try container.decode([String].self, forKey: .targetShapeIDs)
-        self.relatedViaIDs = try container.decodeIfPresent([String].self, forKey: .relatedViaIDs) ?? []
+        self.relatedViaIDs = try container.decode([String].self, forKey: .relatedViaIDs)
         self.relatedNetIDs = try container.decode([String].self, forKey: .relatedNetIDs)
         self.region = try container.decodeIfPresent(DRCRegion.self, forKey: .region)
         self.measured = try container.decodeIfPresent(Double.self, forKey: .measured)

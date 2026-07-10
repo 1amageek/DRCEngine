@@ -79,15 +79,9 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
             format = try container.decode(String.self, forKey: .format)
             producer = try container.decode(String.self, forKey: .producer)
             consumer = try container.decode([String].self, forKey: .consumer)
-            integrityEvidenceFields = try container.decodeIfPresent(
-                [String].self,
-                forKey: .integrityEvidenceFields
-            ) ?? []
-            currentnessVerifier = try container.decodeIfPresent(
-                String.self,
-                forKey: .currentnessVerifier
-            ) ?? "unspecified"
-            verdictFields = try container.decodeIfPresent([String].self, forKey: .verdictFields) ?? []
+            integrityEvidenceFields = try container.decode([String].self, forKey: .integrityEvidenceFields)
+            currentnessVerifier = try container.decode(String.self, forKey: .currentnessVerifier)
+            verdictFields = try container.decode([String].self, forKey: .verdictFields)
         }
     }
 

@@ -153,7 +153,7 @@ struct DefaultDRCEngineTests {
         #expect(didThrowExpectedError)
     }
 
-    @Test func corpusOracleReadinessDefaultsWhenDecodingLegacyArtifacts() throws {
+    @Test func corpusEvidenceRejectsMissingReadinessFields() {
         let successfulOracleJSON = """
         {
           "backendID": "native",
@@ -207,26 +207,24 @@ struct DefaultDRCEngineTests {
         }
         """
 
-        let successfulOracle = try JSONDecoder().decode(
-            DRCCorpusOracleResult.self,
-            from: Data(successfulOracleJSON.utf8)
-        )
-        let blockedOracle = try JSONDecoder().decode(
-            DRCCorpusOracleResult.self,
-            from: Data(blockedOracleJSON.utf8)
-        )
-        let summary = try JSONDecoder().decode(
-            DRCCorpusSummary.self,
-            from: Data(summaryJSON.utf8)
-        )
-
-        #expect(successfulOracle.readinessStatus == .ready)
-        #expect(successfulOracle.readinessDiagnostics.isEmpty)
-        #expect(successfulOracle.provenance == nil)
-        #expect(blockedOracle.readinessStatus == .blocked)
-        #expect(blockedOracle.readinessDiagnostics.isEmpty)
-        #expect(blockedOracle.provenance == nil)
-        #expect(summary.oracleReadinessBlockedCaseCount == 1)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                DRCCorpusOracleResult.self,
+                from: Data(successfulOracleJSON.utf8)
+            )
+        }
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                DRCCorpusOracleResult.self,
+                from: Data(blockedOracleJSON.utf8)
+            )
+        }
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                DRCCorpusSummary.self,
+                from: Data(summaryJSON.utf8)
+            )
+        }
     }
 
     @Test func nativeBackendIsAvailableByDefault() async throws {
@@ -255,16 +253,16 @@ struct DefaultDRCEngineTests {
         #expect(result.result.passed)
     }
 
-    @Test func deprecatedBackendAliasesAreNormalized() async throws {
+    @Test func removedBackendAliasIsRejected() async throws {
         let request = DRCRequest(
             layoutURL: URL(filePath: "/tmp/layout.json"),
             topCell: "inv",
             backendSelection: DRCBackendSelection(backendID: "pure-swift")
         )
 
-        let result = try await DefaultDRCEngine(backend: AliasStubDRCBackend(backendID: "native")).run(request)
-
-        #expect(result.result.backendID == "native")
+        await #expect(throws: DRCError.self) {
+            try await DefaultDRCEngine(backend: AliasStubDRCBackend(backendID: "native")).run(request)
+        }
     }
 
     @Test func waiverFileMarksMatchingDiagnosticsAndIsPersisted() async throws {

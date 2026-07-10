@@ -508,7 +508,7 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(result.report.skippedFamilyCounts["surround"] == 1)
     }
 
-    @Test func legacyImportReportDecodesWithoutDerivedDefinitionIDs() throws {
+    @Test func importReportRejectsMissingEvidenceFields() {
         let data = Data("""
         {
           "schemaVersion": 1,
@@ -536,27 +536,9 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         }
         """.utf8)
 
-        let report = try JSONDecoder().decode(MagicDRCLayoutTechImportReport.self, from: data)
-
-        #expect(report.derivedViaDefinitionIDs.isEmpty)
-        #expect(report.derivedContactDefinitionIDs.isEmpty)
-        #expect(report.derivedMinimumCutRuleIDs.isEmpty)
-        #expect(report.sourceCutLayerNames.isEmpty)
-        #expect(report.sourceCutAliasCount == 0)
-        #expect(report.sourceContactDefinitionIDs.isEmpty)
-        #expect(report.sourceContactDefinitionCount == 0)
-        #expect(report.sourceExactOverlapRules.isEmpty)
-        #expect(report.sourceExactOverlapRuleIDs.isEmpty)
-        #expect(report.sourceExactOverlapRuleCount == 0)
-        #expect(report.sourceEnclosedHoleRules.isEmpty)
-        #expect(report.sourceEnclosedHoleRuleIDs.isEmpty)
-        #expect(report.sourceEnclosedHoleRuleCount == 0)
-        #expect(report.sourceTempLayerDefinitions.isEmpty)
-        #expect(report.sourceTempLayerDefinitionIDs.isEmpty)
-        #expect(report.sourceTempLayerDefinitionCount == 0)
-        #expect(report.sourceTempLayerOperationCounts.isEmpty)
-        #expect(report.sourceTempLayerMaterializedRuleIDs.isEmpty)
-        #expect(report.sourceTempLayerMaterializedRuleCount == 0)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(MagicDRCLayoutTechImportReport.self, from: data)
+        }
     }
 
     @Test func nonHoleCIFMaxWidthDirectBooleanMarkerMaterializes() throws {

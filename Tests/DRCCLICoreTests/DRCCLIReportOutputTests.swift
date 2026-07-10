@@ -8,7 +8,7 @@ import LayoutTech
 
 
 extension DRCCLIOptionsTests {
-    @Test func legacyCorpusReportDecodesWithDerivedQualification() throws {
+    @Test func corpusReportRejectsMissingEvidenceProjections() {
         let data = Data("""
         {
           "schemaVersion" : 1,
@@ -21,12 +21,9 @@ extension DRCCLIOptionsTests {
         }
         """.utf8)
 
-        let report = try JSONDecoder().decode(DRCCorpusReport.self, from: data)
-
-        #expect(report.summary.passRate == 0)
-        #expect(!report.qualification.qualified)
-        #expect(report.qualification.failures.map(\.code).contains("empty_corpus"))
-        #expect(report.qualification.policy == .strict)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCCorpusReport.self, from: data)
+        }
     }
 
     @Test func cliOutputIncludesStructuredDiagnostics() {
@@ -121,7 +118,7 @@ extension DRCCLIOptionsTests {
         #expect(output.waiverReport?.waivedDiagnosticCount == 1)
     }
 
-    @Test func legacyExecutionResultDecodesWithoutRepairHintGeometry() throws {
+    @Test func executionResultAllowsAbsentOptionalRepairHintGeometry() throws {
         let data = Data("""
         {
           "request" : {
@@ -554,7 +551,7 @@ extension DRCCLIOptionsTests {
         #expect(report.diagnostics.isEmpty)
     }
 
-    @Test func legacyRepairHintReportDecodesWithoutDiagnostics() throws {
+    @Test func repairHintReportRejectsMissingDiagnostics() {
         let data = Data("""
         {
           "schemaVersion" : 1,
@@ -568,16 +565,15 @@ extension DRCCLIOptionsTests {
         }
         """.utf8)
 
-        let report = try JSONDecoder().decode(DRCRepairHintReport.self, from: data)
-
-        #expect(report.diagnostics.isEmpty)
-        #expect(report.status == "ready")
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCRepairHintReport.self, from: data)
+        }
     }
 
-    @Test func legacyRepairHintDecodesWithoutRelatedViaIDs() throws {
+    @Test func repairHintRejectsMissingRelatedViaIDs() {
         let data = Data("""
         {
-          "hintID" : "legacy-drc-repair",
+          "hintID" : "incomplete-drc-repair",
           "sourceDiagnosticIndex" : 0,
           "operationID" : "layout.resize-shape",
           "confidence" : "high",
@@ -598,15 +594,13 @@ extension DRCCLIOptionsTests {
             "native-drc",
             "artifact-integrity"
           ],
-          "rationale" : "legacy artifact"
+          "rationale" : "incomplete artifact"
         }
         """.utf8)
 
-        let hint = try JSONDecoder().decode(DRCRepairHint.self, from: data)
-
-        #expect(hint.relatedViaIDs.isEmpty)
-        #expect(hint.targetShapeIDs == ["thin"])
-        #expect(hint.relatedNetIDs == ["sig"])
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCRepairHint.self, from: data)
+        }
     }
 
     @Test func repairHintsCLIReadsSavedReportAndReturnsSuccess() async throws {

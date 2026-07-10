@@ -106,13 +106,13 @@ extension DRCCLIOptionsTests {
         #expect(actionIDs.contains("add_magic_readable_via4_metal5_enclosure_cases"))
     }
 
-    @Test func corpusCoverageAuditDecodesLegacyArtifactWithoutCoverageFamilies() throws {
-        let legacyJSON = """
+    @Test func corpusCoverageAuditRejectsMissingCoverageFamilies() {
+        let incompleteJSON = """
         {
           "schemaVersion": 1,
-          "auditID": "legacy-drc-audit",
+          "auditID": "incomplete-drc-audit",
           "status": "satisfied",
-          "policyID": "legacy-policy",
+          "policyID": "incomplete-policy",
           "reportPath": "/tmp/drc-corpus-report.json",
           "summary": {
             "caseCount": 1,
@@ -137,10 +137,9 @@ extension DRCCLIOptionsTests {
         }
         """
 
-        let audit = try JSONDecoder().decode(DRCCorpusCoverageAudit.self, from: Data(legacyJSON.utf8))
-
-        #expect(audit.auditID == "legacy-drc-audit")
-        #expect(audit.coverageFamilies.isEmpty)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCCorpusCoverageAudit.self, from: Data(incompleteJSON.utf8))
+        }
     }
 
     @Test func corpusCoverageAuditCLIWritesSatisfiedCustomPolicyReport() async throws {

@@ -23,7 +23,7 @@ public enum MagicDRCLayoutTechImporter {
         profile: MagicDRCLayoutTechImportProfile,
         generatedAt: String? = nil
     ) -> MagicDRCLayoutTechImport {
-        importTechnologyForCompatibility(
+        importValidatedTechnology(
             text: text,
             sourcePath: sourcePath,
             generatedAt: generatedAt,
@@ -31,7 +31,7 @@ public enum MagicDRCLayoutTechImporter {
         )
     }
 
-    static func importTechnologyForCompatibility(
+    static func importValidatedTechnology(
         text: String,
         sourcePath: String,
         generatedAt: String? = nil,

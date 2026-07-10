@@ -53,13 +53,13 @@ extension DRCCLIOptionsTests {
         #expect(options.environment(overriding: [:])["PDK_ROOT"] == "/tmp/pdks")
     }
 
-    @Test func foundryRuleImportOptionsAcceptDeprecatedCompatibilityRoute() throws {
-        let options = try DRCFoundryRuleImportCLIOptions(arguments: [
-            "--import-sky130-magic-rules",
-            "--tech-out", "/tmp/compat-layout-tech.json",
-        ])
-
-        #expect(options.technologyOutputURL.path(percentEncoded: false) == "/tmp/compat-layout-tech.json")
+    @Test func foundryRuleImportOptionsRejectRemovedSky130Alias() throws {
+        #expect(throws: DRCCLIError.self) {
+            try DRCFoundryRuleImportCLIOptions(arguments: [
+                "--import-sky130-magic-rules",
+                "--tech-out", "/tmp/layout-tech.json",
+            ])
+        }
     }
 
     @Test func magicRuleImportOptionsParseProfileAndOutputs() throws {
@@ -335,7 +335,7 @@ extension DRCCLIOptionsTests {
         #expect(snapshot.agentContracts.contains { $0.contains("--import-magic-rules") })
         #expect(snapshot.agentContracts.contains { $0.contains("--inspect-magic-rule-import-catalog") })
         #expect(snapshot.agentContracts.contains { $0.contains("--import-foundry-magic-rules") })
-        #expect(snapshot.agentContracts.contains { $0.contains("deprecated compatibility route") })
+        #expect(!snapshot.agentContracts.contains { $0.contains("--import-sky130-magic-rules") })
         #expect(snapshot.agentContracts.contains { $0.contains("sourceCutLayerNames/sourceCutAliasCount") })
         #expect(snapshot.agentContracts.contains { $0.contains("sourceContactDefinitionIDs/sourceContactDefinitionCount") })
         #expect(snapshot.agentContracts.contains { $0.contains("sourceExactOverlapRules/sourceExactOverlapRuleCount") })

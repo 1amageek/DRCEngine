@@ -79,12 +79,9 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
         oracleCaseCount = try container.decode(Int.self, forKey: .oracleCaseCount)
         oracleAgreementPassedCaseCount = try container.decode(Int.self, forKey: .oracleAgreementPassedCaseCount)
         oracleExecutionFailedCaseCount = try container.decode(Int.self, forKey: .oracleExecutionFailedCaseCount)
-        oracleReadinessBlockedCaseCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .oracleReadinessBlockedCaseCount
-        ) ?? oracleExecutionFailedCaseCount
+        oracleReadinessBlockedCaseCount = try container.decode(Int.self, forKey: .oracleReadinessBlockedCaseCount)
         failureCategoryCounts = try container.decode([String: Int].self, forKey: .failureCategoryCounts)
-        coverageTagCounts = try container.decodeIfPresent([String: Int].self, forKey: .coverageTagCounts) ?? [:]
+        coverageTagCounts = try container.decode([String: Int].self, forKey: .coverageTagCounts)
         passRate = try container.decode(Double.self, forKey: .passRate)
         oracleAgreementRate = try container.decodeIfPresent(Double.self, forKey: .oracleAgreementRate)
     }

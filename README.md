@@ -2,7 +2,7 @@
 
 Design rule checking engine with a protocol-composed backend model. The native
 in-process backends are the core signoff path; Magic is an optional, headless-batch-only
-adapter kept for oracle checks and PDK-deck compatibility.
+adapter kept for oracle checks and PDK-deck agreement.
 
 ## Modules
 
@@ -17,12 +17,11 @@ adapter kept for oracle checks and PDK-deck compatibility.
 | `DRCEngine` | Umbrella module |
 | `DRCCLICore` / `drcengine` | Testable CLI core + executable |
 
-## Legacy backend IDs
+## Backend IDs
 
 `DRCNative`, `native`, and `native-gds` are the only current Swift and CLI
-surfaces for the in-process DRC path. Older implementation-language backend IDs
-are accepted only so persisted run specs can resume; they are not listed by the
-CLI and must not be used in new API, corpus, or flow specs.
+surfaces for the in-process DRC path. Removed implementation-language backend
+IDs are rejected with a typed backend-selection error.
 
 ## Capability snapshot
 
@@ -175,19 +174,15 @@ JSON output includes the input source path, resolved profile path, optional
 profile resource name, optional catalog provenance, generated technology path,
 optional report path, and the structured import report.
 
-## Sky130 Magic rule import seed compatibility
+## Installed-PDK Magic rule import
 
-`drcengine --import-sky130-magic-rules` is a compatibility entry point that
-converts the currently supported subset of the Sky130 Magic DRC deck into a
-`LayoutTechDatabase` JSON seed for the `native-gds` backend. PDK-specific layer
-stack data is not modeled as process-specific Swift source. The importer accepts
-a `MagicDRCLayoutTechImportProfile` JSON artifact through `--profile <path>`;
-or a bundled profile reference through `--profile-resource <name>`. When both
-are omitted, the compatibility command loads the bundled
-`sky130-magic-layouttech-profile.json` resource. That profile supplies layer
-order, cut-layer purpose, aliases, derived-layer seeds, and cut-stack
-connections while Swift owns only the Magic dialect parser, profile schema,
-validation, and typed IR lowering. The importer first runs the Magic DRC
+`drcengine --import-foundry-magic-rules` resolves an installed PDK through the
+signoff profile catalog and converts the supported Magic DRC deck into a
+`LayoutTechDatabase` JSON seed for the `native-gds` backend. The explicit
+`drcengine --import-magic-rules` route accepts a deck and a
+`MagicDRCLayoutTechImportProfile` JSON artifact directly. PDK-specific layer
+stack data remains in profile artifacts; Swift owns the Magic dialect parser,
+profile validation, and typed IR lowering. The importer first runs the Magic DRC
 semantic readiness gate, then parses Magic `layer` / `calma` mapping,
 `types` / `aliases`
 layer expressions, and DRC `width`, same-layer and cross-layer `spacing`,
@@ -285,7 +280,7 @@ span, `forbiddenLayer` reports marker geometry that must be empty, and
 within the rule tolerance.
 
 ```bash
-drcengine --import-sky130-magic-rules \
+drcengine --import-foundry-magic-rules \
   --pdk-root ~/.volare \
   --profile /path/to/magic-layouttech-profile.json \
   --tech-out /tmp/sky130-layout-tech.json \

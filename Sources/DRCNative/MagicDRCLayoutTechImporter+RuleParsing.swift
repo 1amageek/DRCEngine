@@ -142,7 +142,7 @@ extension MagicDRCLayoutTechImporter {
                 appendImportedRule(
                     family: "spacing",
                     layerName: layerName,
-                    secondaryLayerName: layerName == secondLayerName ? nil : secondLayerName,
+                    secondaryLayerNames: layerName == secondLayerName ? [] : [secondLayerName],
                     value: value / 1_000,
                     line: line,
                     state: &state
@@ -224,7 +224,7 @@ extension MagicDRCLayoutTechImporter {
                 appendImportedRule(
                     family: "surround",
                     layerName: outerLayerName,
-                    secondaryLayerName: innerLayerName,
+                    secondaryLayerNames: [innerLayerName],
                     value: value / 1_000,
                     line: line,
                     state: &state
@@ -326,7 +326,7 @@ extension MagicDRCLayoutTechImporter {
                 appendImportedRule(
                     family: "overhang",
                     layerName: extendingLayerName,
-                    secondaryLayerName: enclosedLayerName,
+                    secondaryLayerNames: [enclosedLayerName],
                     value: value / 1_000,
                     line: line,
                     state: &state
@@ -350,7 +350,6 @@ extension MagicDRCLayoutTechImporter {
             appendImportedRule(
                 family: "exact_overlap",
                 layerName: pair.primaryLayerName,
-                secondaryLayerName: pair.secondaryLayerNames.first,
                 secondaryLayerNames: pair.secondaryLayerNames,
                 value: 0,
                 line: line,
@@ -864,7 +863,6 @@ extension MagicDRCLayoutTechImporter {
     private static func appendImportedRule(
         family: String,
         layerName: String,
-        secondaryLayerName: String? = nil,
         secondaryLayerNames: [String] = [],
         thresholdValue: Double? = nil,
         value: Double,
@@ -875,7 +873,6 @@ extension MagicDRCLayoutTechImporter {
         state.importedRules.append(MagicDRCImportedRule(
             family: family,
             layerName: layerName,
-            secondaryLayerName: secondaryLayerName,
             secondaryLayerNames: secondaryLayerNames,
             thresholdValue: thresholdValue,
             value: value,

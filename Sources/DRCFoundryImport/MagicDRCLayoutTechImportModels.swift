@@ -10,17 +10,19 @@ public enum MagicDRCLayoutTechImportStatus: String, Codable, Sendable, Hashable 
 public struct MagicDRCImportedRule: Codable, Sendable, Hashable {
     public let family: String
     public let layerName: String
-    public let secondaryLayerName: String?
     public let secondaryLayerNames: [String]
     public let thresholdValue: Double?
     public let value: Double
     public let sourceLineNumber: Int
     public let sourceLine: String
 
+    public var secondaryLayerName: String? {
+        secondaryLayerNames.first
+    }
+
     public init(
         family: String,
         layerName: String,
-        secondaryLayerName: String? = nil,
         secondaryLayerNames: [String] = [],
         thresholdValue: Double? = nil,
         value: Double,
@@ -29,11 +31,7 @@ public struct MagicDRCImportedRule: Codable, Sendable, Hashable {
     ) {
         self.family = family
         self.layerName = layerName
-        let resolvedSecondaryLayerNames = secondaryLayerNames.isEmpty
-            ? secondaryLayerName.map { [$0] } ?? []
-            : secondaryLayerNames
-        self.secondaryLayerName = secondaryLayerName ?? resolvedSecondaryLayerNames.first
-        self.secondaryLayerNames = resolvedSecondaryLayerNames
+        self.secondaryLayerNames = secondaryLayerNames
         self.thresholdValue = thresholdValue
         self.value = value
         self.sourceLineNumber = sourceLineNumber
@@ -43,7 +41,6 @@ public struct MagicDRCImportedRule: Codable, Sendable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case family
         case layerName
-        case secondaryLayerName
         case secondaryLayerNames
         case thresholdValue
         case value
@@ -55,13 +52,7 @@ public struct MagicDRCImportedRule: Codable, Sendable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.family = try container.decode(String.self, forKey: .family)
         self.layerName = try container.decode(String.self, forKey: .layerName)
-        let decodedSecondaryLayerName = try container.decodeIfPresent(String.self, forKey: .secondaryLayerName)
-        let decodedSecondaryLayerNames = try container.decodeIfPresent([String].self, forKey: .secondaryLayerNames) ?? []
-        let resolvedSecondaryLayerNames = decodedSecondaryLayerNames.isEmpty
-            ? decodedSecondaryLayerName.map { [$0] } ?? []
-            : decodedSecondaryLayerNames
-        self.secondaryLayerName = decodedSecondaryLayerName ?? resolvedSecondaryLayerNames.first
-        self.secondaryLayerNames = resolvedSecondaryLayerNames
+        self.secondaryLayerNames = try container.decode([String].self, forKey: .secondaryLayerNames)
         self.thresholdValue = try container.decodeIfPresent(Double.self, forKey: .thresholdValue)
         self.value = try container.decode(Double.self, forKey: .value)
         self.sourceLineNumber = try container.decode(Int.self, forKey: .sourceLineNumber)
@@ -72,10 +63,7 @@ public struct MagicDRCImportedRule: Codable, Sendable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(family, forKey: .family)
         try container.encode(layerName, forKey: .layerName)
-        try container.encodeIfPresent(secondaryLayerName, forKey: .secondaryLayerName)
-        if secondaryLayerNames.count > 1 {
-            try container.encode(secondaryLayerNames, forKey: .secondaryLayerNames)
-        }
+        try container.encode(secondaryLayerNames, forKey: .secondaryLayerNames)
         try container.encodeIfPresent(thresholdValue, forKey: .thresholdValue)
         try container.encode(value, forKey: .value)
         try container.encode(sourceLineNumber, forKey: .sourceLineNumber)
@@ -116,24 +104,12 @@ public enum MagicDRCSourceRuleValidationError: Error, Hashable, Sendable, Custom
 public struct MagicDRCSourceExactOverlapRule: Codable, Sendable, Hashable {
     public let id: String
     public let primaryLayerName: String
-    public let secondaryLayerName: String
     public let secondaryLayerNames: [String]
     public let sourceLineNumber: Int
     public let sourceLine: String
 
-    public init(
-        id: String,
-        primaryLayerName: String,
-        secondaryLayerName: String,
-        sourceLineNumber: Int,
-        sourceLine: String
-    ) {
-        self.id = id
-        self.primaryLayerName = primaryLayerName
-        self.secondaryLayerName = secondaryLayerName
-        self.secondaryLayerNames = [secondaryLayerName]
-        self.sourceLineNumber = sourceLineNumber
-        self.sourceLine = sourceLine
+    public var secondaryLayerName: String {
+        secondaryLayerNames[0]
     }
 
     public init(
@@ -148,7 +124,6 @@ public struct MagicDRCSourceExactOverlapRule: Codable, Sendable, Hashable {
         }
         self.id = id
         self.primaryLayerName = primaryLayerName
-        self.secondaryLayerName = secondaryLayerNames[0]
         self.secondaryLayerNames = secondaryLayerNames
         self.sourceLineNumber = sourceLineNumber
         self.sourceLine = sourceLine
@@ -173,7 +148,6 @@ public struct MagicDRCSourceExactOverlapRule: Codable, Sendable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case id
         case primaryLayerName
-        case secondaryLayerName
         case secondaryLayerNames
         case sourceLineNumber
         case sourceLine
@@ -183,20 +157,15 @@ public struct MagicDRCSourceExactOverlapRule: Codable, Sendable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(String.self, forKey: .id)
         self.primaryLayerName = try container.decode(String.self, forKey: .primaryLayerName)
-        let decodedSecondaryLayerName = try container.decodeIfPresent(String.self, forKey: .secondaryLayerName)
-        let decodedSecondaryLayerNames = try container.decodeIfPresent([String].self, forKey: .secondaryLayerNames) ?? []
-        let resolvedSecondaryLayerNames = decodedSecondaryLayerNames.isEmpty
-            ? decodedSecondaryLayerName.map { [$0] } ?? []
-            : decodedSecondaryLayerNames
-        guard let firstSecondaryLayerName = resolvedSecondaryLayerNames.first else {
+        let decodedSecondaryLayerNames = try container.decode([String].self, forKey: .secondaryLayerNames)
+        guard !decodedSecondaryLayerNames.isEmpty else {
             throw DecodingError.dataCorruptedError(
-                forKey: .secondaryLayerName,
+                forKey: .secondaryLayerNames,
                 in: container,
                 debugDescription: "Exact-overlap source rules require a secondary layer."
             )
         }
-        self.secondaryLayerName = decodedSecondaryLayerName ?? firstSecondaryLayerName
-        self.secondaryLayerNames = resolvedSecondaryLayerNames
+        self.secondaryLayerNames = decodedSecondaryLayerNames
         self.sourceLineNumber = try container.decode(Int.self, forKey: .sourceLineNumber)
         self.sourceLine = try container.decode(String.self, forKey: .sourceLine)
     }
@@ -205,10 +174,7 @@ public struct MagicDRCSourceExactOverlapRule: Codable, Sendable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(primaryLayerName, forKey: .primaryLayerName)
-        try container.encode(secondaryLayerName, forKey: .secondaryLayerName)
-        if secondaryLayerNames.count > 1 {
-            try container.encode(secondaryLayerNames, forKey: .secondaryLayerNames)
-        }
+        try container.encode(secondaryLayerNames, forKey: .secondaryLayerNames)
         try container.encode(sourceLineNumber, forKey: .sourceLineNumber)
         try container.encode(sourceLine, forKey: .sourceLine)
     }
@@ -414,6 +380,9 @@ public struct MagicDRCSourceMinimumCutPolicy: Codable, Sendable, Hashable {
 }
 
 public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
+    public static let currentSchemaVersion = 1
+    public static let artifactKind = "drc-foundry-rule-import"
+
     public let schemaVersion: Int
     public let kind: String
     public let generatedAt: String
@@ -461,8 +430,8 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
     public let diagnostics: [MagicDRCImportDiagnostic]
 
     public init(
-        schemaVersion: Int = 1,
-        kind: String = "drc-foundry-rule-import",
+        schemaVersion: Int = MagicDRCLayoutTechImportReport.currentSchemaVersion,
+        kind: String = MagicDRCLayoutTechImportReport.artifactKind,
         generatedAt: String,
         status: MagicDRCLayoutTechImportStatus,
         sourcePath: String,
@@ -605,7 +574,21 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported Magic DRC import report schema version: \(schemaVersion)."
+            )
+        }
         kind = try container.decode(String.self, forKey: .kind)
+        guard kind == Self.artifactKind else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .kind,
+                in: container,
+                debugDescription: "Unsupported Magic DRC import report kind: \(kind)."
+            )
+        }
         generatedAt = try container.decode(String.self, forKey: .generatedAt)
         status = try container.decode(MagicDRCLayoutTechImportStatus.self, forKey: .status)
         sourcePath = try container.decode(String.self, forKey: .sourcePath)
@@ -615,130 +598,61 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         importedFamilyCounts = try container.decode([String: Int].self, forKey: .importedFamilyCounts)
         skippedFamilyCounts = try container.decode([String: Int].self, forKey: .skippedFamilyCounts)
         importedLayerNames = try container.decode([String].self, forKey: .importedLayerNames)
-        sourceCutLayerNames = try container.decodeIfPresent(
-            [String].self,
-            forKey: .sourceCutLayerNames
-        ) ?? []
-        sourceCutAliasCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .sourceCutAliasCount
-        ) ?? 0
-        sourceContactDefinitionIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .sourceContactDefinitionIDs
-        ) ?? []
-        sourceContactDefinitionCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .sourceContactDefinitionCount
-        ) ?? 0
-        sourceContactStacks = try container.decodeIfPresent(
-            [MagicDRCSourceContactStack].self,
-            forKey: .sourceContactStacks
-        ) ?? []
-        sourceContactStackIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .sourceContactStackIDs
-        ) ?? sourceContactStacks.map(\.id)
-        sourceContactStackCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .sourceContactStackCount
-        ) ?? sourceContactStacks.count
-        sourceExactOverlapRules = try container.decodeIfPresent(
+        sourceCutLayerNames = try container.decode([String].self, forKey: .sourceCutLayerNames)
+        sourceCutAliasCount = try container.decode(Int.self, forKey: .sourceCutAliasCount)
+        sourceContactDefinitionIDs = try container.decode([String].self, forKey: .sourceContactDefinitionIDs)
+        sourceContactDefinitionCount = try container.decode(Int.self, forKey: .sourceContactDefinitionCount)
+        sourceContactStacks = try container.decode([MagicDRCSourceContactStack].self, forKey: .sourceContactStacks)
+        sourceContactStackIDs = try container.decode([String].self, forKey: .sourceContactStackIDs)
+        sourceContactStackCount = try container.decode(Int.self, forKey: .sourceContactStackCount)
+        sourceExactOverlapRules = try container.decode(
             [MagicDRCSourceExactOverlapRule].self,
             forKey: .sourceExactOverlapRules
-        ) ?? []
-        sourceExactOverlapRuleIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .sourceExactOverlapRuleIDs
-        ) ?? sourceExactOverlapRules.map(\.id)
-        sourceExactOverlapRuleCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .sourceExactOverlapRuleCount
-        ) ?? sourceExactOverlapRules.count
-        sourceEnclosedHoleRules = try container.decodeIfPresent(
+        )
+        sourceExactOverlapRuleIDs = try container.decode([String].self, forKey: .sourceExactOverlapRuleIDs)
+        sourceExactOverlapRuleCount = try container.decode(Int.self, forKey: .sourceExactOverlapRuleCount)
+        sourceEnclosedHoleRules = try container.decode(
             [MagicDRCSourceEnclosedHoleRule].self,
             forKey: .sourceEnclosedHoleRules
-        ) ?? []
-        sourceEnclosedHoleRuleIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .sourceEnclosedHoleRuleIDs
-        ) ?? sourceEnclosedHoleRules.map(\.id)
-        sourceEnclosedHoleRuleCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .sourceEnclosedHoleRuleCount
-        ) ?? sourceEnclosedHoleRules.count
-        sourceForbiddenMarkerRules = try container.decodeIfPresent(
+        )
+        sourceEnclosedHoleRuleIDs = try container.decode([String].self, forKey: .sourceEnclosedHoleRuleIDs)
+        sourceEnclosedHoleRuleCount = try container.decode(Int.self, forKey: .sourceEnclosedHoleRuleCount)
+        sourceForbiddenMarkerRules = try container.decode(
             [MagicDRCSourceForbiddenMarkerRule].self,
             forKey: .sourceForbiddenMarkerRules
-        ) ?? []
-        sourceForbiddenMarkerRuleIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .sourceForbiddenMarkerRuleIDs
-        ) ?? sourceForbiddenMarkerRules.map(\.id)
-        sourceForbiddenMarkerRuleCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .sourceForbiddenMarkerRuleCount
-        ) ?? sourceForbiddenMarkerRules.count
-        sourceTempLayerDefinitions = try container.decodeIfPresent(
+        )
+        sourceForbiddenMarkerRuleIDs = try container.decode([String].self, forKey: .sourceForbiddenMarkerRuleIDs)
+        sourceForbiddenMarkerRuleCount = try container.decode(Int.self, forKey: .sourceForbiddenMarkerRuleCount)
+        sourceTempLayerDefinitions = try container.decode(
             [MagicDRCSourceTempLayerDefinition].self,
             forKey: .sourceTempLayerDefinitions
-        ) ?? []
-        sourceTempLayerDefinitionIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .sourceTempLayerDefinitionIDs
-        ) ?? sourceTempLayerDefinitions.map(\.id)
-        sourceTempLayerDefinitionCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .sourceTempLayerDefinitionCount
-        ) ?? sourceTempLayerDefinitions.count
-        sourceTempLayerOperationCounts = try container.decodeIfPresent(
-            [String: Int].self,
-            forKey: .sourceTempLayerOperationCounts
-        ) ?? [:]
-        sourceTempLayerMaterializedRuleIDs = try container.decodeIfPresent(
+        )
+        sourceTempLayerDefinitionIDs = try container.decode([String].self, forKey: .sourceTempLayerDefinitionIDs)
+        sourceTempLayerDefinitionCount = try container.decode(Int.self, forKey: .sourceTempLayerDefinitionCount)
+        sourceTempLayerOperationCounts = try container.decode([String: Int].self, forKey: .sourceTempLayerOperationCounts)
+        sourceTempLayerMaterializedRuleIDs = try container.decode(
             [String].self,
             forKey: .sourceTempLayerMaterializedRuleIDs
-        ) ?? []
-        sourceTempLayerMaterializedRuleCount = try container.decodeIfPresent(
+        )
+        sourceTempLayerMaterializedRuleCount = try container.decode(
             Int.self,
             forKey: .sourceTempLayerMaterializedRuleCount
-        ) ?? sourceTempLayerMaterializedRuleIDs.count
-        sourceMinimumCutPolicies = try container.decodeIfPresent(
+        )
+        sourceMinimumCutPolicies = try container.decode(
             [MagicDRCSourceMinimumCutPolicy].self,
             forKey: .sourceMinimumCutPolicies
-        ) ?? []
-        sourceMinimumCutPolicyIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .sourceMinimumCutPolicyIDs
-        ) ?? sourceMinimumCutPolicies.map(\.id)
-        sourceMinimumCutPolicyCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .sourceMinimumCutPolicyCount
-        ) ?? sourceMinimumCutPolicies.count
-        profileMinimumCutPolicies = try container.decodeIfPresent(
+        )
+        sourceMinimumCutPolicyIDs = try container.decode([String].self, forKey: .sourceMinimumCutPolicyIDs)
+        sourceMinimumCutPolicyCount = try container.decode(Int.self, forKey: .sourceMinimumCutPolicyCount)
+        profileMinimumCutPolicies = try container.decode(
             [MagicDRCProfileMinimumCutPolicy].self,
             forKey: .profileMinimumCutPolicies
-        ) ?? []
-        profileMinimumCutPolicyIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .profileMinimumCutPolicyIDs
-        ) ?? profileMinimumCutPolicies.map(\.id)
-        profileMinimumCutPolicyCount = try container.decodeIfPresent(
-            Int.self,
-            forKey: .profileMinimumCutPolicyCount
-        ) ?? profileMinimumCutPolicies.count
-        derivedViaDefinitionIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .derivedViaDefinitionIDs
-        ) ?? []
-        derivedContactDefinitionIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .derivedContactDefinitionIDs
-        ) ?? []
-        derivedMinimumCutRuleIDs = try container.decodeIfPresent(
-            [String].self,
-            forKey: .derivedMinimumCutRuleIDs
-        ) ?? []
+        )
+        profileMinimumCutPolicyIDs = try container.decode([String].self, forKey: .profileMinimumCutPolicyIDs)
+        profileMinimumCutPolicyCount = try container.decode(Int.self, forKey: .profileMinimumCutPolicyCount)
+        derivedViaDefinitionIDs = try container.decode([String].self, forKey: .derivedViaDefinitionIDs)
+        derivedContactDefinitionIDs = try container.decode([String].self, forKey: .derivedContactDefinitionIDs)
+        derivedMinimumCutRuleIDs = try container.decode([String].self, forKey: .derivedMinimumCutRuleIDs)
         sourceLayerCount = try container.decode(Int.self, forKey: .sourceLayerCount)
         importedRules = try container.decode([MagicDRCImportedRule].self, forKey: .importedRules)
         diagnostics = try container.decode([MagicDRCImportDiagnostic].self, forKey: .diagnostics)

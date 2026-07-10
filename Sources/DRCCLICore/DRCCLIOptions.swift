@@ -515,7 +515,6 @@ public struct DRCFoundryDeckSemanticCLIOptions: Sendable, Hashable {
 
 public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
     public static let importFlag = "--import-foundry-magic-rules"
-    public static let deprecatedCompatibilityImportFlag = "--import-sky130-magic-rules"
 
     public let pdkRoot: String?
     public let profileURL: URL?
@@ -561,8 +560,7 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
 
         mutating func apply(_ argument: String, cursor: inout DRCCLIArgumentCursor) throws {
             switch argument {
-            case DRCFoundryRuleImportCLIOptions.importFlag,
-                 DRCFoundryRuleImportCLIOptions.deprecatedCompatibilityImportFlag:
+            case DRCFoundryRuleImportCLIOptions.importFlag:
                 sawImport = true
             case "--pdk-root":
                 pdkRoot = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path")

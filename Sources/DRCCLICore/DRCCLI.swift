@@ -209,7 +209,6 @@ public enum DRCCLI {
 
     private static func importsFoundryMagicRules(_ arguments: [String]) -> Bool {
         arguments.contains(DRCFoundryRuleImportCLIOptions.importFlag)
-            || arguments.contains(DRCFoundryRuleImportCLIOptions.deprecatedCompatibilityImportFlag)
     }
 
     private static func runFoundryRuleImport(

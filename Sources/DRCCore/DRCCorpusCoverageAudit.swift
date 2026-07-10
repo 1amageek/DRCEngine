@@ -62,27 +62,25 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported DRC corpus coverage audit schema version: \(schemaVersion)."
+            )
+        }
         self.init(
-            schemaVersion: try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
-                ?? DRCCorpusCoverageAudit.currentSchemaVersion,
+            schemaVersion: schemaVersion,
             auditID: try container.decode(String.self, forKey: .auditID),
             status: try container.decode(DRCCorpusCoverageAuditStatus.self, forKey: .status),
             policyID: try container.decode(String.self, forKey: .policyID),
             reportPath: try container.decodeIfPresent(String.self, forKey: .reportPath),
             summary: try container.decode(Summary.self, forKey: .summary),
-            observedCoverageTags: try container.decodeIfPresent([String].self, forKey: .observedCoverageTags) ?? [],
-            coverageFamilies: try container.decodeIfPresent(
-                [CoverageFamilySummary].self,
-                forKey: .coverageFamilies
-            ) ?? [],
-            missingRequirements: try container.decodeIfPresent(
-                [MissingRequirement].self,
-                forKey: .missingRequirements
-            ) ?? [],
-            suggestedActions: try container.decodeIfPresent(
-                [SuggestedAction].self,
-                forKey: .suggestedActions
-            ) ?? []
+            observedCoverageTags: try container.decode([String].self, forKey: .observedCoverageTags),
+            coverageFamilies: try container.decode([CoverageFamilySummary].self, forKey: .coverageFamilies),
+            missingRequirements: try container.decode([MissingRequirement].self, forKey: .missingRequirements),
+            suggestedActions: try container.decode([SuggestedAction].self, forKey: .suggestedActions)
         )
     }
 
