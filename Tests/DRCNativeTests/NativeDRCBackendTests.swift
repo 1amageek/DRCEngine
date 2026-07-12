@@ -5,6 +5,78 @@ import DRCNative
 
 @Suite("Native DRC backend")
 struct NativeDRCBackendTests {
+    @Test func invalidRectangleGeometryIsRejectedBeforeRuleEvaluation() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "wire",
+                        layer: "met1",
+                        xMin: 1,
+                        yMin: 0,
+                        xMax: 1,
+                        yMax: 1
+                    ),
+                ],
+                rules: [NativeDRCRule(
+                    id: "met1.width",
+                    kind: .minimumWidth,
+                    layer: "met1",
+                    value: 0.5
+                )]
+            ),
+            in: directory
+        )
+
+        await #expect(throws: DRCError.invalidInput(
+            "Native DRC rectangle wire must have finite coordinates and positive dimensions."
+        )) {
+            _ = try await NativeDRCBackend().run(DRCRequest(
+                layoutURL: layoutURL,
+                topCell: "inv",
+                backendSelection: DRCBackendSelection(backendID: "native")
+            ))
+        }
+    }
+
+    @Test func duplicateRuleIDsAreRejectedBeforeDiagnosticsAreProduced() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "wire",
+                        layer: "met1",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 1,
+                        yMax: 1
+                    ),
+                ],
+                rules: [
+                    NativeDRCRule(id: "duplicate", kind: .minimumWidth, layer: "met1", value: 0.5),
+                    NativeDRCRule(id: "duplicate", kind: .minimumArea, layer: "met1", value: 0.5),
+                ]
+            ),
+            in: directory
+        )
+
+        await #expect(throws: DRCError.invalidInput(
+            "Native DRC rule ID is duplicated: duplicate."
+        )) {
+            _ = try await NativeDRCBackend().run(DRCRequest(
+                layoutURL: layoutURL,
+                topCell: "inv",
+                backendSelection: DRCBackendSelection(backendID: "native")
+            ))
+        }
+    }
+
     @Test func emptyRuleDeckIsInvalidInput() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = try writeLayout(
@@ -33,6 +105,92 @@ struct NativeDRCBackendTests {
                 layoutURL: layoutURL,
                 topCell: "inv",
                 backendSelection: DRCBackendSelection(backendID: "native")
+            ))
+        }
+    }
+
+    @Test func antennaReadinessGateRejectsEmbeddedDeckWithoutAntennaRule() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [NativeDRCRectangle(
+                    id: "wire",
+                    layer: "met1",
+                    xMin: 0,
+                    yMin: 0,
+                    xMax: 1,
+                    yMax: 1
+                )],
+                rules: [NativeDRCRule(
+                    id: "met1.width",
+                    kind: .minimumWidth,
+                    layer: "met1",
+                    value: 0.1
+                )]
+            ),
+            in: directory
+        )
+
+        await #expect(throws: DRCError.invalidInput(
+            "Native DRC antenna readiness is not established for technology unit-test-tech: the rule deck contains no maximumAntennaRatio rule."
+        )) {
+            _ = try await NativeDRCBackend().run(DRCRequest(
+                layoutURL: layoutURL,
+                topCell: "inv",
+                backendSelection: DRCBackendSelection(backendID: "native"),
+                options: DRCOptions(requireAntennaRules: true)
+            ))
+        }
+    }
+
+    @Test func antennaReadinessGateRejectsMissingAnnotationCompleteness() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "wire",
+                        layer: "met1",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 2,
+                        yMax: 1,
+                        netID: "out"
+                    ),
+                    NativeDRCRectangle(
+                        id: "gate",
+                        layer: "poly",
+                        xMin: 0,
+                        yMin: 2,
+                        xMax: 1,
+                        yMax: 3,
+                        netID: "out",
+                        antennaGateArea: 1
+                    ),
+                ],
+                rules: [NativeDRCRule(
+                    id: "met1.antenna",
+                    kind: .maximumAntennaRatio,
+                    layer: "met1",
+                    value: 10,
+                    gateLayer: "poly"
+                )]
+            ),
+            in: directory
+        )
+
+        await #expect(throws: DRCError.invalidInput(
+            "Native DRC antenna readiness is not established for technology unit-test-tech: antennaMetadata is missing."
+        )) {
+            _ = try await NativeDRCBackend().run(DRCRequest(
+                layoutURL: layoutURL,
+                topCell: "inv",
+                backendSelection: DRCBackendSelection(backendID: "native"),
+                options: DRCOptions(requireAntennaRules: true)
             ))
         }
     }
@@ -167,6 +325,295 @@ struct NativeDRCBackendTests {
         #expect(diagnostic.relatedShapeIDs == ["m1_wire", "m2_wire", "gate"])
         #expect(diagnostic.relatedNetIDs == ["out"])
         #expect(diagnostic.suggestedFix != nil)
+    }
+
+    @Test func detailedSurfaceAntennaUsesPerLayerRatioGate() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "wire",
+                        layer: "met1",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 10,
+                        yMax: 2,
+                        netID: "out"
+                    ),
+                    NativeDRCRectangle(
+                        id: "gate",
+                        layer: "poly",
+                        xMin: 0,
+                        yMin: 3,
+                        xMax: 1,
+                        yMax: 4,
+                        netID: "out",
+                        antennaGateArea: 2
+                    ),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "met1.antenna.detailed",
+                        kind: .maximumAntennaRatio,
+                        layer: "met1",
+                        value: 1,
+                        gateLayer: "poly",
+                        conductorLayers: ["met1"],
+                        antennaModel: .partial,
+                        antennaLayers: [NativeDRCAntennaLayer(
+                            layer: "met1",
+                            measurement: .surface,
+                            ratioGate: 5
+                        )]
+                    ),
+                ],
+                antennaMetadata: NativeDRCAntennaMetadata(
+                    gateAreasComplete: true,
+                    diffusionAreasComplete: true,
+                    processStepsComplete: true,
+                    cutConnectivityComplete: true,
+                    source: "unit-test"
+                )
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native"),
+            options: DRCOptions(requireAntennaRules: true)
+        ))
+
+        #expect(!result.result.passed)
+        let diagnostic = try #require(result.result.diagnostics.first)
+        #expect(diagnostic.kind == "maximumAntennaRatio")
+        #expect(diagnostic.measured == 10)
+        #expect(diagnostic.required == 5)
+    }
+
+    @Test func antennaReadinessGateRejectsMissingGateAnnotationOnConductorNet() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "wire",
+                        layer: "met1",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 2,
+                        yMax: 1,
+                        netID: "out"
+                    ),
+                ],
+                rules: [NativeDRCRule(
+                    id: "met1.antenna",
+                    kind: .maximumAntennaRatio,
+                    layer: "met1",
+                    value: 10
+                )],
+                antennaMetadata: NativeDRCAntennaMetadata(
+                    gateAreasComplete: true,
+                    diffusionAreasComplete: true,
+                    processStepsComplete: true,
+                    cutConnectivityComplete: true,
+                    source: "unit-test"
+                )
+            ),
+            in: directory
+        )
+
+        await #expect(throws: DRCError.invalidInput(
+            "Native DRC antenna readiness is not established for technology unit-test-tech: net out has conductor geometry for rule met1.antenna but no gate-area annotation."
+        )) {
+            _ = try await NativeDRCBackend().run(DRCRequest(
+                layoutURL: layoutURL,
+                topCell: "inv",
+                backendSelection: DRCBackendSelection(backendID: "native"),
+                options: DRCOptions(requireAntennaRules: true)
+            ))
+        }
+    }
+
+    @Test func detailedSidewallAntennaUsesUnionPerimeter() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(id: "wire.left", layer: "met1", xMin: 0, yMin: 0, xMax: 2, yMax: 1, netID: "out"),
+                    NativeDRCRectangle(id: "wire.right", layer: "met1", xMin: 2, yMin: 0, xMax: 4, yMax: 1, netID: "out"),
+                    NativeDRCRectangle(id: "gate", layer: "poly", xMin: 0, yMin: 3, xMax: 1, yMax: 4, netID: "out", antennaGateArea: 1),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "met1.antenna.sidewall",
+                        kind: .maximumAntennaRatio,
+                        layer: "met1",
+                        value: 1,
+                        gateLayer: "poly",
+                        conductorLayers: ["met1"],
+                        antennaModel: .partial,
+                        antennaLayers: [NativeDRCAntennaLayer(
+                            layer: "met1",
+                            measurement: .sidewall,
+                            ratioGate: 9,
+                            thickness: 1
+                        )]
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(!result.result.passed)
+        let diagnostic = try #require(result.result.diagnostics.first)
+        #expect(diagnostic.measured == 10)
+        #expect(diagnostic.required == 9)
+    }
+
+    @Test func detailedCumulativeAntennaAggregatesProcessLayers() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(id: "m1", layer: "met1", xMin: 0, yMin: 0, xMax: 3, yMax: 1, netID: "out"),
+                    NativeDRCRectangle(id: "m2", layer: "met2", xMin: 0, yMin: 2, xMax: 4, yMax: 3, netID: "out"),
+                    NativeDRCRectangle(id: "gate", layer: "poly", xMin: 0, yMin: 4, xMax: 1, yMax: 5, netID: "out", antennaGateArea: 1),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "met2.antenna.cumulative",
+                        kind: .maximumAntennaRatio,
+                        layer: "met2",
+                        value: 1,
+                        gateLayer: "poly",
+                        conductorLayers: ["met2"],
+                        antennaModel: .cumulative,
+                        antennaLayers: [
+                            NativeDRCAntennaLayer(layer: "met1", measurement: .surface, ratioGate: 4),
+                            NativeDRCAntennaLayer(layer: "met2", measurement: .surface, ratioGate: 4),
+                        ]
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(!result.result.passed)
+        let diagnostic = try #require(result.result.diagnostics.first)
+        #expect(diagnostic.kind == "maximumAntennaEffectiveRatio")
+        #expect(abs((diagnostic.measured ?? 0) - 1.75) < 0.000001)
+        #expect(diagnostic.required == 1)
+    }
+
+    @Test func detailedAntennaAppliesFiniteDiffusionCorrection() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(id: "wire", layer: "met1", xMin: 0, yMin: 0, xMax: 50, yMax: 1, netID: "out"),
+                    NativeDRCRectangle(id: "diff", layer: "active", xMin: 0, yMin: 2, xMax: 1, yMax: 3, netID: "out", antennaDiffusionArea: 10),
+                    NativeDRCRectangle(id: "gate", layer: "poly", xMin: 0, yMin: 4, xMax: 1, yMax: 5, netID: "out", antennaGateArea: 1),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "met1.antenna.diffusion",
+                        kind: .maximumAntennaRatio,
+                        layer: "met1",
+                        value: 1,
+                        gateLayer: "poly",
+                        conductorLayers: ["met1"],
+                        antennaModel: .partial,
+                        antennaLayers: [NativeDRCAntennaLayer(
+                            layer: "met1",
+                            measurement: .surface,
+                            ratioGate: 10,
+                            diffusionRatioConstant: 20,
+                            diffusionRatioPerArea: 1
+                        )]
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(!result.result.passed)
+        let diagnostic = try #require(result.result.diagnostics.first)
+        #expect(diagnostic.kind == "maximumAntennaEffectiveRatio")
+        #expect(abs((diagnostic.measured ?? 0) - 1.25) < 0.000001)
+        #expect(diagnostic.required == 1)
+    }
+
+    @Test func detailedAntennaNoneDiffusionCorrectionSkipsDiffusionNet() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(id: "wire", layer: "met1", xMin: 0, yMin: 0, xMax: 50, yMax: 1, netID: "out"),
+                    NativeDRCRectangle(id: "diff", layer: "active", xMin: 0, yMin: 2, xMax: 1, yMax: 3, netID: "out", antennaDiffusionArea: 10),
+                    NativeDRCRectangle(id: "gate", layer: "poly", xMin: 0, yMin: 4, xMax: 1, yMax: 5, netID: "out", antennaGateArea: 1),
+                ],
+                rules: [
+                    NativeDRCRule(
+                        id: "met1.antenna.none",
+                        kind: .maximumAntennaRatio,
+                        layer: "met1",
+                        value: 1,
+                        gateLayer: "poly",
+                        conductorLayers: ["met1"],
+                        antennaModel: .partial,
+                        antennaLayers: [NativeDRCAntennaLayer(
+                            layer: "met1",
+                            measurement: .surface,
+                            ratioGate: 10,
+                            diffusionCorrection: .none
+                        )]
+                    ),
+                ]
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native")
+        ))
+
+        #expect(result.result.passed)
+        #expect(result.result.diagnostics.isEmpty)
     }
 
     @Test func maximumAntennaRatioFiltersConductorsByProcessStep() async throws {
@@ -546,6 +993,77 @@ struct NativeDRCBackendTests {
         #expect(diagnostic.message.contains("through contact,via1"))
         #expect(diagnostic.rawLine.contains("cuts=contact,via1"))
         #expect(diagnostic.suggestedFix?.contains("cut stack") == true)
+    }
+
+    @Test func partialAntennaCutStageUsesLowerConnectivityWithoutUpperMetal() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "via1",
+                        layer: "via1",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 2,
+                        yMax: 1,
+                        netID: "out"
+                    ),
+                    NativeDRCRectangle(
+                        id: "gate",
+                        layer: "poly",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 1,
+                        yMax: 1,
+                        netID: "out",
+                        antennaGateArea: 1
+                    ),
+                ],
+                rules: [NativeDRCRule(
+                    id: "via1.antenna.partial",
+                    kind: .maximumAntennaRatio,
+                    layer: "via1",
+                    value: 1,
+                    gateLayer: "poly",
+                    conductorLayers: ["via1"],
+                    antennaCutConnections: [
+                        NativeDRCAntennaCutConnection(
+                            layer: "via1",
+                            lowerLayer: "poly",
+                            upperLayer: "met2"
+                        ),
+                    ],
+                    antennaModel: .partial,
+                    antennaLayers: [NativeDRCAntennaLayer(
+                        layer: "via1",
+                        measurement: .surface,
+                        ratioGate: 1
+                    )]
+                )],
+                antennaMetadata: NativeDRCAntennaMetadata(
+                    gateAreasComplete: true,
+                    diffusionAreasComplete: true,
+                    processStepsComplete: true,
+                    cutConnectivityComplete: true,
+                    source: "unit-test"
+                )
+            ),
+            in: directory
+        )
+
+        let result = try await NativeDRCBackend().run(DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "native"),
+            options: DRCOptions(requireAntennaRules: true)
+        ))
+
+        #expect(!result.result.passed)
+        #expect(result.result.diagnostics.first?.ruleID == "via1.antenna.partial")
+        #expect(result.result.diagnostics.first?.relatedViaIDs == ["via1"])
     }
 
     @Test func minimumNotchViolationFails() async throws {

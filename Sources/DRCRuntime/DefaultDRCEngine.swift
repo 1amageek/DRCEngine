@@ -6,6 +6,7 @@ import DRCPersistence
 
 public struct DefaultDRCEngine: Sendable {
     private let backends: [String: any DRCBackend]
+    private let backendIdentities: [String: DRCBackendIdentity]
     private let store: DRCArtifactStore
 
     public init(
@@ -24,10 +25,13 @@ public struct DefaultDRCEngine: Sendable {
         store: DRCArtifactStore = DRCArtifactStore()
     ) {
         var backendsByID: [String: any DRCBackend] = [:]
+        var identitiesByID: [String: DRCBackendIdentity] = [:]
         for backend in backends {
             backendsByID[backend.backendID] = backend
+            identitiesByID[backend.backendID] = backend.identity
         }
         self.backends = backendsByID
+        self.backendIdentities = identitiesByID
         self.store = store
     }
 
@@ -39,29 +43,109 @@ public struct DefaultDRCEngine: Sendable {
         _ request: DRCRequest,
         cancellationCheck: DRCExecutionCancellationCheck?
     ) async throws -> DRCExecutionResult {
+        try request.validate()
+        let deadline = Date().addingTimeInterval(request.options.timeoutSeconds)
         let backendID = request.backendSelection.backendID
         guard let backend = backends[backendID] else {
             throw DRCError.backendUnavailable("Unsupported DRC backend: \(request.backendSelection.backendID)")
         }
         var result: DRCExecutionResult
-        if let cancellableBackend = backend as? any DRCCancellableBackend {
-            result = try await cancellableBackend.run(request, cancellationCheck: cancellationCheck)
-        } else {
-            result = try await backend.run(request)
+        do {
+            if let cancellableBackend = backend as? any DRCCancellableBackend {
+                let combinedCancellationCheck: DRCExecutionCancellationCheck = { [deadline] in
+                    if let cancellationCheck, try await cancellationCheck() {
+                        return true
+                    }
+                    return Date() >= deadline
+                }
+                result = try await cancellableBackend.run(
+                    request,
+                    cancellationCheck: combinedCancellationCheck
+                )
+            } else {
+                result = try await backend.run(request)
+            }
+        } catch {
+            if Task.isCancelled {
+                throw DRCError.cancelled("DRC execution was cancelled.")
+            }
+            if Date() >= deadline, !Task.isCancelled {
+                throw DRCError.timedOut(
+                    "DRC backend '\(backendID)' exceeded \(request.options.timeoutSeconds) seconds."
+                )
+            }
+            throw error
         }
+        try await throwIfCallerCancelled(cancellationCheck)
+        try throwIfDeadlineExceeded(deadline, backendID: backendID, timeoutSeconds: request.options.timeoutSeconds)
+        guard result.result.backendID == backendID else {
+            throw DRCError.backendFailed(
+                "Backend '\(backendID)' returned result backend ID '\(result.result.backendID)'."
+            )
+        }
+        result = withBackendIdentity(
+            result,
+            identity: backendIdentities[backendID] ?? backend.identity
+        )
         result = try applyWaivers(to: result)
+        try throwIfDeadlineExceeded(deadline, backendID: backendID, timeoutSeconds: request.options.timeoutSeconds)
         if let directory = request.workingDirectory {
             let artifacts = try store.save(result, to: directory)
+            try throwIfDeadlineExceeded(deadline, backendID: backendID, timeoutSeconds: request.options.timeoutSeconds)
+            let integrityIssues = try DRCArtifactManifestVerifier().verify(
+                manifestURL: artifacts.manifestURL,
+                requireSignature: result.request.options.requireSignedArtifacts,
+                trustedPublicKey: result.request.options.trustedArtifactPublicKey
+            )
+            try throwIfDeadlineExceeded(deadline, backendID: backendID, timeoutSeconds: request.options.timeoutSeconds)
+            guard integrityIssues.isEmpty else {
+                let issueCodes = integrityIssues.map(\.code).joined(separator: ",")
+                throw DRCError.artifactWriteFailed(
+                    "Persisted DRC artifact manifest failed integrity verification: \(issueCodes)"
+                )
+            }
             result = DRCExecutionResult(
                 request: result.request,
                 result: result.result,
                 waiverReport: result.waiverReport,
                 repairHintGeometry: result.repairHintGeometry,
                 reportURL: artifacts.reportURL,
-                artifactManifestURL: artifacts.manifestURL
+                artifactManifestURL: artifacts.manifestURL,
+                artifactRunID: artifacts.runID
             )
         }
         return result
+    }
+
+    private func throwIfDeadlineExceeded(
+        _ deadline: Date,
+        backendID: String,
+        timeoutSeconds: Double
+    ) throws {
+        guard Date() < deadline else {
+            throw DRCError.timedOut(
+                "DRC backend '\(backendID)' exceeded \(timeoutSeconds) seconds."
+            )
+        }
+    }
+
+    private func throwIfCallerCancelled(
+        _ cancellationCheck: DRCExecutionCancellationCheck?
+    ) async throws {
+        if Task.isCancelled {
+            throw DRCError.cancelled("DRC execution was cancelled.")
+        }
+        if let cancellationCheck, try await cancellationCheck() {
+            throw DRCError.cancelled("DRC execution was cancelled.")
+        }
+    }
+
+    public func hasBackend(_ backendID: String) -> Bool {
+        backends[backendID] != nil
+    }
+
+    public func backendIdentity(for backendID: String) -> DRCBackendIdentity? {
+        backendIdentities[backendID]
     }
 
     private func applyWaivers(to executionResult: DRCExecutionResult) throws -> DRCExecutionResult {
@@ -69,6 +153,14 @@ public struct DefaultDRCEngine: Sendable {
             return executionResult
         }
         let waiverFile = try loadWaiverFile(from: waiverURL)
+        if executionResult.request.options.requireApprovedWaivers {
+            let unapproved = waiverFile.waivers.filter { $0.approval?.isActive() != true }
+            guard unapproved.isEmpty else {
+                throw DRCError.waiverApplicationFailed(
+                    "Approved waiver metadata is required for: \(unapproved.map(\.id).sorted().joined(separator: ", "))"
+                )
+            }
+        }
         var usedWaiverIDs = Set<String>()
         var appliedWaivers: [DRCAppliedWaiver] = []
         let diagnostics = executionResult.result.diagnostics.map { diagnostic in
@@ -87,6 +179,7 @@ public struct DefaultDRCEngine: Sendable {
         }
         let result = DRCResult(
             backendID: executionResult.result.backendID,
+            backendIdentity: executionResult.result.backendIdentity,
             toolName: executionResult.result.toolName,
             success: executionResult.result.success,
             completed: executionResult.result.completed,
@@ -105,7 +198,33 @@ public struct DefaultDRCEngine: Sendable {
             waiverReport: report,
             repairHintGeometry: executionResult.repairHintGeometry,
             reportURL: executionResult.reportURL,
-            artifactManifestURL: executionResult.artifactManifestURL
+            artifactManifestURL: executionResult.artifactManifestURL,
+            artifactRunID: executionResult.artifactRunID
+        )
+    }
+
+    private func withBackendIdentity(
+        _ executionResult: DRCExecutionResult,
+        identity: DRCBackendIdentity
+    ) -> DRCExecutionResult {
+        let result = DRCResult(
+            backendID: executionResult.result.backendID,
+            backendIdentity: identity,
+            toolName: executionResult.result.toolName,
+            success: executionResult.result.success,
+            completed: executionResult.result.completed,
+            logPath: executionResult.result.logPath,
+            diagnostics: executionResult.result.diagnostics,
+            provenance: executionResult.result.provenance
+        )
+        return DRCExecutionResult(
+            request: executionResult.request,
+            result: result,
+            waiverReport: executionResult.waiverReport,
+            repairHintGeometry: executionResult.repairHintGeometry,
+            reportURL: executionResult.reportURL,
+            artifactManifestURL: executionResult.artifactManifestURL,
+            artifactRunID: executionResult.artifactRunID
         )
     }
 

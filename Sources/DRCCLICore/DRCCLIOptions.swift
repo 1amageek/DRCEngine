@@ -11,6 +11,11 @@ public struct DRCCLIOptions: Sendable, Hashable {
     public let backendID: String?
     public let outputDirectory: URL
     public let timeoutSeconds: Double
+    public let requireApprovedWaivers: Bool
+    public let requireSignedArtifacts: Bool
+    public let requireAntennaRules: Bool
+    public let trustedArtifactPublicKey: String?
+    public let artifactSigningPrivateKeyURL: URL?
     public let emitJSON: Bool
 
     public init(arguments: [String]) throws {
@@ -23,6 +28,25 @@ public struct DRCCLIOptions: Sendable, Hashable {
         self.backendID = parsed.backendID
         self.outputDirectory = try parsed.requireOutputDirectory()
         self.timeoutSeconds = parsed.timeoutSeconds
+        self.requireApprovedWaivers = parsed.requireApprovedWaivers
+        self.requireSignedArtifacts = parsed.requireSignedArtifacts
+        self.requireAntennaRules = parsed.requireAntennaRules
+        self.trustedArtifactPublicKey = parsed.trustedArtifactPublicKey
+        self.artifactSigningPrivateKeyURL = parsed.artifactSigningPrivateKeyURL
+        if parsed.requireSignedArtifacts && parsed.artifactSigningPrivateKeyURL == nil {
+            throw DRCCLIError.invalidValue(
+                argument: "--require-signed-artifacts",
+                value: "true",
+                expected: "--artifact-signing-private-key must also be provided"
+            )
+        }
+        if parsed.requireSignedArtifacts && parsed.trustedArtifactPublicKey == nil {
+            throw DRCCLIError.invalidValue(
+                argument: "--require-signed-artifacts",
+                value: "true",
+                expected: "--trusted-artifact-public-key must also be provided"
+            )
+        }
         self.emitJSON = parsed.emitJSON
     }
 
@@ -38,7 +62,22 @@ public struct DRCCLIOptions: Sendable, Hashable {
             waiverURL: waiverURL,
             workingDirectory: outputDirectory,
             backendSelection: DRCBackendSelection(backendID: resolvedBackendID),
-            options: DRCOptions(timeoutSeconds: timeoutSeconds)
+            options: DRCOptions(
+                timeoutSeconds: timeoutSeconds,
+                requireApprovedWaivers: requireApprovedWaivers,
+                requireSignedArtifacts: requireSignedArtifacts,
+                trustedArtifactPublicKey: trustedArtifactPublicKey,
+                requireAntennaRules: requireAntennaRules
+            )
+        )
+    }
+
+    public func makeArtifactStore() throws -> DRCArtifactStore {
+        guard let artifactSigningPrivateKeyURL else {
+            return DRCArtifactStore()
+        }
+        return DRCArtifactStore(
+            signer: try DRCArtifactSignerLoader.loadEd25519(from: artifactSigningPrivateKeyURL)
         )
     }
 
@@ -51,6 +90,11 @@ public struct DRCCLIOptions: Sendable, Hashable {
         var backendID: String?
         var outputDirectory: URL?
         var timeoutSeconds = 300.0
+        var requireApprovedWaivers = false
+        var requireSignedArtifacts = false
+        var requireAntennaRules = false
+        var trustedArtifactPublicKey: String?
+        var artifactSigningPrivateKeyURL: URL?
         var emitJSON = false
 
         mutating func apply(_ argument: String, cursor: inout DRCCLIArgumentCursor) throws {
@@ -71,6 +115,22 @@ public struct DRCCLIOptions: Sendable, Hashable {
                 backendID = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty backend identifier")
             case "--timeout":
                 timeoutSeconds = try Self.parseTimeout(try cursor.requireValue(for: argument), argument: argument)
+            case "--require-approved-waivers":
+                requireApprovedWaivers = true
+            case "--require-signed-artifacts":
+                requireSignedArtifacts = true
+            case "--require-antenna-rules":
+                requireAntennaRules = true
+            case "--trusted-artifact-public-key":
+                trustedArtifactPublicKey = try cursor.requireNonEmptyValue(
+                    for: argument,
+                    expected: "non-empty base64 public key"
+                )
+            case "--artifact-signing-private-key":
+                artifactSigningPrivateKeyURL = URL(filePath: try cursor.requireNonEmptyValue(
+                    for: argument,
+                    expected: "non-empty path"
+                ))
             case "--json":
                 emitJSON = true
             default:
@@ -138,12 +198,24 @@ public struct DRCCorpusCLIOptions: Sendable, Hashable {
     public let specURL: URL
     public let outputDirectory: URL
     public let oracleBackendIDOverride: String?
+    public let runID: String?
+    public let resumeReportURL: URL?
+    public let requireSignedArtifacts: Bool
+    public let trustedArtifactPublicKey: String?
+    public let requireAntennaRules: Bool
+    public let artifactSigningPrivateKeyURL: URL?
     public let emitJSON: Bool
 
     public init(arguments: [String]) throws {
         var specURL: URL?
         var outputDirectory: URL?
         var oracleBackendIDOverride: String?
+        var runID: String?
+        var resumeReportURL: URL?
+        var requireSignedArtifacts = false
+        var requireAntennaRules = false
+        var trustedArtifactPublicKey: String?
+        var artifactSigningPrivateKeyURL: URL?
         var emitJSON = false
         var index = 0
         while index < arguments.count {
@@ -155,6 +227,18 @@ public struct DRCCorpusCLIOptions: Sendable, Hashable {
                 outputDirectory = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
             case "--oracle-backend":
                 oracleBackendIDOverride = try Self.nonEmptyValue(after: argument, in: arguments, index: &index)
+            case "--run-id":
+                runID = try Self.nonEmptyValue(after: argument, in: arguments, index: &index)
+            case "--resume-report":
+                resumeReportURL = URL(filePath: try Self.nonEmptyPath(after: argument, in: arguments, index: &index))
+            case "--require-signed-artifacts":
+                requireSignedArtifacts = true
+            case "--require-antenna-rules":
+                requireAntennaRules = true
+            case "--trusted-artifact-public-key":
+                trustedArtifactPublicKey = try Self.nonEmptyValue(after: argument, in: arguments, index: &index)
+            case "--artifact-signing-private-key":
+                artifactSigningPrivateKeyURL = URL(filePath: try Self.nonEmptyPath(after: argument, in: arguments, index: &index))
             case "--json":
                 emitJSON = true
             default:
@@ -164,14 +248,48 @@ public struct DRCCorpusCLIOptions: Sendable, Hashable {
         }
         guard let specURL else { throw DRCCLIError.missingRequired("--corpus") }
         guard let outputDirectory else { throw DRCCLIError.missingRequired("--out") }
+        if requireSignedArtifacts && artifactSigningPrivateKeyURL == nil {
+            throw DRCCLIError.invalidValue(
+                argument: "--require-signed-artifacts",
+                value: "true",
+                expected: "--artifact-signing-private-key must also be provided"
+            )
+        }
+        if requireSignedArtifacts && trustedArtifactPublicKey == nil {
+            throw DRCCLIError.invalidValue(
+                argument: "--require-signed-artifacts",
+                value: "true",
+                expected: "--trusted-artifact-public-key must also be provided"
+            )
+        }
         self.specURL = specURL
         self.outputDirectory = outputDirectory
         self.oracleBackendIDOverride = oracleBackendIDOverride
+        self.runID = runID
+        self.resumeReportURL = resumeReportURL
+        self.requireSignedArtifacts = requireSignedArtifacts
+        self.trustedArtifactPublicKey = trustedArtifactPublicKey
+        self.requireAntennaRules = requireAntennaRules
+        self.artifactSigningPrivateKeyURL = artifactSigningPrivateKeyURL
         self.emitJSON = emitJSON
     }
 
     public var runOptions: DRCCorpusRunOptions {
-        DRCCorpusRunOptions(oracleBackendIDOverride: oracleBackendIDOverride)
+        DRCCorpusRunOptions(
+            oracleBackendIDOverride: oracleBackendIDOverride,
+            runID: runID,
+            resumeReportURL: resumeReportURL,
+            requireSignedArtifacts: requireSignedArtifacts,
+            trustedArtifactPublicKey: trustedArtifactPublicKey,
+            requireAntennaRules: requireAntennaRules
+        )
+    }
+
+    public func makeArtifactStore() throws -> DRCArtifactStore {
+        guard let artifactSigningPrivateKeyURL else { return DRCArtifactStore() }
+        return DRCArtifactStore(
+            signer: try DRCArtifactSignerLoader.loadEd25519(from: artifactSigningPrivateKeyURL)
+        )
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
@@ -182,6 +300,14 @@ public struct DRCCorpusCLIOptions: Sendable, Hashable {
         let value = try value(after: argument, in: arguments, index: &index)
         guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw DRCCLIError.invalidValue(argument: argument, value: value, expected: "non-empty backend ID")
+        }
+        return value
+    }
+
+    private static func nonEmptyPath(after argument: String, in arguments: [String], index: inout Int) throws -> String {
+        let value = try value(after: argument, in: arguments, index: &index)
+        guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw DRCCLIError.invalidValue(argument: argument, value: value, expected: "non-empty path")
         }
         return value
     }
@@ -334,14 +460,22 @@ public struct DRCCorpusCoverageAuditCLIOptions: Sendable, Hashable {
 
 public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
     public let reportURL: URL
+    public let outputURL: URL?
     public let evidenceID: String?
     public let checkedAt: Date
+    public let requireSignedArtifacts: Bool
+    public let trustedArtifactPublicKey: String?
+    public let artifactSigningPrivateKeyURL: URL?
     public let emitJSON: Bool
 
     public init(arguments: [String], now: Date = Date()) throws {
         var reportURL: URL?
+        var outputURL: URL?
         var evidenceID: String?
         var checkedAt = now
+        var requireSignedArtifacts = false
+        var trustedArtifactPublicKey: String?
+        var artifactSigningPrivateKeyURL: URL?
         var emitJSON = false
         var index = 0
         while index < arguments.count {
@@ -349,11 +483,19 @@ public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
             switch argument {
             case "--evidence-from-corpus-report":
                 reportURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
+            case "--out":
+                outputURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
             case "--evidence-id":
                 evidenceID = try Self.value(after: argument, in: arguments, index: &index)
             case "--checked-at":
                 let value = try Self.value(after: argument, in: arguments, index: &index)
                 checkedAt = try Self.iso8601Date(argument: argument, value: value)
+            case "--require-signed-artifacts":
+                requireSignedArtifacts = true
+            case "--trusted-artifact-public-key":
+                trustedArtifactPublicKey = try Self.value(after: argument, in: arguments, index: &index)
+            case "--artifact-signing-private-key":
+                artifactSigningPrivateKeyURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
             case "--json":
                 emitJSON = true
             default:
@@ -362,10 +504,33 @@ public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
             index += 1
         }
         guard let reportURL else { throw DRCCLIError.missingRequired("--evidence-from-corpus-report") }
+        if requireSignedArtifacts && artifactSigningPrivateKeyURL == nil {
+            throw DRCCLIError.invalidValue(
+                argument: "--require-signed-artifacts",
+                value: "true",
+                expected: "--artifact-signing-private-key must also be provided"
+            )
+        }
+        if requireSignedArtifacts && trustedArtifactPublicKey == nil {
+            throw DRCCLIError.invalidValue(
+                argument: "--require-signed-artifacts",
+                value: "true",
+                expected: "--trusted-artifact-public-key must also be provided"
+            )
+        }
         self.reportURL = reportURL
+        self.outputURL = outputURL
         self.evidenceID = evidenceID
         self.checkedAt = checkedAt
+        self.requireSignedArtifacts = requireSignedArtifacts
+        self.trustedArtifactPublicKey = trustedArtifactPublicKey
+        self.artifactSigningPrivateKeyURL = artifactSigningPrivateKeyURL
         self.emitJSON = emitJSON
+    }
+
+    public func makeSigner() throws -> (any DRCArtifactSigner)? {
+        guard let artifactSigningPrivateKeyURL else { return nil }
+        return try DRCArtifactSignerLoader.loadEd25519(from: artifactSigningPrivateKeyURL)
     }
 
     private static func value(after argument: String, in arguments: [String], index: inout Int) throws -> String {
@@ -521,6 +686,7 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
     public let profileResourceName: String?
     public let technologyOutputURL: URL
     public let reportOutputURL: URL?
+    public let nativeAntennaOutputURL: URL?
     public let requireComplete: Bool
     public let allowPartial: Bool
     public let emitJSON: Bool
@@ -534,6 +700,7 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
         self.profileResourceName = parsed.profileResourceName
         self.technologyOutputURL = try parsed.requireTechnologyOutputURL()
         self.reportOutputURL = parsed.reportOutputURL
+        self.nativeAntennaOutputURL = parsed.nativeAntennaOutputURL
         self.requireComplete = parsed.requireComplete
         self.allowPartial = parsed.allowPartial
         self.emitJSON = parsed.emitJSON
@@ -554,6 +721,7 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
         var profileResourceName: String?
         var technologyOutputURL: URL?
         var reportOutputURL: URL?
+        var nativeAntennaOutputURL: URL?
         var requireComplete = false
         var allowPartial = false
         var emitJSON = false
@@ -575,6 +743,8 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
                 technologyOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--report-out":
                 reportOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--native-antenna-out":
+                nativeAntennaOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--require-complete":
                 requireComplete = true
             case "--allow-partial":
@@ -635,6 +805,69 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
     }
 }
 
+public struct DRCNativeAntennaQualificationCLIOptions: Sendable, Hashable {
+    public static let qualificationFlag = "--qualify-native-antenna"
+
+    public let artifactURL: URL
+    public let oracleEvidenceURL: URL
+    public let outputURL: URL
+    public let emitJSON: Bool
+
+    public init(arguments: [String]) throws {
+        let parsed = try Self.parseArguments(arguments)
+        guard parsed.sawQualification else {
+            throw DRCCLIError.missingRequired(Self.qualificationFlag)
+        }
+        guard let artifactURL = parsed.artifactURL else {
+            throw DRCCLIError.missingRequired("--native-antenna-artifact")
+        }
+        guard let oracleEvidenceURL = parsed.oracleEvidenceURL else {
+            throw DRCCLIError.missingRequired("--oracle-evidence")
+        }
+        guard let outputURL = parsed.outputURL else {
+            throw DRCCLIError.missingRequired("--out")
+        }
+        self.artifactURL = artifactURL
+        self.oracleEvidenceURL = oracleEvidenceURL
+        self.outputURL = outputURL
+        self.emitJSON = parsed.emitJSON
+    }
+
+    private struct ParsedArguments {
+        var sawQualification = false
+        var artifactURL: URL?
+        var oracleEvidenceURL: URL?
+        var outputURL: URL?
+        var emitJSON = false
+
+        mutating func apply(_ argument: String, cursor: inout DRCCLIArgumentCursor) throws {
+            switch argument {
+            case DRCNativeAntennaQualificationCLIOptions.qualificationFlag:
+                sawQualification = true
+            case "--native-antenna-artifact":
+                artifactURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--oracle-evidence":
+                oracleEvidenceURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--out":
+                outputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--json":
+                emitJSON = true
+            default:
+                throw DRCCLIError.unknownArgument(argument)
+            }
+        }
+    }
+
+    private static func parseArguments(_ arguments: [String]) throws -> ParsedArguments {
+        var parsed = ParsedArguments()
+        var cursor = DRCCLIArgumentCursor(arguments: arguments)
+        while let argument = cursor.next() {
+            try parsed.apply(argument, cursor: &cursor)
+        }
+        return parsed
+    }
+}
+
 public struct DRCMagicRuleImportCLIOptions: Sendable, Hashable {
     public let magicTechURL: URL
     public let profileURL: URL
@@ -645,6 +878,7 @@ public struct DRCMagicRuleImportCLIOptions: Sendable, Hashable {
     public let profileID: String?
     public let technologyOutputURL: URL
     public let reportOutputURL: URL?
+    public let nativeAntennaOutputURL: URL?
     public let requireComplete: Bool
     public let allowPartial: Bool
     public let emitJSON: Bool
@@ -663,6 +897,7 @@ public struct DRCMagicRuleImportCLIOptions: Sendable, Hashable {
         self.profileID = parsed.profileID
         self.technologyOutputURL = try parsed.requireTechnologyOutputURL()
         self.reportOutputURL = parsed.reportOutputURL
+        self.nativeAntennaOutputURL = parsed.nativeAntennaOutputURL
         self.requireComplete = parsed.requireComplete
         self.allowPartial = parsed.allowPartial
         self.emitJSON = parsed.emitJSON
@@ -680,6 +915,7 @@ public struct DRCMagicRuleImportCLIOptions: Sendable, Hashable {
         var pdkRootURL: URL?
         var technologyOutputURL: URL?
         var reportOutputURL: URL?
+        var nativeAntennaOutputURL: URL?
         var requireComplete = false
         var allowPartial = false
         var emitJSON = false
@@ -711,6 +947,8 @@ public struct DRCMagicRuleImportCLIOptions: Sendable, Hashable {
                 technologyOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--report-out":
                 reportOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
+            case "--native-antenna-out":
+                nativeAntennaOutputURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--require-complete":
                 requireComplete = true
             case "--allow-partial":

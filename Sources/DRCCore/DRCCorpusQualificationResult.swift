@@ -11,4 +11,18 @@ public struct DRCCorpusQualificationResult: Sendable, Hashable, Codable {
         self.failures = failures
         self.qualified = failures.isEmpty
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case qualified
+        case policy
+        case failures
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        policy = try container.decode(DRCCorpusQualificationPolicy.self, forKey: .policy)
+        failures = try container.decode([DRCCorpusQualificationFailure].self, forKey: .failures)
+        // `qualified` is a derived value. Never trust a persisted copy of it.
+        qualified = failures.isEmpty
+    }
 }

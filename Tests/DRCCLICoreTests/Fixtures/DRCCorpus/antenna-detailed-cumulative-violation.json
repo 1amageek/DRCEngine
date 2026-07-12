@@ -1,0 +1,25 @@
+{
+  "rectangles" : [
+    { "id" : "m1", "layer" : "met1", "netID" : "out", "xMin" : 0, "xMax" : 3, "yMin" : 0, "yMax" : 1 },
+    { "id" : "m2", "layer" : "met2", "netID" : "out", "xMin" : 0, "xMax" : 4, "yMin" : 2, "yMax" : 3 },
+    { "id" : "gate", "layer" : "poly", "netID" : "out", "antennaGateArea" : 1, "xMin" : 0, "xMax" : 1, "yMin" : 4, "yMax" : 5 }
+  ],
+  "rules" : [
+    {
+      "id" : "met2.antenna.cumulative",
+      "kind" : "maximumAntennaRatio",
+      "layer" : "met2",
+      "value" : 1,
+      "gateLayer" : "poly",
+      "conductorLayers" : ["met2"],
+      "antennaModel" : "cumulative",
+      "antennaLayers" : [
+        { "layer" : "met1", "measurement" : "surface", "ratioGate" : 4 },
+        { "layer" : "met2", "measurement" : "surface", "ratioGate" : 4 }
+      ]
+    }
+  ],
+  "technologyID" : "portable-drc-corpus",
+  "topCell" : "inv",
+  "unit" : "micrometer"
+}

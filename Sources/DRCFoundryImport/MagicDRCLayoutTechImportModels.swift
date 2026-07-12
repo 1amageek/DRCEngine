@@ -71,6 +71,77 @@ public struct MagicDRCImportedRule: Codable, Sendable, Hashable {
     }
 }
 
+/// The area exposed during a Magic antenna process step.
+///
+/// Magic calls perimeter-derived conductor area `sidewall` and horizontal
+/// contact/via area `surface`.  These are retained as source semantics rather
+/// than being lowered to the generic LayoutTech area rule, because doing so
+/// would silently change the measured quantity.
+public enum MagicDRCAntennaMeasurement: String, Codable, Sendable, Hashable {
+    case sidewall
+    case surface
+}
+
+/// The process aggregation model selected by Magic's `model` declaration.
+public enum MagicDRCAntennaModel: String, Codable, Sendable, Hashable {
+    case partial
+    case cumulative
+}
+
+/// Whether Magic applies a diffusion correction to a source antenna layer.
+public enum MagicDRCAntennaDiffusionCorrection: String, Codable, Sendable, Hashable {
+    case none
+    case finite
+}
+
+/// A source-level Magic `antenna` declaration.
+///
+/// `correctionParameters` preserves numeric arguments after the ratio.  Their
+/// interpretation is technology/model specific (and may include diode
+/// compensation), so the importer does not guess a NativeDRC rule from them.
+public struct MagicDRCSourceAntennaRule: Codable, Sendable, Hashable {
+    public let id: String
+    public let layerNames: [String]
+    public let measurement: MagicDRCAntennaMeasurement
+    public let model: MagicDRCAntennaModel?
+    public let maxRatio: Double
+    public let correctionParameters: [Double]
+    public let diffusionCorrection: MagicDRCAntennaDiffusionCorrection?
+    /// Magic's optional ratioDiffB parameter. `none` remains nil and is not
+    /// lowered to a finite correction.
+    public let diffusionRatioConstant: Double?
+    /// Magic's optional ratioDiffA parameter, applied per diffusion area.
+    public let diffusionRatioPerArea: Double?
+    public let sourceLineNumber: Int
+    public let sourceLine: String
+
+    public init(
+        id: String,
+        layerNames: [String],
+        measurement: MagicDRCAntennaMeasurement,
+        model: MagicDRCAntennaModel? = nil,
+        maxRatio: Double,
+        correctionParameters: [Double] = [],
+        diffusionCorrection: MagicDRCAntennaDiffusionCorrection? = nil,
+        diffusionRatioConstant: Double? = nil,
+        diffusionRatioPerArea: Double? = nil,
+        sourceLineNumber: Int,
+        sourceLine: String
+    ) {
+        self.id = id
+        self.layerNames = layerNames
+        self.measurement = measurement
+        self.model = model
+        self.maxRatio = maxRatio
+        self.correctionParameters = correctionParameters
+        self.diffusionCorrection = diffusionCorrection
+        self.diffusionRatioConstant = diffusionRatioConstant
+        self.diffusionRatioPerArea = diffusionRatioPerArea
+        self.sourceLineNumber = sourceLineNumber
+        self.sourceLine = sourceLine
+    }
+}
+
 public struct MagicDRCImportDiagnostic: Codable, Sendable, Hashable {
     public let code: String
     public let message: String
@@ -388,6 +459,12 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
     public let generatedAt: String
     public let status: MagicDRCLayoutTechImportStatus
     public let sourcePath: String
+    /// SHA-256 digest of the exact source technology text used for import.
+    public let sourceDigest: String?
+    /// SHA-256 digest of the profile artifact used for layer/process mapping.
+    public let profileDigest: String?
+    public let profileID: String?
+    public let profileLayerOrder: [String]
     public let supportedRuleFamilies: [String]
     public let importedRuleCount: Int
     public let skippedRuleCount: Int
@@ -422,6 +499,11 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
     public let profileMinimumCutPolicies: [MagicDRCProfileMinimumCutPolicy]
     public let profileMinimumCutPolicyIDs: [String]
     public let profileMinimumCutPolicyCount: Int
+    public let sourceAntennaRules: [MagicDRCSourceAntennaRule]
+    public let sourceAntennaRuleIDs: [String]
+    public let sourceAntennaRuleCount: Int
+    /// Resolved Magic `height` thicknesses keyed by canonical layer name.
+    public let sourceAntennaThicknesses: [String: Double]
     public let derivedViaDefinitionIDs: [String]
     public let derivedContactDefinitionIDs: [String]
     public let derivedMinimumCutRuleIDs: [String]
@@ -435,6 +517,10 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         generatedAt: String,
         status: MagicDRCLayoutTechImportStatus,
         sourcePath: String,
+        sourceDigest: String? = nil,
+        profileDigest: String? = nil,
+        profileID: String? = nil,
+        profileLayerOrder: [String] = [],
         supportedRuleFamilies: [String],
         importedRuleCount: Int,
         skippedRuleCount: Int,
@@ -469,6 +555,10 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         profileMinimumCutPolicies: [MagicDRCProfileMinimumCutPolicy] = [],
         profileMinimumCutPolicyIDs: [String]? = nil,
         profileMinimumCutPolicyCount: Int? = nil,
+        sourceAntennaRules: [MagicDRCSourceAntennaRule] = [],
+        sourceAntennaRuleIDs: [String]? = nil,
+        sourceAntennaRuleCount: Int? = nil,
+        sourceAntennaThicknesses: [String: Double] = [:],
         derivedViaDefinitionIDs: [String] = [],
         derivedContactDefinitionIDs: [String] = [],
         derivedMinimumCutRuleIDs: [String] = [],
@@ -481,6 +571,10 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         self.generatedAt = generatedAt
         self.status = status
         self.sourcePath = sourcePath
+        self.sourceDigest = sourceDigest
+        self.profileDigest = profileDigest
+        self.profileID = profileID
+        self.profileLayerOrder = profileLayerOrder
         self.supportedRuleFamilies = supportedRuleFamilies
         self.importedRuleCount = importedRuleCount
         self.skippedRuleCount = skippedRuleCount
@@ -515,6 +609,10 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         self.profileMinimumCutPolicies = profileMinimumCutPolicies
         self.profileMinimumCutPolicyIDs = profileMinimumCutPolicyIDs ?? profileMinimumCutPolicies.map(\.id)
         self.profileMinimumCutPolicyCount = profileMinimumCutPolicyCount ?? profileMinimumCutPolicies.count
+        self.sourceAntennaRules = sourceAntennaRules
+        self.sourceAntennaRuleIDs = sourceAntennaRuleIDs ?? sourceAntennaRules.map(\.id)
+        self.sourceAntennaRuleCount = sourceAntennaRuleCount ?? sourceAntennaRules.count
+        self.sourceAntennaThicknesses = sourceAntennaThicknesses
         self.derivedViaDefinitionIDs = derivedViaDefinitionIDs
         self.derivedContactDefinitionIDs = derivedContactDefinitionIDs
         self.derivedMinimumCutRuleIDs = derivedMinimumCutRuleIDs
@@ -529,6 +627,10 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         case generatedAt
         case status
         case sourcePath
+        case sourceDigest
+        case profileDigest
+        case profileID
+        case profileLayerOrder
         case supportedRuleFamilies
         case importedRuleCount
         case skippedRuleCount
@@ -563,6 +665,10 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         case profileMinimumCutPolicies
         case profileMinimumCutPolicyIDs
         case profileMinimumCutPolicyCount
+        case sourceAntennaRules
+        case sourceAntennaRuleIDs
+        case sourceAntennaRuleCount
+        case sourceAntennaThicknesses
         case derivedViaDefinitionIDs
         case derivedContactDefinitionIDs
         case derivedMinimumCutRuleIDs
@@ -592,6 +698,10 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         generatedAt = try container.decode(String.self, forKey: .generatedAt)
         status = try container.decode(MagicDRCLayoutTechImportStatus.self, forKey: .status)
         sourcePath = try container.decode(String.self, forKey: .sourcePath)
+        sourceDigest = try container.decodeIfPresent(String.self, forKey: .sourceDigest)
+        profileDigest = try container.decodeIfPresent(String.self, forKey: .profileDigest)
+        profileID = try container.decodeIfPresent(String.self, forKey: .profileID)
+        profileLayerOrder = try container.decodeIfPresent([String].self, forKey: .profileLayerOrder) ?? []
         supportedRuleFamilies = try container.decode([String].self, forKey: .supportedRuleFamilies)
         importedRuleCount = try container.decode(Int.self, forKey: .importedRuleCount)
         skippedRuleCount = try container.decode(Int.self, forKey: .skippedRuleCount)
@@ -650,6 +760,22 @@ public struct MagicDRCLayoutTechImportReport: Codable, Sendable, Hashable {
         )
         profileMinimumCutPolicyIDs = try container.decode([String].self, forKey: .profileMinimumCutPolicyIDs)
         profileMinimumCutPolicyCount = try container.decode(Int.self, forKey: .profileMinimumCutPolicyCount)
+        sourceAntennaRules = try container.decodeIfPresent(
+            [MagicDRCSourceAntennaRule].self,
+            forKey: .sourceAntennaRules
+        ) ?? []
+        sourceAntennaRuleIDs = try container.decodeIfPresent(
+            [String].self,
+            forKey: .sourceAntennaRuleIDs
+        ) ?? sourceAntennaRules.map(\.id)
+        sourceAntennaRuleCount = try container.decodeIfPresent(
+            Int.self,
+            forKey: .sourceAntennaRuleCount
+        ) ?? sourceAntennaRules.count
+        sourceAntennaThicknesses = try container.decodeIfPresent(
+            [String: Double].self,
+            forKey: .sourceAntennaThicknesses
+        ) ?? [:]
         derivedViaDefinitionIDs = try container.decode([String].self, forKey: .derivedViaDefinitionIDs)
         derivedContactDefinitionIDs = try container.decode([String].self, forKey: .derivedContactDefinitionIDs)
         derivedMinimumCutRuleIDs = try container.decode([String].self, forKey: .derivedMinimumCutRuleIDs)

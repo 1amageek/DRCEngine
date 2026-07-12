@@ -1,7 +1,7 @@
 import Foundation
 import DRCCore
 
-public struct NativeDRCBackend: DRCBackend {
+public struct NativeDRCBackend: DRCCancellableBackend {
     public let backendID = "native"
     private let decoder: JSONDecoder
 
@@ -10,12 +10,35 @@ public struct NativeDRCBackend: DRCBackend {
     }
 
     public func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
+        try await run(request, cancellationCheck: nil)
+    }
+
+    public func run(
+        _ request: DRCRequest,
+        cancellationCheck: DRCExecutionCancellationCheck?
+    ) async throws -> DRCExecutionResult {
+        try await checkCancellation(cancellationCheck)
         let layout = try loadLayout(for: request)
+        try await checkCancellation(cancellationCheck)
         try validateTopCell(request.topCell, layout: layout)
+        try validateLayout(layout)
         try validateRuleDeck(layout)
-        let diagnostics = try evaluate(layout: layout)
+        try validateAntennaReadiness(layout, options: request.options)
+        let diagnostics = try await evaluate(layout: layout, cancellationCheck: cancellationCheck)
+        try await checkCancellation(cancellationCheck)
         let logPath = try writeRunLogIfRequested(diagnostics: diagnostics, request: request)
         return makeExecutionResult(request: request, layout: layout, diagnostics: diagnostics, logPath: logPath)
+    }
+
+    private func checkCancellation(
+        _ cancellationCheck: DRCExecutionCancellationCheck?
+    ) async throws {
+        if Task.isCancelled {
+            throw DRCError.cancelled("Native DRC execution was cancelled.")
+        }
+        if let cancellationCheck, try await cancellationCheck() {
+            throw DRCError.cancelled("Native DRC execution was cancelled.")
+        }
     }
 
     private func loadLayout(for request: DRCRequest) throws -> NativeDRCLayout {
@@ -50,6 +73,249 @@ public struct NativeDRCBackend: DRCBackend {
             throw DRCError.invalidInput(
                 "Native DRC rule deck is empty for technology \(layout.technologyID). Provide at least one physical rule."
             )
+        }
+    }
+
+    private func validateAntennaReadiness(_ layout: NativeDRCLayout, options: DRCOptions) throws {
+        guard options.requireAntennaRules else {
+            return
+        }
+        let antennaRules = layout.rules.filter { $0.kind == .maximumAntennaRatio }
+        guard !antennaRules.isEmpty else {
+            throw DRCError.invalidInput(
+                "Native DRC antenna readiness is not established for technology \(layout.technologyID): the rule deck contains no maximumAntennaRatio rule."
+            )
+        }
+        guard let metadata = layout.antennaMetadata else {
+            throw DRCError.invalidInput(
+                "Native DRC antenna readiness is not established for technology \(layout.technologyID): antennaMetadata is missing."
+            )
+        }
+        guard metadata.gateAreasComplete else {
+            throw DRCError.invalidInput(
+                "Native DRC antenna readiness is not established for technology \(layout.technologyID): gate-area metadata is incomplete."
+            )
+        }
+        try validateAntennaGateCoverage(layout: layout, rules: antennaRules)
+        if antennaRules.contains(where: { $0.antennaLayers != nil }), !metadata.diffusionAreasComplete {
+            throw DRCError.invalidInput(
+                "Native DRC antenna readiness is not established for technology \(layout.technologyID): diffusion-area metadata is incomplete for detailed antenna rules."
+            )
+        }
+        if antennaRules.contains(where: { $0.processStep != nil }), !metadata.processStepsComplete {
+            throw DRCError.invalidInput(
+                "Native DRC antenna readiness is not established for technology \(layout.technologyID): process-step metadata is incomplete."
+            )
+        }
+        if antennaRules.contains(where: { ($0.antennaCutConnections?.isEmpty == false) }), !metadata.cutConnectivityComplete {
+            throw DRCError.invalidInput(
+                "Native DRC antenna readiness is not established for technology \(layout.technologyID): antenna cut-connectivity metadata is incomplete."
+            )
+        }
+    }
+
+    private func validateAntennaGateCoverage(
+        layout: NativeDRCLayout,
+        rules: [NativeDRCRule]
+    ) throws {
+        for rule in rules {
+            let conductorLayers = rule.antennaLayers?.map(\.layer)
+                ?? rule.conductorLayers
+                ?? [rule.layer]
+            let candidateNetIDs = Set(
+                layout.rectangles
+                    .filter { rectangle in
+                        rectangle.netID != nil && conductorLayers.contains(rectangle.layer)
+                    }
+                    .compactMap(\.netID)
+            ).sorted()
+            for netID in candidateNetIDs {
+                let hasGateArea = layout.rectangles.contains { rectangle in
+                    rectangle.netID == netID
+                        && (rectangle.antennaGateArea ?? 0) > 0
+                        && (rule.gateLayer == nil || rectangle.layer == rule.gateLayer)
+                }
+                guard hasGateArea else {
+                    throw DRCError.invalidInput(
+                        "Native DRC antenna readiness is not established for technology \(layout.technologyID): net \(netID) has conductor geometry for rule \(rule.id) but no gate-area annotation."
+                    )
+                }
+            }
+        }
+    }
+
+    private func validateLayout(_ layout: NativeDRCLayout) throws {
+        guard !layout.technologyID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw DRCError.invalidInput("Native DRC layout technologyID must not be empty.")
+        }
+        guard !layout.unit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw DRCError.invalidInput("Native DRC layout unit must not be empty.")
+        }
+
+        var rectangleIDs: Set<String> = []
+        for rectangle in layout.rectangles {
+            guard !rectangle.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw DRCError.invalidInput("Native DRC rectangle IDs must not be empty.")
+            }
+            guard rectangleIDs.insert(rectangle.id).inserted else {
+                throw DRCError.invalidInput("Native DRC rectangle ID is duplicated: \(rectangle.id).")
+            }
+            guard !rectangle.layer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw DRCError.invalidInput("Native DRC rectangle \(rectangle.id) has an empty layer.")
+            }
+            guard rectangle.xMin.isFinite,
+                  rectangle.yMin.isFinite,
+                  rectangle.xMax.isFinite,
+                  rectangle.yMax.isFinite,
+                  rectangle.xMax > rectangle.xMin,
+                  rectangle.yMax > rectangle.yMin else {
+                throw DRCError.invalidInput(
+                    "Native DRC rectangle \(rectangle.id) must have finite coordinates and positive dimensions."
+                )
+            }
+            if let antennaGateArea = rectangle.antennaGateArea,
+               !antennaGateArea.isFinite || antennaGateArea < 0 {
+                throw DRCError.invalidInput(
+                    "Native DRC rectangle \(rectangle.id) has an invalid antennaGateArea."
+                )
+            }
+            if let antennaDiffusionArea = rectangle.antennaDiffusionArea,
+               !antennaDiffusionArea.isFinite || antennaDiffusionArea < 0 {
+                throw DRCError.invalidInput(
+                    "Native DRC rectangle \(rectangle.id) has an invalid antennaDiffusionArea."
+                )
+            }
+            if let antennaProcessStep = rectangle.antennaProcessStep,
+               antennaProcessStep.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw DRCError.invalidInput(
+                    "Native DRC rectangle \(rectangle.id) has an empty antennaProcessStep."
+                )
+            }
+        }
+
+        var ruleIDs: Set<String> = []
+        for rule in layout.rules {
+            guard !rule.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw DRCError.invalidInput("Native DRC rule IDs must not be empty.")
+            }
+            guard ruleIDs.insert(rule.id).inserted else {
+                throw DRCError.invalidInput("Native DRC rule ID is duplicated: \(rule.id).")
+            }
+            guard !rule.layer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty layer.")
+            }
+            guard rule.value.isFinite else {
+                throw DRCError.invalidInput("Native DRC rule \(rule.id) has a non-finite value.")
+            }
+            let optionalValues = [
+                rule.windowWidth,
+                rule.windowHeight,
+                rule.stepX,
+                rule.stepY,
+                rule.windowOriginX,
+                rule.windowOriginY,
+                rule.endOfLineWidth,
+                rule.minimumParallelRunLength,
+                rule.wideWidthThreshold,
+            ].compactMap { $0 }
+            guard optionalValues.allSatisfy(\.isFinite) else {
+                throw DRCError.invalidInput("Native DRC rule \(rule.id) has a non-finite parameter.")
+            }
+            let referencedLayers = [
+                rule.enclosedLayer,
+                rule.gateLayer,
+                rule.secondaryLayer,
+                rule.lowerLayer,
+                rule.upperLayer,
+            ].compactMap { $0 }
+            guard referencedLayers.allSatisfy({
+                !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }) else {
+                throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty layer reference.")
+            }
+            if let conductorLayers = rule.conductorLayers {
+                guard conductorLayers.allSatisfy({
+                    !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                }) else {
+                    throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty conductor layer.")
+                }
+            }
+            if let processStep = rule.processStep,
+               processStep.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty processStep.")
+            }
+            if rule.antennaModel != nil, rule.kind != .maximumAntennaRatio {
+                throw DRCError.invalidInput(
+                    "Native DRC rule \(rule.id) uses antennaModel on a non-antenna rule."
+                )
+            }
+            if rule.antennaModel != nil, rule.antennaLayers == nil {
+                throw DRCError.invalidInput(
+                    "Native DRC rule \(rule.id) requires antennaLayers when antennaModel is set."
+                )
+            }
+            if rule.antennaLayers != nil, rule.antennaModel == nil {
+                throw DRCError.invalidInput(
+                    "Native DRC rule \(rule.id) requires antennaModel when antennaLayers is set."
+                )
+            }
+            if let antennaLayers = rule.antennaLayers {
+                guard !antennaLayers.isEmpty else {
+                    throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty antennaLayers list.")
+                }
+                var antennaLayerIDs: Set<String> = []
+                for antennaLayer in antennaLayers {
+                    guard !antennaLayer.layer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                        throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty antenna layer.")
+                    }
+                    guard antennaLayerIDs.insert(antennaLayer.layer).inserted else {
+                        throw DRCError.invalidInput(
+                            "Native DRC rule \(rule.id) repeats antenna layer \(antennaLayer.layer)."
+                        )
+                    }
+                    guard antennaLayer.ratioGate.isFinite, antennaLayer.ratioGate > 0 else {
+                        throw DRCError.invalidInput(
+                            "Native DRC rule \(rule.id) has an invalid antenna ratioGate for \(antennaLayer.layer)."
+                        )
+                    }
+                    if antennaLayer.measurement == .sidewall {
+                        guard let thickness = antennaLayer.thickness,
+                              thickness.isFinite,
+                              thickness > 0 else {
+                            throw DRCError.invalidInput(
+                                "Native DRC rule \(rule.id) requires a positive sidewall thickness for \(antennaLayer.layer)."
+                            )
+                        }
+                    }
+                    if antennaLayer.diffusionRatioPerArea != nil,
+                       antennaLayer.diffusionRatioConstant == nil {
+                        throw DRCError.invalidInput(
+                            "Native DRC rule \(rule.id) requires diffusionRatioConstant when diffusionRatioPerArea is set."
+                        )
+                    }
+                    if let thickness = antennaLayer.thickness {
+                        guard thickness.isFinite, thickness > 0 else {
+                            throw DRCError.invalidInput(
+                                "Native DRC rule \(rule.id) has an invalid antenna thickness for \(antennaLayer.layer)."
+                            )
+                        }
+                    }
+                    let correctionValues = [
+                        antennaLayer.diffusionRatioConstant,
+                        antennaLayer.diffusionRatioPerArea,
+                    ].compactMap { $0 }
+                    guard correctionValues.allSatisfy(\.isFinite), correctionValues.allSatisfy({ $0 >= 0 }) else {
+                        throw DRCError.invalidInput(
+                            "Native DRC rule \(rule.id) has invalid antenna diffusion correction values."
+                        )
+                    }
+                }
+                guard antennaLayers.contains(where: { $0.layer == rule.layer }) else {
+                    throw DRCError.invalidInput(
+                        "Native DRC rule \(rule.id) must include its stage layer \(rule.layer) in antennaLayers."
+                    )
+                }
+            }
         }
     }
 
@@ -147,10 +413,14 @@ public struct NativeDRCBackend: DRCBackend {
         }
     }
 
-    private func evaluate(layout: NativeDRCLayout) throws -> [DRCDiagnostic] {
+    private func evaluate(
+        layout: NativeDRCLayout,
+        cancellationCheck: DRCExecutionCancellationCheck?
+    ) async throws -> [DRCDiagnostic] {
         let context = EvaluationContext(layout: layout)
         var diagnostics: [DRCDiagnostic] = []
         for rule in layout.rules {
+            try await checkCancellation(cancellationCheck)
             diagnostics.append(contentsOf: try evaluate(rule: rule, context: context))
         }
         return diagnostics

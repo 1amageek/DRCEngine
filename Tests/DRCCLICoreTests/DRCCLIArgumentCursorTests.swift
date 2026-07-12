@@ -28,6 +28,31 @@ extension DRCCLIOptionsTests {
         #expect(error == .missingValue("--oracle-backend"))
     }
 
+    @Test func corpusOptionsParseRunAndResumeIdentifiers() throws {
+        let options = try DRCCorpusCLIOptions(arguments: [
+            "--corpus", "/tmp/drc-corpus.json",
+            "--out", "/tmp/drc",
+            "--run-id", "run-123",
+            "--resume-report", "/tmp/previous-report.json",
+        ])
+
+        #expect(options.runID == "run-123")
+        #expect(options.resumeReportURL?.path(percentEncoded: false) == "/tmp/previous-report.json")
+        #expect(options.runOptions.runID == "run-123")
+        #expect(options.runOptions.resumeReportURL == options.resumeReportURL)
+    }
+
+    @Test func corpusOptionsForwardAntennaRuleReadinessGate() throws {
+        let options = try DRCCorpusCLIOptions(arguments: [
+            "--corpus", "/tmp/drc-corpus.json",
+            "--out", "/tmp/drc",
+            "--require-antenna-rules",
+        ])
+
+        #expect(options.requireAntennaRules)
+        #expect(options.runOptions.requireAntennaRules)
+    }
+
     @Test func runOptionsRejectWhitespaceOnlyTopCellValue() throws {
         let error = try captureError {
             _ = try DRCCLIOptions(arguments: [

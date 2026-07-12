@@ -6,6 +6,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
     public let minimumDurationBudgetPassRate: Double
     public let minimumOracleCaseCount: Int?
     public let minimumOracleAgreementRate: Double?
+    public let requireIndependentOracle: Bool
     public let allowPrimaryExecutionFailures: Bool
     public let allowOracleExecutionFailures: Bool
     public let requiredCoverageTags: [String]
@@ -16,6 +17,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         case minimumDurationBudgetPassRate
         case minimumOracleCaseCount
         case minimumOracleAgreementRate
+        case requireIndependentOracle
         case allowPrimaryExecutionFailures
         case allowOracleExecutionFailures
         case requiredCoverageTags
@@ -27,6 +29,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         minimumDurationBudgetPassRate: Double = 1,
         minimumOracleCaseCount: Int? = nil,
         minimumOracleAgreementRate: Double? = nil,
+        requireIndependentOracle: Bool = false,
         allowPrimaryExecutionFailures: Bool = false,
         allowOracleExecutionFailures: Bool = false,
         requiredCoverageTags: [String] = []
@@ -36,6 +39,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         self.minimumDurationBudgetPassRate = minimumDurationBudgetPassRate
         self.minimumOracleCaseCount = minimumOracleCaseCount
         self.minimumOracleAgreementRate = minimumOracleAgreementRate
+        self.requireIndependentOracle = requireIndependentOracle
         self.allowPrimaryExecutionFailures = allowPrimaryExecutionFailures
         self.allowOracleExecutionFailures = allowOracleExecutionFailures
         self.requiredCoverageTags = Self.normalizedCoverageTags(requiredCoverageTags)
@@ -51,6 +55,10 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         ) ?? 1
         minimumOracleCaseCount = try container.decodeIfPresent(Int.self, forKey: .minimumOracleCaseCount)
         minimumOracleAgreementRate = try container.decodeIfPresent(Double.self, forKey: .minimumOracleAgreementRate)
+        requireIndependentOracle = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .requireIndependentOracle
+        ) ?? false
         allowPrimaryExecutionFailures = try container.decodeIfPresent(
             Bool.self,
             forKey: .allowPrimaryExecutionFailures
@@ -68,9 +76,16 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
     public func evaluate(
         passed: Bool,
         caseCount: Int,
-        summary: DRCCorpusSummary
+        summary: DRCCorpusSummary,
+        completed: Bool = true
     ) -> DRCCorpusQualificationResult {
         var failures = validationFailures()
+        if !completed {
+            failures.append(DRCCorpusQualificationFailure(
+                code: "corpus_incomplete",
+                message: "The corpus run did not complete all scheduled cases."
+            ))
+        }
         if caseCount == 0 {
             failures.append(DRCCorpusQualificationFailure(
                 code: "empty_corpus",
@@ -114,22 +129,38 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         if let minimumOracleAgreementRate {
-            guard let oracleAgreementRate = summary.oracleAgreementRate else {
+            if let oracleAgreementRate = summary.oracleAgreementRate {
+                if oracleAgreementRate < minimumOracleAgreementRate {
+                    failures.append(DRCCorpusQualificationFailure(
+                        code: "oracle_agreement_rate_below_minimum",
+                        message: "The corpus oracle agreement rate is below the required threshold.",
+                        observedDouble: oracleAgreementRate,
+                        requiredDouble: minimumOracleAgreementRate
+                    ))
+                }
+            } else {
                 failures.append(DRCCorpusQualificationFailure(
                     code: "oracle_agreement_rate_missing",
                     message: "The corpus qualification policy requires oracle agreement, but no oracle cases ran.",
                     observedCount: summary.oracleCaseCount
                 ))
-                return DRCCorpusQualificationResult(policy: self, failures: failures)
             }
-            if oracleAgreementRate < minimumOracleAgreementRate {
-                failures.append(DRCCorpusQualificationFailure(
-                    code: "oracle_agreement_rate_below_minimum",
-                    message: "The corpus oracle agreement rate is below the required threshold.",
-                    observedDouble: oracleAgreementRate,
-                    requiredDouble: minimumOracleAgreementRate
-                ))
-            }
+        }
+        if requireIndependentOracle && summary.nonIndependentOracleCaseCount > 0 {
+            failures.append(DRCCorpusQualificationFailure(
+                code: "independent_oracle_failed",
+                message: "One or more oracle comparisons did not use an independently identified implementation family.",
+                observedCount: summary.nonIndependentOracleCaseCount,
+                requiredCount: 0
+            ))
+        }
+        if requireIndependentOracle && summary.oracleCaseCount < caseCount {
+            failures.append(DRCCorpusQualificationFailure(
+                code: "independent_oracle_missing",
+                message: "Independent-oracle qualification requires an oracle comparison for every corpus case.",
+                observedCount: summary.oracleCaseCount,
+                requiredCount: caseCount
+            ))
         }
         if !allowPrimaryExecutionFailures && summary.primaryExecutionFailedCaseCount > 0 {
             failures.append(DRCCorpusQualificationFailure(
@@ -159,6 +190,30 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         return DRCCorpusQualificationResult(policy: self, failures: failures)
+    }
+
+    public func with(requireIndependentOracle: Bool) -> DRCCorpusQualificationPolicy {
+        DRCCorpusQualificationPolicy(
+            requireCorpusPassed: requireCorpusPassed,
+            minimumPassRate: minimumPassRate,
+            minimumDurationBudgetPassRate: minimumDurationBudgetPassRate,
+            minimumOracleCaseCount: minimumOracleCaseCount,
+            minimumOracleAgreementRate: minimumOracleAgreementRate,
+            requireIndependentOracle: requireIndependentOracle,
+            allowPrimaryExecutionFailures: allowPrimaryExecutionFailures,
+            allowOracleExecutionFailures: allowOracleExecutionFailures,
+            requiredCoverageTags: requiredCoverageTags
+        )
+    }
+
+    public func validate() throws {
+        let failures = validationFailures()
+        guard failures.isEmpty else {
+            let message = failures
+                .map { [$0.code, $0.message].joined(separator: ": ") }
+                .joined(separator: "; ")
+            throw DRCError.invalidInput("Invalid DRC corpus qualification policy: \(message)")
+        }
     }
 
     private func validationFailures() -> [DRCCorpusQualificationFailure] {

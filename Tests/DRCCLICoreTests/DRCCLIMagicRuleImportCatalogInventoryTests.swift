@@ -3,6 +3,46 @@ import Testing
 import DRCCLICore
 
 extension DRCCLIOptionsTests {
+    @Test func magicRuleImportCatalogInventoryRejectsStructurallyInvalidCatalog() throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let catalogURL = root.appending(path: "magic-rule-import-catalog.json")
+        let catalog = DRCMagicRuleImportCatalog(
+            entries: [
+                DRCMagicRuleImportCatalog.Entry(
+                    technologyCatalogID: "",
+                    pdkID: "sky130A",
+                    profileIDs: ["duplicate", "duplicate"],
+                    requiredFiles: [
+                        DRCMagicRuleImportCatalog.RequiredFile(purpose: "", path: ""),
+                        DRCMagicRuleImportCatalog.RequiredFile(purpose: "magic-drc-tech", path: "deck.tech"),
+                        DRCMagicRuleImportCatalog.RequiredFile(purpose: "magic-drc-tech", path: "deck2.tech"),
+                    ]
+                ),
+            ]
+        )
+        try writeJSON(catalog, to: catalogURL)
+
+        let inventory = DRCMagicRuleImportCatalogInventoryBuilder().build(
+            catalogURLs: [catalogURL]
+        )
+
+        #expect(inventory.status == .failed)
+        let item = try #require(inventory.catalogs.first)
+        #expect(item.status == .failed)
+        #expect(item.issues.contains { $0.code == "invalid-technology-catalog-id" })
+        #expect(item.issues.contains { $0.code == "duplicate-profile-id" })
+        #expect(item.issues.contains { $0.code == "duplicate-required-file-purpose" })
+        #expect(item.entries.count == 1)
+
+        #expect(throws: DRCCLIError.self) {
+            _ = try DRCMagicRuleImportCatalogResolver(catalogURL: catalogURL).resolve(
+                selection: DRCMagicRuleImportCatalogResolver.Selection(),
+                requireProfileReference: false
+            )
+        }
+    }
+
     @Test func magicRuleImportCatalogInventoryRejectsRequiredFileOutsidePDKRoot() throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }

@@ -3,9 +3,26 @@ import CryptoKit
 import Testing
 import DRCCore
 import DRCRuntime
+import DRCPersistence
 
 @Suite("Default DRC engine")
 struct DefaultDRCEngineTests {
+    @Test func cancellableBackendDeadlineProducesTypedTimeout() async throws {
+        let request = DRCRequest(
+            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "deadline-stub"),
+            options: DRCOptions(timeoutSeconds: 0.01)
+        )
+
+        do {
+            _ = try await DefaultDRCEngine(backends: [DeadlineStubDRCBackend()]).run(request)
+            Issue.record("Expected the backend deadline to produce a typed timeout")
+        } catch let error as DRCError {
+            #expect(error == .timedOut("DRC backend 'deadline-stub' exceeded 0.01 seconds."))
+        }
+    }
+
     @Test func injectedBackendRunsAndPersistsReport() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = directory.appending(path: "inverter.gds")
@@ -28,8 +45,17 @@ struct DefaultDRCEngineTests {
         let data = try Data(contentsOf: reportURL)
         let decoded = try JSONDecoder().decode(DRCExecutionResult.self, from: data)
         #expect(decoded.result.provenance?.executablePath == "/bin/stub-drc")
+        #expect(decoded.result.backendIdentity?.backendID == "stub")
+        #expect(decoded.result.backendIdentity?.implementationFamily == .unknown)
         let manifestURL = try #require(result.artifactManifestURL)
         let manifest = try JSONDecoder().decode(DRCArtifactManifest.self, from: Data(contentsOf: manifestURL))
+        #expect(manifest.backendIdentity?.backendID == "stub")
+        #expect(manifest.runID?.isEmpty == false)
+        #expect(manifest.requestSHA256?.count == 64)
+        #expect(manifest.requestEnvironmentSHA256?.count == 64)
+        #expect(manifest.artifactRootSHA256?.count == 64)
+        #expect(manifest.verdict == .passed)
+        #expect(try DRCArtifactManifestVerifier().verify(manifestURL: manifestURL).isEmpty)
         let inputLayout = try artifact("input-layout", in: manifest.inputs)
         let report = try artifact("report", in: manifest.outputs)
         let expectedInputLayoutSHA256 = try sha256(layoutURL)
@@ -38,6 +64,41 @@ struct DefaultDRCEngineTests {
         #expect(inputLayout.byteCount == 3)
         #expect(report.sha256 == expectedReportSHA256)
         #expect(report.byteCount == data.count)
+    }
+
+    @Test func signedArtifactStoreProducesTrustedManifest() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let layoutURL = directory.appending(path: "signed-layout.gds")
+        try Data([0x01, 0x02, 0x03]).write(to: layoutURL)
+        let signer = DRCEd25519ArtifactSigner()
+        let request = DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            workingDirectory: directory,
+            backendSelection: DRCBackendSelection(backendID: "stub"),
+            options: DRCOptions(
+                requireSignedArtifacts: true,
+                trustedArtifactPublicKey: signer.publicKey
+            )
+        )
+
+        let result = try await DefaultDRCEngine(
+            backend: StubDRCBackend(),
+            store: DRCArtifactStore(signer: signer)
+        ).run(request)
+
+        let manifestURL = try #require(result.artifactManifestURL)
+        let manifest = try JSONDecoder().decode(
+            DRCArtifactManifest.self,
+            from: Data(contentsOf: manifestURL)
+        )
+        #expect(manifest.signature?.algorithm == "ed25519")
+        #expect(try DRCArtifactManifestVerifier().verify(
+            manifestURL: manifestURL,
+            requireSignature: true,
+            trustedPublicKey: signer.publicKey
+        ).isEmpty)
     }
 
     @Test func artifactManifestRetainsExternalInputsInsideRunDirectory() async throws {
@@ -151,6 +212,23 @@ struct DefaultDRCEngineTests {
         }
 
         #expect(didThrowExpectedError)
+    }
+
+    @Test func rejectsBackendResultIdentityMismatch() async throws {
+        let request = DRCRequest(
+            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            topCell: "inv",
+            backendSelection: DRCBackendSelection(backendID: "lying-stub")
+        )
+
+        do {
+            _ = try await DefaultDRCEngine(backends: [LyingStubDRCBackend()]).run(request)
+            Issue.record("Expected backend result identity mismatch to be rejected")
+        } catch let error as DRCError {
+            #expect(error == .backendFailed(
+                "Backend 'lying-stub' returned result backend ID 'other-backend'."
+            ))
+        }
     }
 
     @Test func corpusEvidenceRejectsMissingReadinessFields() {
@@ -435,6 +513,37 @@ struct DefaultDRCEngineTests {
         ])
     }
 
+    @Test func independentCorrelationBlocksWhenMarkerSetsDiffer() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = directory.appending(path: "layout.json")
+        let specURL = directory.appending(path: "drc-corpus.json")
+        let outputDirectory = directory.appending(path: "corpus-output")
+        try Data([0x01]).write(to: layoutURL)
+        try writeJSON(DRCCorpusSpec(
+            evidenceKind: .independentCorrelation,
+            cases: [DRCCorpusCase(
+                caseID: "marker-mismatch",
+                layoutPath: layoutURL.lastPathComponent,
+                topCell: "inv",
+                backendID: "clean-stub",
+                oracleBackendID: "marker-stub",
+                expectedPassed: true
+            )]
+        ), to: specURL)
+
+        let report = try await DRCCorpusRunner(engine: DefaultDRCEngine(backends: [
+            CleanStubDRCBackend(),
+            MarkerStubDRCBackend(),
+        ])).run(specURL: specURL, outputDirectory: outputDirectory)
+
+        let result = try #require(report.caseResults.first)
+        #expect(!result.matched)
+        #expect(result.oracleResult?.agreementPassed == false)
+        #expect(result.oracleComparison?.markerSetMatched == false)
+        #expect(result.oracleComparison?.mismatchReasons.contains("marker_set_mismatch") == true)
+        #expect(report.qualification.qualified == false)
+    }
+
     @Test func corpusRunnerWritesCaseFailureWhenPrimaryBackendIsUnavailable() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = directory.appending(path: "layout.json")
@@ -658,6 +767,26 @@ struct DefaultDRCEngineTests {
         }
     }
 
+    private struct DeadlineStubDRCBackend: DRCCancellableBackend {
+        let backendID = "deadline-stub"
+
+        func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
+            try await run(request, cancellationCheck: nil)
+        }
+
+        func run(
+            _ request: DRCRequest,
+            cancellationCheck: DRCExecutionCancellationCheck?
+        ) async throws -> DRCExecutionResult {
+            while true {
+                if let cancellationCheck, try await cancellationCheck() {
+                    throw DRCError.cancelled("Deadline stub observed cancellation.")
+                }
+                try await Task.sleep(nanoseconds: 1_000_000)
+            }
+        }
+    }
+
     private struct AliasStubDRCBackend: DRCBackend {
         let backendID: String
 
@@ -667,6 +796,23 @@ struct DefaultDRCEngineTests {
                 result: DRCResult(
                     backendID: backendID,
                     toolName: "alias-stub-drc",
+                    success: true,
+                    completed: true,
+                    logPath: ""
+                )
+            )
+        }
+    }
+
+    private struct LyingStubDRCBackend: DRCBackend {
+        let backendID = "lying-stub"
+
+        func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
+            DRCExecutionResult(
+                request: request,
+                result: DRCResult(
+                    backendID: "other-backend",
+                    toolName: "lying-stub-drc",
                     success: true,
                     completed: true,
                     logPath: ""
@@ -738,6 +884,35 @@ struct DefaultDRCEngineTests {
                             message: "Oracle reports width mismatch",
                             ruleID: "oracle.width",
                             rawLine: "ORACLE_WIDTH"
+                        ),
+                    ]
+                )
+            )
+        }
+    }
+
+    private struct MarkerStubDRCBackend: DRCBackend {
+        let backendID = "marker-stub"
+
+        func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
+            DRCExecutionResult(
+                request: request,
+                result: DRCResult(
+                    backendID: backendID,
+                    toolName: "marker-stub-drc",
+                    success: true,
+                    completed: true,
+                    logPath: "",
+                    diagnostics: [
+                        DRCDiagnostic(
+                            severity: .warning,
+                            message: "Oracle warning marker",
+                            ruleID: "oracle.warning",
+                            kind: "warning",
+                            layer: "M1",
+                            region: DRCRegion(x: 1, y: 2, width: 3, height: 4),
+                            relatedShapeIDs: ["shape-a"],
+                            rawLine: "ORACLE_WARNING"
                         ),
                     ]
                 )

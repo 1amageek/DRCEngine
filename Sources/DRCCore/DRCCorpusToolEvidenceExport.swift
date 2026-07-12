@@ -70,6 +70,25 @@ public struct DRCCorpusToolEvidenceExport: Sendable, Hashable, Codable {
     public let reportSHA256: String?
     public let summary: DRCCorpusSummary
     public let toolEvidence: ToolEvidence
+    public let signature: DRCArtifactSignature?
+
+    private init(
+        schemaVersion: Int,
+        status: String,
+        reportPath: String,
+        reportSHA256: String?,
+        summary: DRCCorpusSummary,
+        toolEvidence: ToolEvidence,
+        signature: DRCArtifactSignature?
+    ) {
+        self.schemaVersion = schemaVersion
+        self.status = status
+        self.reportPath = reportPath
+        self.reportSHA256 = reportSHA256
+        self.summary = summary
+        self.toolEvidence = toolEvidence
+        self.signature = signature
+    }
 
     public init(
         schemaVersion: Int = 1,
@@ -77,13 +96,15 @@ public struct DRCCorpusToolEvidenceExport: Sendable, Hashable, Codable {
         reportSHA256: String? = nil,
         report: DRCCorpusReport,
         evidenceID: String? = nil,
-        checkedAt: Date = Date()
+        checkedAt: Date = Date(),
+        signature: DRCArtifactSignature? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.status = report.qualification.qualified ? "passed" : "failed"
         self.reportPath = reportPath
         self.reportSHA256 = reportSHA256
         self.summary = report.summary
+        self.signature = signature
         self.toolEvidence = ToolEvidence(
             evidenceID: evidenceID ?? Self.defaultEvidenceID(reportPath: reportPath),
             artifact: FileReference(path: reportPath, sha256: reportSHA256),
@@ -96,6 +117,25 @@ public struct DRCCorpusToolEvidenceExport: Sendable, Hashable, Codable {
             ),
             checkedAt: Self.iso8601String(from: checkedAt)
         )
+    }
+
+    public func withSignature(_ signature: DRCArtifactSignature?) -> DRCCorpusToolEvidenceExport {
+        DRCCorpusToolEvidenceExport(
+            schemaVersion: schemaVersion,
+            status: status,
+            reportPath: reportPath,
+            reportSHA256: reportSHA256,
+            summary: summary,
+            toolEvidence: toolEvidence,
+            signature: signature
+        )
+    }
+
+    public func signed(using signer: any DRCArtifactSigner) throws -> DRCCorpusToolEvidenceExport {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let payload = try encoder.encode(withSignature(nil))
+        return withSignature(try signer.sign(payload))
     }
 
     private static func defaultEvidenceID(reportPath: String) -> String {
@@ -143,4 +183,5 @@ public struct DRCCorpusToolEvidenceExport: Sendable, Hashable, Codable {
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.string(from: date)
     }
+
 }

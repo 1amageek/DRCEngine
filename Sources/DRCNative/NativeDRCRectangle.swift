@@ -10,6 +10,7 @@ public struct NativeDRCRectangle: Sendable, Hashable, Codable {
     public let yMax: Double
     public let netID: String?
     public let antennaGateArea: Double?
+    public let antennaDiffusionArea: Double?
     public let antennaProcessStep: String?
 
     public init(
@@ -21,6 +22,7 @@ public struct NativeDRCRectangle: Sendable, Hashable, Codable {
         yMax: Double,
         netID: String? = nil,
         antennaGateArea: Double? = nil,
+        antennaDiffusionArea: Double? = nil,
         antennaProcessStep: String? = nil
     ) {
         self.id = id
@@ -31,6 +33,7 @@ public struct NativeDRCRectangle: Sendable, Hashable, Codable {
         self.yMax = yMax
         self.netID = netID
         self.antennaGateArea = antennaGateArea
+        self.antennaDiffusionArea = antennaDiffusionArea
         self.antennaProcessStep = antennaProcessStep
     }
 

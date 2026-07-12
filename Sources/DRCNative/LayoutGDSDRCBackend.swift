@@ -12,21 +12,32 @@ import LayoutVerify
 /// width/spacing with merged-region semantics, enclosure, density,
 /// antenna, and connectivity. This is the same kernel used by the
 /// layout editor's live DRC.
-public struct LayoutGDSDRCBackend: DRCBackend {
+public struct LayoutGDSDRCBackend: DRCCancellableBackend {
     public let backendID = "native-gds"
 
     public init() {}
 
     public func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
+        try await run(request, cancellationCheck: nil)
+    }
+
+    public func run(
+        _ request: DRCRequest,
+        cancellationCheck: DRCExecutionCancellationCheck?
+    ) async throws -> DRCExecutionResult {
+        try await checkCancellation(cancellationCheck)
         let input = try Self.loadExecutionInput(for: request)
-        let violations = Self.collectViolations(
+        try Self.validateTechnologyReadiness(input.tech, request: request)
+        try await checkCancellation(cancellationCheck)
+        let layoutResult = Self.collectResult(
             document: input.document,
             tech: input.tech,
             topCell: input.topCell
         )
-        let diagnostics = Self.makeDiagnostics(from: violations)
+        try await checkCancellation(cancellationCheck)
+        let diagnostics = Self.makeDiagnostics(from: layoutResult)
         let logPath = try Self.writeRunLogIfNeeded(
-            violationCount: violations.count,
+            violationCount: layoutResult.violations.count,
             diagnostics: diagnostics,
             topCellName: input.topCell.name,
             request: request
@@ -35,6 +46,7 @@ public struct LayoutGDSDRCBackend: DRCBackend {
             request: request,
             technologyURL: input.technologyURL,
             diagnostics: diagnostics,
+            layoutDiagnostics: layoutResult.diagnostics,
             logPath: logPath
         )
         return DRCExecutionResult(
@@ -42,6 +54,17 @@ public struct LayoutGDSDRCBackend: DRCBackend {
             result: result,
             repairHintGeometry: Self.repairHintGeometry(from: input.topCell)
         )
+    }
+
+    private func checkCancellation(
+        _ cancellationCheck: DRCExecutionCancellationCheck?
+    ) async throws {
+        if Task.isCancelled {
+            throw DRCError.cancelled("Native GDS DRC execution was cancelled.")
+        }
+        if let cancellationCheck, try await cancellationCheck() {
+            throw DRCError.cancelled("Native GDS DRC execution was cancelled.")
+        }
     }
 
     private struct ExecutionInput {
@@ -87,6 +110,20 @@ public struct LayoutGDSDRCBackend: DRCBackend {
         }
     }
 
+    private static func validateTechnologyReadiness(
+        _ tech: LayoutTechDatabase,
+        request: DRCRequest
+    ) throws {
+        guard request.options.requireAntennaRules else {
+            return
+        }
+        guard !tech.antennaRules.isEmpty else {
+            throw DRCError.invalidInput(
+                "Antenna rule coverage is required, but the technology deck contains no antennaRules. The run is blocked instead of being reported as zero antenna violations."
+            )
+        }
+    }
+
     private static func loadMaterializedDocument(
         for request: DRCRequest,
         tech: LayoutTechDatabase
@@ -97,7 +134,7 @@ public struct LayoutGDSDRCBackend: DRCBackend {
                 format: request.layoutFormat,
                 tech: tech
             )
-            return LayoutDerivedLayerMaterializer.materialize(document: rawDocument, tech: tech)
+            return rawDocument
         } catch {
             throw DRCError.invalidInput(
                 "Could not read layout '\(request.layoutURL.lastPathComponent)': \(error.localizedDescription)"
@@ -105,20 +142,34 @@ public struct LayoutGDSDRCBackend: DRCBackend {
         }
     }
 
-    private static func collectViolations(
+    private static func collectResult(
         document: LayoutDocument,
         tech: LayoutTechDatabase,
         topCell: LayoutCell
-    ) -> [LayoutViolation] {
+    ) -> LayoutDRCResult {
         LayoutDRCService()
-            .run(document: document, tech: tech, cellID: topCell.id)
-            .violations
+            .run(
+                document: document,
+                tech: tech,
+                cellID: topCell.id,
+                geometryMode: .exactOnly
+            )
     }
 
-    private static func makeDiagnostics(from violations: [LayoutViolation]) -> [DRCDiagnostic] {
-        violations.map { violation in
+    private static func makeDiagnostics(from result: LayoutDRCResult) -> [DRCDiagnostic] {
+        let violationDiagnostics = result.violations.map { violation in
             Self.makeDiagnostic(from: violation)
         }
+        let layoutDiagnostics = result.diagnostics.map { diagnostic in
+            DRCDiagnostic(
+                severity: diagnostic.severity == .error ? .error : .warning,
+                message: diagnostic.message,
+                ruleID: diagnostic.code,
+                kind: "layout-diagnostic",
+                rawLine: "\(diagnostic.code): \(diagnostic.message)"
+            )
+        }
+        return violationDiagnostics + layoutDiagnostics
     }
 
     private static func makeDiagnostic(from violation: LayoutViolation) -> DRCDiagnostic {
@@ -172,6 +223,7 @@ public struct LayoutGDSDRCBackend: DRCBackend {
         request: DRCRequest,
         technologyURL: URL,
         diagnostics: [DRCDiagnostic],
+        layoutDiagnostics: [LayoutDRCDiagnostic],
         logPath: String
     ) -> DRCResult {
         // `success` means the check RAN; the verdict lives in the
@@ -180,6 +232,10 @@ public struct LayoutGDSDRCBackend: DRCBackend {
             backendID: backendID,
             toolName: "LayoutVerify",
             success: true,
+            // The backend completed the verification pass even when the
+            // kernel reports a blocking layout diagnostic. `completed` is
+            // reserved for execution interruption; design failures belong in
+            // the typed diagnostic/verdict channel.
             completed: true,
             logPath: logPath,
             diagnostics: diagnostics,

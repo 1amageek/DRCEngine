@@ -2,10 +2,30 @@ import Foundation
 import DRCEngine
 import SignoffToolSupport
 
+public struct DRCNativeAntennaQualificationCLIOutput: Sendable, Hashable, Codable {
+    public let status: String
+    public let artifactPath: String
+    public let outputPath: String
+    public let qualification: NativeDRCAntennaQualification
+
+    public init(
+        artifactPath: String,
+        outputPath: String,
+        qualification: NativeDRCAntennaQualification
+    ) {
+        self.status = qualification.status.rawValue
+        self.artifactPath = artifactPath
+        self.outputPath = outputPath
+        self.qualification = qualification
+    }
+}
+
 public struct DRCMagicRuleImportCLIOutput: Sendable, Hashable, Codable {
     public let status: String
     public let technologyPath: String
     public let reportPath: String?
+    public let nativeAntennaPath: String?
+    public let nativeAntennaQualification: NativeDRCAntennaQualification?
     public let sourcePath: String
     public let profilePath: String
     public let profileResourceName: String?
@@ -18,6 +38,8 @@ public struct DRCMagicRuleImportCLIOutput: Sendable, Hashable, Codable {
     public init(
         technologyPath: String,
         reportPath: String?,
+        nativeAntennaPath: String? = nil,
+        nativeAntennaQualification: NativeDRCAntennaQualification? = nil,
         sourcePath: String,
         profilePath: String,
         profileResourceName: String? = nil,
@@ -30,6 +52,8 @@ public struct DRCMagicRuleImportCLIOutput: Sendable, Hashable, Codable {
         self.status = importReport.status.rawValue
         self.technologyPath = technologyPath
         self.reportPath = reportPath
+        self.nativeAntennaPath = nativeAntennaPath
+        self.nativeAntennaQualification = nativeAntennaQualification
         self.sourcePath = sourcePath
         self.profilePath = profilePath
         self.profileResourceName = profileResourceName
@@ -45,18 +69,24 @@ public struct DRCFoundryRuleImportCLIOutput: Sendable, Hashable, Codable {
     public let status: String
     public let technologyPath: String?
     public let reportPath: String?
+    public let nativeAntennaPath: String?
+    public let nativeAntennaQualification: NativeDRCAntennaQualification?
     public let semanticReport: SignoffDeckSemanticReport
     public let importReport: MagicDRCLayoutTechImportReport?
 
     public init(
         technologyPath: String?,
         reportPath: String?,
+        nativeAntennaPath: String? = nil,
+        nativeAntennaQualification: NativeDRCAntennaQualification? = nil,
         semanticReport: SignoffDeckSemanticReport,
         importReport: MagicDRCLayoutTechImportReport?
     ) {
         self.status = importReport?.status.rawValue ?? "blocked"
         self.technologyPath = technologyPath
         self.reportPath = reportPath
+        self.nativeAntennaPath = nativeAntennaPath
+        self.nativeAntennaQualification = nativeAntennaQualification
         self.semanticReport = semanticReport
         self.importReport = importReport
     }
@@ -98,6 +128,7 @@ public struct DRCCLIOutput: Sendable, Hashable, Codable {
     public let toolName: String
     public let reportPath: String?
     public let manifestPath: String?
+    public let runID: String?
     public let diagnosticSummary: DRCDiagnosticSummary
     public let runSummary: DRCRunSummary
     public let diagnostics: [DRCDiagnostic]
@@ -111,6 +142,7 @@ public struct DRCCLIOutput: Sendable, Hashable, Codable {
         self.toolName = summary.toolName
         self.reportPath = result.reportURL?.path(percentEncoded: false)
         self.manifestPath = result.artifactManifestURL?.path(percentEncoded: false)
+        self.runID = result.artifactRunID
         self.diagnostics = result.result.diagnostics
         self.waiverReport = result.waiverReport
         self.runSummary = summary

@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import DRCCore
 import DRCParsers
 import SignoffToolSupport
@@ -27,6 +28,19 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
     private let parser: MagicDRCReportParser
 
     public let backendID = "magic"
+
+    public var identity: DRCBackendIdentity {
+        DRCBackendIdentity(
+            backendID: backendID,
+            implementationFamily: .magic,
+            executableDigest: Self.fileDigest(at: toolchain.magicExecutableURL),
+            ruleProgramDigest: Self.combinedFileDigest([
+                toolchain.rcFileURL,
+                toolchain.driverScriptURL,
+            ]),
+            technologyDigest: Self.directoryDigest(at: URL(filePath: toolchain.pdkRoot))
+        )
+    }
     private static let reservedEnvironmentKeys: Set<String> = [
         "PDK_ROOT",
         "DRC_CELL",
@@ -41,6 +55,78 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
     ) {
         self.toolchain = toolchain
         self.parser = parser
+    }
+
+    private static func fileDigest(at url: URL) -> String? {
+        do {
+            let data = try Data(contentsOf: url)
+            return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        } catch {
+            return nil
+        }
+    }
+
+    private static func combinedFileDigest(_ urls: [URL]) -> String? {
+        let payload = urls.compactMap { url -> String? in
+            fileDigest(at: url)
+        }
+        guard payload.count == urls.count else { return nil }
+        return SHA256.hash(data: Data(payload.joined(separator: "\n").utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
+    private static func directoryDigest(at directoryURL: URL) -> String? {
+        var entries: [String] = []
+        let root = directoryURL.standardizedFileURL
+        guard FileManager.default.fileExists(atPath: root.path(percentEncoded: false)) else {
+            return nil
+        }
+        guard let enumerator = FileManager.default.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
+            options: []
+        ) else {
+            return nil
+        }
+        do {
+            for case let fileURL as URL in enumerator {
+                let values = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+                let relativePath = fileURL.path(percentEncoded: false)
+                    .replacingOccurrences(of: root.path(percentEncoded: false) + "/", with: "")
+                if values.isSymbolicLink == true {
+                    let destination = try FileManager.default.destinationOfSymbolicLink(
+                        atPath: fileURL.path(percentEncoded: false)
+                    )
+                    let targetURL = URL(
+                        filePath: destination,
+                        relativeTo: fileURL.deletingLastPathComponent()
+                    ).standardizedFileURL
+                    let targetDigest: String
+                    do {
+                        let targetData = try Data(contentsOf: targetURL)
+                        targetDigest = SHA256.hash(data: targetData)
+                            .map { String(format: "%02x", $0) }
+                            .joined()
+                    } catch {
+                        targetDigest = "unreadable"
+                    }
+                    entries.append("\(relativePath)|symlink|\(destination)|\(targetDigest)")
+                    continue
+                }
+                guard values.isRegularFile == true else { continue }
+                let data = try Data(contentsOf: fileURL)
+                let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                entries.append("\(relativePath)|file|\(digest)")
+            }
+        } catch {
+            return nil
+        }
+        guard !entries.isEmpty else { return nil }
+        let canonical = entries.sorted().joined(separator: "\n")
+        return SHA256.hash(data: Data(canonical.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 
     public static var bundledDriverScriptURL: URL? {
@@ -193,8 +279,18 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
                     .filter { !$0.isEmpty }
                     .joined(separator: "\n")
                 throw DRCError.backendFailed(output)
-            default:
-                throw error
+            case .timedOut(_, let timeoutSeconds, let standardOutput, let standardError):
+                let output = [standardOutput, standardError]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "\n")
+                let suffix = output.isEmpty ? "" : "\n\(output)"
+                throw DRCError.timedOut(
+                    "Magic DRC process exceeded \(timeoutSeconds) seconds.\(suffix)"
+                )
+            case .invalidConfiguration(let message):
+                throw DRCError.invalidInput(message)
+            case .launchFailed(let executablePath, let message):
+                throw DRCError.backendFailed("Could not launch \(executablePath): \(message)")
             }
         }
     }
@@ -219,7 +315,10 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
             pdkRoot: toolchain.pdkRoot,
             rcFilePath: toolchain.rcFileURL.path(percentEncoded: false),
             driverScriptPath: toolchain.driverScriptURL.path(percentEncoded: false),
-            timeoutSeconds: request.options.timeoutSeconds
+            timeoutSeconds: request.options.timeoutSeconds,
+            executableDigest: identity.executableDigest,
+            ruleProgramDigest: identity.ruleProgramDigest,
+            technologyDigest: identity.technologyDigest
         )
     }
 

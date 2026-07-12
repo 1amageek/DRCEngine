@@ -11,6 +11,8 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
     public let backendID: String?
     public let oracleBackendID: String?
     public let additionalEnvironment: [String: String]
+    public let designRevision: String?
+    public let canonicalStateDigest: String?
     public let expectedPassed: Bool
     public let expectedActiveErrorRuleIDs: [String]
     public let coverageTags: [String]
@@ -27,6 +29,8 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
         backendID: String? = nil,
         oracleBackendID: String? = nil,
         additionalEnvironment: [String: String] = [:],
+        designRevision: String? = nil,
+        canonicalStateDigest: String? = nil,
         expectedPassed: Bool,
         expectedActiveErrorRuleIDs: [String] = [],
         coverageTags: [String] = [],
@@ -42,6 +46,8 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
         self.backendID = backendID
         self.oracleBackendID = oracleBackendID
         self.additionalEnvironment = additionalEnvironment
+        self.designRevision = designRevision
+        self.canonicalStateDigest = canonicalStateDigest
         self.expectedPassed = expectedPassed
         self.expectedActiveErrorRuleIDs = expectedActiveErrorRuleIDs
         self.coverageTags = Self.normalizedCoverageTags(coverageTags)
@@ -59,6 +65,8 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
         case backendID
         case oracleBackendID
         case additionalEnvironment
+        case designRevision
+        case canonicalStateDigest
         case expectedPassed
         case expectedActiveErrorRuleIDs
         case coverageTags
@@ -83,6 +91,8 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
             [String: String].self,
             forKey: .additionalEnvironment
         ) ?? [:]
+        designRevision = try container.decodeIfPresent(String.self, forKey: .designRevision)
+        canonicalStateDigest = try container.decodeIfPresent(String.self, forKey: .canonicalStateDigest)
         expectedPassed = try container.decode(Bool.self, forKey: .expectedPassed)
         expectedActiveErrorRuleIDs = try container.decodeIfPresent(
             [String].self,

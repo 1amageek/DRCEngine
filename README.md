@@ -1,8 +1,10 @@
 # DRCEngine
 
 Design rule checking engine with a protocol-composed backend model. The native
-in-process backends are the core signoff path; Magic is an optional, headless-batch-only
-adapter kept for oracle checks and PDK-deck agreement.
+in-process backends are development and preview paths until a pinned PDK/deck
+qualification envelope has passed. Magic is an optional, headless-batch reference
+adapter; a same-backend or same-implementation-family comparison is never an
+independent oracle.
 
 ## Modules
 
@@ -22,6 +24,42 @@ adapter kept for oracle checks and PDK-deck agreement.
 `DRCNative`, `native`, and `native-gds` are the only current Swift and CLI
 surfaces for the in-process DRC path. Removed implementation-language backend
 IDs are rejected with a typed backend-selection error.
+
+The native GDS path invokes `LayoutDRCService` in `exactOnly` geometry mode.
+Paths and non-rectilinear polygons therefore produce a blocking
+`drc.unsupported_exact_geometry` diagnostic until the exact edge kernel is
+qualified. Interactive layout feedback may still use the explicit
+`development` mode; that result must not be promoted to signoff evidence.
+
+Every `DRCRequest` validates its top-cell, selected backend, timeout, and POSIX
+environment before lookup. In-process backends cooperatively observe the same
+timeout and cancellation contract; external Magic runs use the process-tree
+timeout. Native JSON input rejects invalid geometry, duplicate IDs, and
+non-finite rule data before evaluation. When a working directory is supplied,
+the engine verifies the persisted manifest against the actual files, path
+containment, byte counts, and SHA-256 digests before returning the result.
+Downstream consumers can repeat this gate with `DRCArtifactManifestVerifier`.
+
+For a release or Agent trust boundary, artifact manifests can also be signed
+with Ed25519. Inject `DRCEd25519ArtifactSigner` through
+`DRCArtifactStore(signer:)`, set `DRCOptions.requireSignedArtifacts`, and pin
+the signer's base64 public key in `DRCOptions.trustedArtifactPublicKey`. The
+engine signs the canonical manifest payload with the signature field omitted,
+then verifies the signed manifest before returning. Verification is therefore
+bound to the persisted report, request/environment commitments, backend
+identity, and artifact digests rather than to a log string.
+
+The CLI exposes the same boundary with
+`--require-signed-artifacts`, `--trusted-artifact-public-key`, and
+`--artifact-signing-private-key`. The private-key option accepts a raw 32-byte
+Ed25519 key file or a base64-encoded 32-byte key file. Keep private keys outside
+the project and do not commit them.
+
+For a production-oriented standard-layout run, add `--require-antenna-rules`.
+The native-gds backend then fails closed when the technology JSON has no
+`antennaRules`; an empty antenna rule set is never presented as zero antenna
+violations. The same gate is available as `DRCOptions.requireAntennaRules` and
+`DRCCorpusRunOptions.requireAntennaRules`.
 
 ## Capability snapshot
 
@@ -50,9 +88,10 @@ schemas, corpus contracts, or backend behavior:
 ```
 
 The check builds `drcengine`, runs the committed DRC corpus through the real
-executable, verifies the generated `drc-corpus-report.json`, asserts
-qualification, pass rate, oracle agreement, and key coverage tags, then confirms
-that unknown CLI arguments fail instead of being ignored.
+executable, verifies the generated `drc-corpus-report.json`, asserts that the
+legacy self-oracle corpus is not signoff-qualified, checks pass rate and key
+coverage tags, then confirms that unknown CLI arguments fail instead of being
+ignored. A committed regression corpus is not independent qualification evidence.
 
 When debugging manually, use the SwiftPM-built executable:
 
@@ -156,6 +195,9 @@ supplied, `--pdk-root` is also used as the resolution root for relative
 `requiredFiles`. The JSON artifact kind is
 `drc-magic-rule-import-catalog-inventory` and reports PDK-root, catalog, entry,
 required-file, and bundled-profile-resource status without log scraping.
+Catalog resolution also rejects duplicate entries, duplicate profile IDs,
+duplicate required-file purposes, empty/control-character identifiers, and
+empty/control-character paths before any deck is imported.
 
 Bundled profile resources use the same generic entry point:
 
@@ -272,6 +314,19 @@ such as ambiguous multi-cut stack syntax, extra unmatched cut-count values, and
 any future Magic `templayer` operation outside the typed materialization set
 remain in the `drc-foundry-rule-import-report` diagnostics instead of being
 silently dropped.
+Magic `antenna` declarations are parsed into
+`sourceAntennaRules` / `sourceAntennaRuleCount` evidence, including the
+`partial`/`cumulative` model, `sidewall` versus `surface` measurement,
+`ratioDiffB`/`ratioDiffA` correction semantics, and resolved process
+thicknesses from `height` declarations. When a Magic deck also declares
+derived aliases with different physical heights, canonical source-layer
+declarations take precedence and only conflicting declarations of the same
+source expression block lowering. `NativeDRCAntennaRuleFactory` can
+lower this evidence into executable `NativeDRCRule` values when the caller
+supplies gate-layer and cut-stack metadata; missing model or sidewall
+thickness fails with a typed construction error. The importer itself still
+reports the source family as `partial` and does not claim that a generic
+`LayoutTech` area rule is equivalent to Magic's antenna kernel.
 The canonical native JSON backend separately supports
 `NativeDRCRule.Kind.maximumWidth`, `NativeDRCRule.Kind.forbiddenLayer`, and
 `NativeDRCRule.Kind.exactOverlap`. `maximumWidth` reports excessive rectangle
@@ -285,16 +340,25 @@ drcengine --import-foundry-magic-rules \
   --profile /path/to/magic-layouttech-profile.json \
   --tech-out /tmp/sky130-layout-tech.json \
   --report-out /tmp/sky130-rule-import.json \
+  --native-antenna-out /tmp/sky130-native-antenna-artifact.json \
   --json
 ```
 
+To emit the lowered Native antenna artifact alongside the source report, add
+`--native-antenna-out /path/native-antenna-artifact.json`. The output is a
+`NativeDRCAntennaArtifact` envelope, not an unqualified rule array: it binds
+the source/profile digests, profile layer order, source contact stacks,
+thickness map, source declarations, native rules, and the qualification
+verdict. The artifact can be structurally validated, but its
+`nativeAntennaQualification` remains `blocked` until an independently
+identified oracle has been run and recorded as agreeing.
+
 The normal successful state for a fully represented deck is `complete`. Real
-Sky130 PDK import currently reaches `complete` for represented Magic DRC seed
-families, including `boundary` / `FIXED_BBOX` marker materialization. Real decks
-may still report `partial` when future observed families or ambiguous cut-count
-rules are not yet represented by the native rule model. Add `--require-complete`
-when a release or Agent gate must fail until every observed Magic rule family is
-represented by the native rule model.
+Sky130 PDK import may still report `partial` when observed families or ambiguous
+cut-count rules are not represented by the native rule model. Import completion
+is syntactic translation status only; it is not signoff qualification. Add
+`--require-complete` when a release or Agent gate must fail until every observed
+Magic rule family is represented by the native rule model.
 
 ## Standard-input backend: `native-gds`
 
@@ -340,9 +404,42 @@ describe cut-layer links between adjacent conductor layers. When cut connections
 are present, the antenna ratio only counts conductor layers reachable from the
 gate layer through same-net cut rectangles that geometrically overlap both their
 lower and upper layer shapes, so a global `netID` does not over-connect metal
-that is not fabricated into the gate-connected stack yet. Multi-layer antenna
+that is not fabricated into the gate-connected stack yet. In a partial antenna
+stage whose measured layer is itself a cut/contact, lower-layer connectivity is
+sufficient, matching Magic's contact-stage exposure check. Multi-layer antenna
 area is summed per conductor layer after same-layer union, so overlapping metal
 on different layers is still counted as separate process exposure.
+Detailed antenna rules additionally declare `antennaModel` and
+`antennaLayers`. The native evaluator supports per-layer surface union area,
+sidewall union perimeter multiplied by process thickness, partial versus
+cumulative process exposure, and finite or `none` diffusion correction. A
+`requireAntennaRules` request option is enforced by both native backends, so an
+empty antenna deck cannot be reported as a clean, production-ready result.
+For canonical Native JSON, a release-gated run must also provide
+`antennaMetadata` with complete gate-area, diffusion-area, process-step, and
+cut-connectivity attestations. The readiness gate also rejects every
+net-bearing conductor covered by an antenna rule when that net has no positive
+gate-area annotation; omitted annotations remain allowed only for non-release
+exploratory runs.
+`NativeDRCAntennaQualification` is the explicit release gate: it records source
+import status, source/native rule counts, materialization gaps, and a
+`NativeDRCAntennaOracleEvidence` record. That evidence binds the independent
+oracle ID/version, executable/rule/technology digests, source/profile/native
+rule digests, corpus/comparison artifact digests, and agreement counts.
+Synthetic regression success alone therefore remains `blocked` until this
+evidence is supplied; the deprecated boolean initializer cannot qualify a
+release artifact.
+
+When an independent Oracle run becomes available, qualification is reproducible
+from the two retained artifacts:
+
+```bash
+drcengine --qualify-native-antenna \
+  --native-antenna-artifact /path/native-antenna-artifact.json \
+  --oracle-evidence /path/magic-antenna-oracle-evidence.json \
+  --out /path/native-antenna-qualified.json \
+  --json
+```
 
 `drcengine --json` emits the full diagnostics array, `runSummary`, and the report
 / manifest paths. The persisted report contains the same structured result.
@@ -422,11 +519,16 @@ The waiver file is saved as an input artifact with a digest. The report and
 manifest both include `waiverReport`, including unused waiver IDs so stale policy
 entries remain visible.
 
+Waivers may carry `DRCWaiverApproval` metadata (`approvedBy`, ISO-8601
+`approvedAt`, optional `expiresAt`, and a review `reference`). Pass
+`--require-approved-waivers` or set `DRCOptions.requireApprovedWaivers` when a
+signoff lane must reject missing or expired approval metadata.
+
 ## Corpus mode
 
 `DRCCorpusRunner` and `drcengine --corpus <corpus.json> --out <dir> --json` run
 multiple DRC cases and compare each result against expected pass/fail, active
-error rule IDs, optional oracle backend agreement (`oracleBackendID`), and
+error rule IDs, optional independent-reference agreement (`oracleBackendID`), and
 optional duration budgets (`defaultMaxDurationSeconds` or per-case
 `maxDurationSeconds`). Cases may also declare `coverageTags`, and a corpus
 policy may require `requiredCoverageTags` so a release gate can fail when the
@@ -439,15 +541,29 @@ its normal DRC report and artifact manifest under the corpus output directory. I
 an oracle backend is specified, its report and manifest are written under the
 case directory as separate artifacts.
 The top-level `drc-corpus-report.json` includes per-case results, an aggregate
-`summary`, and a durable `qualification` result for Agent / CI consumers. Corpus
+`summary`, and a durable `qualification` result for Agent / CI consumers. Each
+run also records a `runID`, the canonical corpus-spec SHA-256, `completed`, and
+an optional `parentRunID` when resumed. A checkpoint named
+`drc-corpus-checkpoint.json` is written after every completed case. Only cases
+whose previous result and artifact manifest still verify are reused on resume.
+Use the API's `DRCCorpusRunEventHandler` or `DRCCorpusRunSession.events` for
+case-level progress, checkpoint, completion, and cancellation events. The CLI
+supports the same contract with `--run-id <id>` and
+`--resume-report <drc-corpus-report-or-checkpoint.json>`.
+
+Corpus
 specs may declare `qualificationPolicy`; when absent, the strict policy requires
 every case, duration budget, and oracle agreement gate to pass. The summary
 exposes pass rate, expectation-matched case count, duration-budget pass count,
 primary/oracle execution failure counts, oracle agreement rate,
-`failureCategoryCounts`, and `coverageTagCounts`. The qualification result
+`nonIndependentOracleCaseCount`, `failureCategoryCounts`, and
+`coverageTagCounts`. The qualification result
 records the policy, a boolean `qualified` verdict, and typed failure codes such
 as `pass_rate_below_minimum`, `duration_budget_pass_rate_below_minimum`,
-`required_coverage_missing`, or `oracle_execution_failed`.
+`required_coverage_missing`, `oracle_execution_failed`, or
+`independent_oracle_failed`. Set `qualificationPolicy.requireIndependentOracle`
+for a release lane; same-backend, same-family, unknown-identity, and missing
+provenance references then fail qualification.
 `drcengine --corpus` uses `qualification.qualified` for its exit status, so
 Agents and CI can rely on the same persisted gate they review later.
 Saved reports can be rechecked without rerunning the corpus:
@@ -475,13 +591,42 @@ failure-code fields. The command exits with the same pass/fail convention as the
 qualification verdict, so CI can gate on it while Agents can copy the
 `toolEvidence` object into `XcircuiteFlowToolSpec.evidence`.
 
+For a retained release artifact, sign and persist the evidence in one command:
+
+```bash
+drcengine --evidence-from-corpus-report drc-corpus-report.json \
+  --out drc-tool-evidence.json \
+  --require-signed-artifacts \
+  --trusted-artifact-public-key "$DRC_EVIDENCE_PUBLIC_KEY" \
+  --artifact-signing-private-key /secure/path/drc-evidence.key \
+  --json
+```
+
+`DRCCorpusToolEvidenceVerifier` re-reads the report, validates its derived
+summary and qualification, compares the report digest, and verifies the
+signature before evidence is accepted. Corpus runs support the same signed
+artifact flags; resumed cases are reused only when their manifests satisfy
+the active signature policy.
+
 The optional policy file uses the same `DRCCorpusQualificationPolicy` JSON shape
 as `qualificationPolicy` in a corpus spec. This lets CI or an Agent apply a
-stricter or looser release gate to immutable corpus evidence without changing the
-original run artifacts.
+stricter or looser release gate to retained corpus evidence without changing the
+original run artifacts. Qualification and evidence commands recompute derived
+summary and qualification fields from case results; a persisted `qualified`
+boolean is never trusted by itself.
+
+Persisted corpus reports are structurally validated before CLI qualification or
+coverage audit (schema, case counts, result IDs, duration values, and duplicate
+case IDs). Coverage audit intentionally recomputes its summary from case results
+so a stale retained summary cannot silently alter the audit outcome.
 
 A primary backend failure is recorded as `primary_execution_failed:*` on the case
-result. An oracle backend failure is recorded inside `oracleResult` as
+result. A non-independent reference is rejected with
+`same_backend_reference`, `same_implementation_family_reference`,
+`reference_independence_unproven`, or `reference_attestation_unproven`; it is
+never counted as agreement evidence. External identities include executable,
+rule-program, and PDK/technology digests when available.
+An external reference execution failure is recorded inside `oracleResult` as
 `oracle_execution_failed:*` and also fails the case agreement gate, so missing
 external tools leave a reviewable report instead of aborting the corpus run.
 
@@ -512,13 +657,33 @@ waiver behavior. The tight-budget fixture proves that a
 correctness-clean run still fails the corpus gate when it exceeds its declared
 benchmark budget. CLI tests additionally prove that a correctness-clean corpus
 fails when `requiredCoverageTags` are missing. Runtime tests additionally inject
-disagreeing backends to prove oracle mismatch fails the corpus gate.
+disagreeing backends to prove oracle mismatch fails the corpus gate. This
+committed corpus intentionally uses same-backend regression references and must
+remain unqualified under the independent-oracle policy. A positive independently
+attested reference lane is exercised by
+`DRCIndependentOracleQualificationTests`; real foundry release qualification
+still requires the external Magic/PDK corpus and its digests.
 
 ## Result convention
 
-`result.success` means the check **ran**. The design verdict (violations or clean)
-lives in the diagnostics; only the fold of both counts as a pass. A missing summary
-or report is never interpreted as clean.
+`result.success` means the check **ran**. The typed `DRCVerdict` distinguishes
+`passed`, `failed`, `unsupported`, `incomplete`, and `execution-failed`; only
+`passed` is a clean design verdict. A missing summary or report is never
+interpreted as clean.
+
+Every engine result also retains the resolved `DRCBackendIdentity` in the result
+and artifact manifest. This includes the implementation family and, when an
+external executable and rule driver are readable, their SHA-256 digests. Corpus
+provenance reuses these persisted identities instead of inferring trust from a
+backend name alone.
+
+Corpus specs default to `evidenceKind: "regression"`. A spec marked
+`"independent-correlation"` additionally compares a stable marker fingerprint
+set for each diagnostic. The fingerprint is derived from rule ID, diagnostic
+kind, layer, normalized region, and related shape/via/pin/net IDs; message text
+and execution order are intentionally excluded. A marker-set mismatch produces
+`marker_set_mismatch` and blocks oracle agreement in that evidence lane. The
+regression lane retains the legacy rule-ID and verdict comparison contract.
 
 ## Build & test
 

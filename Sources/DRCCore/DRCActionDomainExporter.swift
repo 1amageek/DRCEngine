@@ -10,6 +10,7 @@ public struct DRCActionDomainExporter: Sendable {
                 exportRepairHintsOperation(),
                 inspectFoundryDeckSemanticsOperation(),
                 importFoundryRuleSeedOperation(),
+                qualifyNativeAntennaOperation(),
                 qualifyCorpusOperation(),
                 auditCorpusCoverageOperation(),
                 exportEvidenceOperation(),
@@ -22,9 +23,9 @@ public struct DRCActionDomainExporter: Sendable {
     private func runNativeDRCOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.run-native",
-            maturity: "implemented",
+            maturity: "preview-verified",
             inputRefs: ["layout-ref", "technology-ref", "optional-waiver-ref"],
-            preconditions: ["supported-layout-format", "top-cell-known", "qualified-backend-selected"],
+            preconditions: ["supported-layout-format", "top-cell-known", "backend-selection-validated"],
             effects: [
                 "drc-result-produced",
                 "drc-diagnostics-produced",
@@ -32,7 +33,7 @@ public struct DRCActionDomainExporter: Sendable {
                 "drc-artifact-manifest-written",
             ],
             producedArtifacts: ["drc-report", "drc-artifact-manifest", "drc-summary"],
-            verificationGates: ["tool-trust", "artifact-integrity", "drc-artifacts"],
+            verificationGates: ["tool-trust", "qualification-envelope", "artifact-integrity", "drc-artifacts"],
             reversible: true
         )
     }
@@ -40,7 +41,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func exportRepairHintsOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.export-repair-hints",
-            maturity: "implemented",
+            maturity: "preview-verified",
             inputRefs: ["drc-report"],
             preconditions: ["drc-report-readable", "active-diagnostics-present"],
             effects: ["drc-repair-hints-produced"],
@@ -53,7 +54,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func inspectFoundryDeckSemanticsOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.inspect-foundry-deck-semantics",
-            maturity: "implemented",
+            maturity: "available-unqualified",
             inputRefs: ["optional-pdk-root"],
             preconditions: ["magic-drc-deck-readable"],
             effects: ["foundry-deck-semantic-report-produced"],
@@ -66,7 +67,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func importFoundryRuleSeedOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.import-foundry-rule-seed",
-            maturity: "implemented",
+            maturity: "available-unqualified",
             inputRefs: ["magic-tech-ref-or-signoff-profile", "magic-layouttech-import-profile", "optional-pdk-root"],
             preconditions: ["magic-tech-readable-or-signoff-profile-resolved", "magic-layouttech-import-profile-valid"],
             effects: ["layout-tech-seed-produced", "foundry-rule-import-report-produced"],
@@ -79,7 +80,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func qualifyCorpusOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.qualify-corpus",
-            maturity: "implemented",
+            maturity: "preview-verified",
             inputRefs: ["drc-corpus-spec", "optional-oracle-backend"],
             preconditions: ["corpus-spec-valid", "coverage-tags-declared"],
             effects: ["corpus-report-written", "qualification-result-produced"],
@@ -89,10 +90,23 @@ public struct DRCActionDomainExporter: Sendable {
         )
     }
 
+    private func qualifyNativeAntennaOperation() -> DRCActionDomainOperation {
+        DRCActionDomainOperation(
+            operationID: "drc.qualify-native-antenna",
+            maturity: "available-unqualified",
+            inputRefs: ["drc-native-antenna-artifact", "drc-antenna-oracle-evidence"],
+            preconditions: ["native-antenna-artifact-readable", "oracle-evidence-readable", "digest-bindings-match"],
+            effects: ["native-antenna-qualification-updated"],
+            producedArtifacts: ["drc-native-antenna-artifact"],
+            verificationGates: ["oracle-independence", "oracle-agreement", "artifact-integrity"],
+            reversible: true
+        )
+    }
+
     private func auditCorpusCoverageOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.audit-corpus-coverage",
-            maturity: "implemented",
+            maturity: "preview-verified",
             inputRefs: ["drc-corpus-report", "optional-coverage-policy"],
             preconditions: ["corpus-report-readable"],
             effects: ["coverage-audit-produced", "missing-coverage-requirements-classified"],
@@ -105,7 +119,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func exportEvidenceOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.export-tool-evidence",
-            maturity: "implemented",
+            maturity: "available-unqualified",
             inputRefs: ["drc-corpus-report"],
             preconditions: ["qualified-corpus-report-readable"],
             effects: ["tool-evidence-produced"],
@@ -131,7 +145,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func waiverReviewOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.waiver-review",
-            maturity: "implemented",
+            maturity: "preview-verified",
             inputRefs: ["drc-diagnostics", "waiver-policy"],
             preconditions: ["waiver-policy-readable", "diagnostic-rule-id-present"],
             effects: ["waiver-report-produced", "active-error-count-updated"],

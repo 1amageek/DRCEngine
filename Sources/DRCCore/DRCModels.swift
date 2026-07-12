@@ -11,13 +11,46 @@ public struct DRCBackendSelection: Sendable, Hashable, Codable {
 public struct DRCOptions: Sendable, Hashable, Codable {
     public let timeoutSeconds: Double
     public let additionalEnvironment: [String: String]
+    public let requireApprovedWaivers: Bool
+    public let requireSignedArtifacts: Bool
+    public let trustedArtifactPublicKey: String?
+    /// Require a technology deck to contain explicit antenna rules before a
+    /// standard-layout backend may report a clean run.
+    public let requireAntennaRules: Bool
 
     public init(
         timeoutSeconds: Double = 300,
-        additionalEnvironment: [String: String] = [:]
+        additionalEnvironment: [String: String] = [:],
+        requireApprovedWaivers: Bool = false,
+        requireSignedArtifacts: Bool = false,
+        trustedArtifactPublicKey: String? = nil,
+        requireAntennaRules: Bool = false
     ) {
         self.timeoutSeconds = timeoutSeconds
         self.additionalEnvironment = additionalEnvironment
+        self.requireApprovedWaivers = requireApprovedWaivers
+        self.requireSignedArtifacts = requireSignedArtifacts
+        self.trustedArtifactPublicKey = trustedArtifactPublicKey
+        self.requireAntennaRules = requireAntennaRules
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case timeoutSeconds
+        case additionalEnvironment
+        case requireApprovedWaivers
+        case requireSignedArtifacts
+        case trustedArtifactPublicKey
+        case requireAntennaRules
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.timeoutSeconds = try container.decodeIfPresent(Double.self, forKey: .timeoutSeconds) ?? 300
+        self.additionalEnvironment = try container.decodeIfPresent([String: String].self, forKey: .additionalEnvironment) ?? [:]
+        self.requireApprovedWaivers = try container.decodeIfPresent(Bool.self, forKey: .requireApprovedWaivers) ?? false
+        self.requireSignedArtifacts = try container.decodeIfPresent(Bool.self, forKey: .requireSignedArtifacts) ?? false
+        self.trustedArtifactPublicKey = try container.decodeIfPresent(String.self, forKey: .trustedArtifactPublicKey)
+        self.requireAntennaRules = try container.decodeIfPresent(Bool.self, forKey: .requireAntennaRules) ?? false
     }
 }
 
@@ -43,6 +76,8 @@ public struct DRCRequest: Sendable, Hashable, Codable {
     public let workingDirectory: URL?
     public let backendSelection: DRCBackendSelection
     public let options: DRCOptions
+    public let designRevision: String?
+    public let canonicalStateDigest: String?
 
     public init(
         layoutURL: URL,
@@ -52,7 +87,9 @@ public struct DRCRequest: Sendable, Hashable, Codable {
         waiverURL: URL? = nil,
         workingDirectory: URL? = nil,
         backendSelection: DRCBackendSelection = DRCBackendSelection(backendID: "magic"),
-        options: DRCOptions = DRCOptions()
+        options: DRCOptions = DRCOptions(),
+        designRevision: String? = nil,
+        canonicalStateDigest: String? = nil
     ) {
         self.layoutURL = layoutURL
         self.topCell = topCell
@@ -62,11 +99,14 @@ public struct DRCRequest: Sendable, Hashable, Codable {
         self.workingDirectory = workingDirectory
         self.backendSelection = backendSelection
         self.options = options
+        self.designRevision = designRevision
+        self.canonicalStateDigest = canonicalStateDigest
     }
 }
 
 public struct DRCResult: Sendable, Hashable, Codable {
     public let backendID: String
+    public let backendIdentity: DRCBackendIdentity?
     public let toolName: String
     public let success: Bool
     public let completed: Bool
@@ -76,6 +116,7 @@ public struct DRCResult: Sendable, Hashable, Codable {
 
     public init(
         backendID: String,
+        backendIdentity: DRCBackendIdentity? = nil,
         toolName: String,
         success: Bool,
         completed: Bool,
@@ -84,6 +125,7 @@ public struct DRCResult: Sendable, Hashable, Codable {
         provenance: DRCToolProvenance? = nil
     ) {
         self.backendID = backendID
+        self.backendIdentity = backendIdentity
         self.toolName = toolName
         self.success = success
         self.completed = completed
@@ -103,19 +145,28 @@ public struct DRCToolProvenance: Sendable, Hashable, Codable {
     public let rcFilePath: String
     public let driverScriptPath: String
     public let timeoutSeconds: Double
+    public let executableDigest: String?
+    public let ruleProgramDigest: String?
+    public let technologyDigest: String?
 
     public init(
         executablePath: String,
         pdkRoot: String,
         rcFilePath: String,
         driverScriptPath: String,
-        timeoutSeconds: Double
+        timeoutSeconds: Double,
+        executableDigest: String? = nil,
+        ruleProgramDigest: String? = nil,
+        technologyDigest: String? = nil
     ) {
         self.executablePath = executablePath
         self.pdkRoot = pdkRoot
         self.rcFilePath = rcFilePath
         self.driverScriptPath = driverScriptPath
         self.timeoutSeconds = timeoutSeconds
+        self.executableDigest = executableDigest
+        self.ruleProgramDigest = ruleProgramDigest
+        self.technologyDigest = technologyDigest
     }
 }
 
@@ -234,6 +285,7 @@ public struct DRCExecutionResult: Sendable, Hashable, Codable {
     public let repairHintGeometry: DRCRepairHintGeometryContext?
     public let reportURL: URL?
     public let artifactManifestURL: URL?
+    public let artifactRunID: String?
 
     public init(
         request: DRCRequest,
@@ -241,7 +293,8 @@ public struct DRCExecutionResult: Sendable, Hashable, Codable {
         waiverReport: DRCWaiverApplicationReport? = nil,
         repairHintGeometry: DRCRepairHintGeometryContext? = nil,
         reportURL: URL? = nil,
-        artifactManifestURL: URL? = nil
+        artifactManifestURL: URL? = nil,
+        artifactRunID: String? = nil
     ) {
         self.request = request
         self.result = result
@@ -249,6 +302,7 @@ public struct DRCExecutionResult: Sendable, Hashable, Codable {
         self.repairHintGeometry = repairHintGeometry
         self.reportURL = reportURL
         self.artifactManifestURL = artifactManifestURL
+        self.artifactRunID = artifactRunID
     }
 }
 
@@ -306,36 +360,79 @@ public struct DRCArtifactManifest: Sendable, Hashable, Codable {
     public let schemaVersion: Int
     public let generatedAt: String
     public let backendID: String
+    public let backendIdentity: DRCBackendIdentity?
     public let toolName: String
     public let passed: Bool
     public let completed: Bool
+    public let verdict: DRCVerdict?
     public let inputs: [DRCArtifactRecord]
     public let outputs: [DRCArtifactRecord]
     public let diagnosticSummary: DRCDiagnosticSummary
     public let waiverReport: DRCWaiverApplicationReport?
+    public let runID: String?
+    public let requestSHA256: String?
+    public let requestEnvironmentSHA256: String?
+    public let artifactRootSHA256: String?
+    public let signature: DRCArtifactSignature?
 
     public init(
         schemaVersion: Int = 1,
         generatedAt: String,
         backendID: String,
+        backendIdentity: DRCBackendIdentity? = nil,
         toolName: String,
         passed: Bool,
         completed: Bool,
+        verdict: DRCVerdict? = nil,
         inputs: [DRCArtifactRecord],
         outputs: [DRCArtifactRecord],
         diagnosticSummary: DRCDiagnosticSummary,
-        waiverReport: DRCWaiverApplicationReport? = nil
+        waiverReport: DRCWaiverApplicationReport? = nil,
+        runID: String? = nil,
+        requestSHA256: String? = nil,
+        requestEnvironmentSHA256: String? = nil,
+        artifactRootSHA256: String? = nil,
+        signature: DRCArtifactSignature? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.generatedAt = generatedAt
         self.backendID = backendID
+        self.backendIdentity = backendIdentity
         self.toolName = toolName
         self.passed = passed
         self.completed = completed
+        self.verdict = verdict
         self.inputs = inputs
         self.outputs = outputs
         self.diagnosticSummary = diagnosticSummary
         self.waiverReport = waiverReport
+        self.runID = runID
+        self.requestSHA256 = requestSHA256
+        self.requestEnvironmentSHA256 = requestEnvironmentSHA256
+        self.artifactRootSHA256 = artifactRootSHA256
+        self.signature = signature
+    }
+
+    public func withSignature(_ signature: DRCArtifactSignature?) -> DRCArtifactManifest {
+        DRCArtifactManifest(
+            schemaVersion: schemaVersion,
+            generatedAt: generatedAt,
+            backendID: backendID,
+            backendIdentity: backendIdentity,
+            toolName: toolName,
+            passed: passed,
+            completed: completed,
+            verdict: verdict,
+            inputs: inputs,
+            outputs: outputs,
+            diagnosticSummary: diagnosticSummary,
+            waiverReport: waiverReport,
+            runID: runID,
+            requestSHA256: requestSHA256,
+            requestEnvironmentSHA256: requestEnvironmentSHA256,
+            artifactRootSHA256: artifactRootSHA256,
+            signature: signature
+        )
     }
 }
 
@@ -407,6 +504,7 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
     public let layer: String?
     public let relatedShapeIDs: [String]
     public let messageContains: String?
+    public let approval: DRCWaiverApproval?
 
     public init(
         id: String,
@@ -415,7 +513,8 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         kind: String? = nil,
         layer: String? = nil,
         relatedShapeIDs: [String] = [],
-        messageContains: String? = nil
+        messageContains: String? = nil,
+        approval: DRCWaiverApproval? = nil
     ) {
         self.id = id
         self.reason = reason
@@ -424,6 +523,7 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         self.layer = layer
         self.relatedShapeIDs = relatedShapeIDs
         self.messageContains = messageContains
+        self.approval = approval
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -434,6 +534,7 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         case layer
         case relatedShapeIDs
         case messageContains
+        case approval
     }
 
     public init(from decoder: Decoder) throws {
@@ -445,6 +546,7 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         layer = try container.decodeIfPresent(String.self, forKey: .layer)
         relatedShapeIDs = try container.decodeIfPresent([String].self, forKey: .relatedShapeIDs) ?? []
         messageContains = try container.decodeIfPresent(String.self, forKey: .messageContains)
+        approval = try container.decodeIfPresent(DRCWaiverApproval.self, forKey: .approval)
     }
 }
 
@@ -481,8 +583,15 @@ public struct DRCAppliedWaiver: Sendable, Hashable, Codable {
 
 public protocol DRCBackend: Sendable {
     var backendID: String { get }
+    var identity: DRCBackendIdentity { get }
 
     func run(_ request: DRCRequest) async throws -> DRCExecutionResult
+}
+
+public extension DRCBackend {
+    var identity: DRCBackendIdentity {
+        DRCBackendIdentity(backendID: backendID)
+    }
 }
 
 public typealias DRCExecutionCancellationCheck = @Sendable () async throws -> Bool
@@ -498,6 +607,7 @@ public enum DRCError: Error, LocalizedError, Equatable {
     case invalidInput(String)
     case backendUnavailable(String)
     case backendFailed(String)
+    case timedOut(String)
     case artifactWriteFailed(String)
     case waiverApplicationFailed(String)
     case cancelled(String)
@@ -510,6 +620,8 @@ public enum DRCError: Error, LocalizedError, Equatable {
             return "DRC backend unavailable: \(message)"
         case .backendFailed(let message):
             return "DRC backend failed: \(message)"
+        case .timedOut(let message):
+            return "DRC timed out: \(message)"
         case .artifactWriteFailed(let message):
             return "DRC artifact write failed: \(message)"
         case .waiverApplicationFailed(let message):

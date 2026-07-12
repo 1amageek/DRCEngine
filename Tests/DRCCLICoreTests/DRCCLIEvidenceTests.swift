@@ -22,6 +22,43 @@ extension DRCCLIOptionsTests {
         #expect(options.emitJSON)
     }
 
+    @Test func signedCorpusEvidenceCLIWritesVerifiableArtifact() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let outputDirectory = root.appending(path: "corpus-output")
+        let evidenceURL = root.appending(path: "signed-evidence.json")
+        let keyURL = root.appending(path: "evidence.key")
+        let keyData = Data(repeating: 9, count: 32)
+        let signer = try DRCEd25519ArtifactSigner(rawRepresentation: keyData)
+        try keyData.write(to: keyURL, options: [.atomic])
+
+        let corpusExitCode = await DRCCLI.run(arguments: [
+            "--corpus", fixtureCorpusSpecURL("drc-corpus-tight-budget.json").path(percentEncoded: false),
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--json",
+        ])
+        #expect(corpusExitCode == 2)
+        let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
+
+        let evidenceExitCode = await DRCCLI.run(arguments: [
+            "--evidence-from-corpus-report", reportURL.path(percentEncoded: false),
+            "--out", evidenceURL.path(percentEncoded: false),
+            "--checked-at", "2026-06-18T00:00:00Z",
+            "--require-signed-artifacts",
+            "--trusted-artifact-public-key", signer.publicKey,
+            "--artifact-signing-private-key", keyURL.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(evidenceExitCode == 2)
+        #expect(try DRCCorpusToolEvidenceVerifier().verify(
+            evidenceURL: evidenceURL,
+            reportURL: reportURL,
+            requireSignature: true,
+            trustedPublicKey: signer.publicKey
+        ).isEmpty)
+    }
+
     @Test func corpusCoverageAuditOptionsParsePolicyOutputAndAuditID() throws {
         let options = try DRCCorpusCoverageAuditCLIOptions(arguments: [
             "--audit-corpus-coverage", "/tmp/drc-corpus-report.json",
@@ -216,14 +253,15 @@ extension DRCCLIOptionsTests {
             "--json",
         ])
 
-        #expect(exitCode == 0)
+        #expect(exitCode == 2)
         let audit = try JSONDecoder().decode(DRCCorpusCoverageAudit.self, from: Data(contentsOf: auditURL))
-        #expect(audit.status == .satisfied)
+        #expect(audit.status == .incomplete)
         #expect(audit.policyID == "drc.magic-foundry-expansion.v1")
         #expect(audit.summary.caseCount == 96)
         #expect(audit.summary.oracleCaseCount == 96)
-        #expect(audit.summary.missingRequirementCount == 0)
-        #expect(audit.summary.satisfiedRequirementCount == audit.summary.requiredRequirementCount)
+        #expect(audit.summary.missingRequirementCount == 1)
+        #expect(audit.summary.satisfiedRequirementCount + 1 == audit.summary.requiredRequirementCount)
+        #expect(audit.missingRequirements.contains { $0.requirementID == "independent-oracle" })
         #expect(audit.observedCoverageTags.contains("external.magic"))
         #expect(audit.observedCoverageTags.contains("sky130"))
         #expect(audit.observedCoverageTags.contains("drc.cut.minimum.external-oracle"))

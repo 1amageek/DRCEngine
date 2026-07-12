@@ -177,6 +177,425 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(minimumCutRule?.minimumCount == 2)
     }
 
+    @Test func antennaRulesAreRetainedAsEvidenceAndBlockFalseCompleteImport() {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.antenna",
+            layerOrder: ["POLY", "MET1", "VIA1"],
+            cutLayerNames: ["VIA1"],
+            layerPurposes: ["VIA1": "cut"],
+            baseLayerNames: ["POLY", "MET1", "VIA1"]
+        )
+        let result = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer POLY poly
+              calma 66 20
+            layer MET1 met1
+              calma 68 20
+            layer VIA1 via1
+              calma 71 20
+            drc
+              width poly 100 "Poly width"
+            end
+            extract
+              model partial
+              height poly 0.0 0.18
+              antenna poly sidewall 50 none
+              antenna met1 surface 400 2600 400
+              antenna via1 surface 6 0 36
+            """,
+            sourcePath: "/tmp/antenna.magic.tech",
+            profile: profile,
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
+
+        // The source declarations are not silently discarded, but no generic
+        // area rule is fabricated from sidewall/surface semantics.
+        #expect(result.report.status == .partial)
+        #expect(result.report.sourceDigest?.isEmpty == false)
+        #expect(result.report.profileDigest?.isEmpty == false)
+        #expect(result.report.profileID == "test.magic.antenna")
+        #expect(result.report.profileLayerOrder == ["POLY", "MET1", "VIA1"])
+        #expect(result.report.sourceAntennaRuleCount == 3)
+        #expect(result.report.sourceAntennaRules.map(\.measurement) == [.sidewall, .surface, .surface])
+        #expect(result.report.sourceAntennaRules.map(\.model) == [.partial, .partial, .partial])
+        #expect(result.report.sourceAntennaRules[0].maxRatio == 50)
+        #expect(result.report.sourceAntennaRules[0].diffusionCorrection == .some(.none))
+        #expect(result.report.sourceAntennaThicknesses["POLY"] == 0.18)
+        #expect(result.report.sourceAntennaRules[1].correctionParameters == [2600, 400])
+        #expect(result.report.sourceAntennaRules[1].diffusionCorrection == .finite)
+        #expect(result.report.sourceAntennaRules[1].diffusionRatioConstant == 2600)
+        #expect(result.report.sourceAntennaRules[1].diffusionRatioPerArea == 400)
+        #expect(result.report.sourceAntennaRules[2].correctionParameters == [0, 36])
+        #expect(result.report.skippedFamilyCounts["antenna"] == 3)
+        #expect(result.report.diagnostics.filter { $0.code == "magic_drc_antenna_rule_not_materialized" }.count == 3)
+        #expect(result.technology.antennaRules.isEmpty)
+    }
+
+    @Test func antennaSourceRulesLowerToDetailedNativeRulesWhenProcessMetadataIsProvided() throws {
+        let sourceRules = [
+            MagicDRCSourceAntennaRule(
+                id: "antenna.met1.surface",
+                layerNames: ["MET1"],
+                measurement: .surface,
+                model: .cumulative,
+                maxRatio: 400,
+                correctionParameters: [2600, 400],
+                diffusionCorrection: .finite,
+                diffusionRatioConstant: 2600,
+                diffusionRatioPerArea: 400,
+                sourceLineNumber: 10,
+                sourceLine: "antenna met1 surface 400 2600 400"
+            ),
+            MagicDRCSourceAntennaRule(
+                id: "antenna.met2.surface",
+                layerNames: ["MET2"],
+                measurement: .surface,
+                model: .cumulative,
+                maxRatio: 400,
+                correctionParameters: [2600, 400],
+                diffusionCorrection: .finite,
+                diffusionRatioConstant: 2600,
+                diffusionRatioPerArea: 400,
+                sourceLineNumber: 11,
+                sourceLine: "antenna met2 surface 400 2600 400"
+            ),
+        ]
+        let rules = try NativeDRCAntennaRuleFactory.makeRules(
+            from: sourceRules,
+            thicknessByLayer: [:],
+            processLayerOrder: ["MET1", "MET2"],
+            gateLayer: "POLY"
+        )
+
+        #expect(rules.count == 2)
+        #expect(rules[0].antennaModel == NativeDRCRule.AntennaModel.cumulative)
+        #expect(rules[0].antennaLayers?.map { $0.layer } == ["MET1"])
+        #expect(rules[1].antennaLayers?.map { $0.layer } == ["MET1", "MET2"])
+        #expect(rules[1].antennaLayers?.last?.diffusionRatioConstant == 2600)
+        #expect(rules[1].gateLayer == "POLY")
+    }
+
+    @Test func antennaSourceRulesDoNotLowerWithoutModelOrSidewallThickness() {
+        let missingModel = MagicDRCSourceAntennaRule(
+            id: "antenna.met1",
+            layerNames: ["MET1"],
+            measurement: .surface,
+            maxRatio: 10,
+            sourceLineNumber: 1,
+            sourceLine: "antenna met1 surface 10 none"
+        )
+        #expect(throws: NativeDRCAntennaRuleFactory.ConstructionError.missingModel(sourceRuleID: "antenna.met1")) {
+            _ = try NativeDRCAntennaRuleFactory.makeRules(from: [missingModel])
+        }
+
+        let missingThickness = MagicDRCSourceAntennaRule(
+            id: "antenna.met1.sidewall",
+            layerNames: ["MET1"],
+            measurement: .sidewall,
+            model: .partial,
+            maxRatio: 10,
+            diffusionCorrection: MagicDRCAntennaDiffusionCorrection.none,
+            sourceLineNumber: 2,
+            sourceLine: "antenna met1 sidewall 10 none"
+        )
+        #expect(throws: NativeDRCAntennaRuleFactory.ConstructionError.missingThickness(layer: "MET1")) {
+            _ = try NativeDRCAntennaRuleFactory.makeRules(from: [missingThickness])
+        }
+
+        let cumulativeWithoutOrder = MagicDRCSourceAntennaRule(
+            id: "antenna.met2.cumulative",
+            layerNames: ["MET2"],
+            measurement: .surface,
+            model: .cumulative,
+            maxRatio: 10,
+            diffusionCorrection: MagicDRCAntennaDiffusionCorrection.none,
+            sourceLineNumber: 3,
+            sourceLine: "antenna met2 surface 10 none"
+        )
+        #expect(throws: NativeDRCAntennaRuleFactory.ConstructionError.missingProcessOrder) {
+            _ = try NativeDRCAntennaRuleFactory.makeRules(from: [cumulativeWithoutOrder])
+        }
+
+        #expect(throws: NativeDRCAntennaRuleFactory.ConstructionError.emptyProcessLayerOrder(index: 1)) {
+            _ = try NativeDRCAntennaRuleFactory.makeRules(
+                from: [cumulativeWithoutOrder],
+                processLayerOrder: ["MET2", ""]
+            )
+        }
+
+        #expect(throws: NativeDRCAntennaRuleFactory.ConstructionError.duplicateProcessLayerOrder(layer: "MET2")) {
+            _ = try NativeDRCAntennaRuleFactory.makeRules(
+                from: [cumulativeWithoutOrder],
+                processLayerOrder: ["MET2", "MET2"]
+            )
+        }
+    }
+
+    @Test func antennaQualificationBlocksUntilIndependentOracleIsVerified() throws {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.qualification",
+            layerOrder: ["MET1"],
+            baseLayerNames: ["MET1"]
+        )
+        let imported = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer MET1 met1
+              calma 68 20
+            drc
+              width met1 100 "Metal width"
+            end
+            extract
+              model partial
+              antenna met1 surface 10 none
+            """,
+            sourcePath: "/tmp/qualification.magic.tech",
+            profile: profile,
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
+        let nativeRules = try NativeDRCAntennaRuleFactory.makeRules(from: imported.report)
+
+        let blocked = NativeDRCAntennaQualification(
+            sourceReport: imported.report,
+            nativeRules: nativeRules,
+            oracleEvidence: nil
+        )
+        #expect(blocked.qualified == false)
+        #expect(blocked.failureCodes == ["oracle_evidence_missing", "independent_oracle_unverified"])
+
+        let oracleEvidence = try makeOracleEvidence(
+            report: imported.report,
+            nativeRules: nativeRules
+        )
+        let qualified = NativeDRCAntennaQualification(
+            sourceReport: imported.report,
+            nativeRules: nativeRules,
+            oracleEvidence: oracleEvidence
+        )
+        #expect(qualified.qualified)
+        #expect(qualified.failureCodes.isEmpty)
+
+        let artifact = NativeDRCAntennaArtifact(
+            sourceReport: imported.report,
+            nativeRules: nativeRules,
+            oracleEvidence: nil
+        )
+        try artifact.validate()
+        #expect(artifact.qualification.qualified == false)
+        #expect(artifact.nativeRules == nativeRules)
+        let requalifiedArtifact = artifact.applying(oracleEvidence: oracleEvidence)
+        try requalifiedArtifact.validate()
+        #expect(requalifiedArtifact.qualification.qualified)
+    }
+
+    @Test func antennaModelDefaultMeasurementSupportsOmittedCalcType() {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.antenna-default-measurement",
+            layerOrder: ["POLY"],
+            baseLayerNames: ["POLY"]
+        )
+        let imported = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer POLY poly
+              calma 66 20
+            drc
+              width poly 100 "Poly width"
+            end
+            extract
+              model partial sidewall
+              antenna poly 50 none
+            """,
+            sourcePath: "/tmp/default-antenna-measurement.magic.tech",
+            profile: profile
+        )
+
+        #expect(imported.report.sourceAntennaRuleCount == 1)
+        #expect(imported.report.sourceAntennaRules.first?.measurement == .sidewall)
+        #expect(imported.report.sourceAntennaRules.first?.model == .partial)
+    }
+
+    @Test func nativeAntennaArtifactBindsSourceContactStack() throws {
+        let imported = try Self.importSky130Fixture(
+            text: """
+            style gdsii
+            layer MET1 met1
+              calma 68 20
+            layer VIA1 via1
+              calma 71 20
+            layer MET2 met2
+              calma 69 20
+            drc
+              width met1 140 "Metal1 width"
+            end
+            extract
+              model partial surface
+              antenna met1 10 none
+            contact
+              via1 met1 met2
+            end
+            """,
+            sourcePath: "/tmp/antenna-contact-stack.magic.tech",
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
+        let nativeRules = try NativeDRCAntennaRuleFactory.makeRules(from: imported.report)
+        let artifact = NativeDRCAntennaArtifact(
+            sourceReport: imported.report,
+            nativeRules: nativeRules,
+            oracleEvidence: nil
+        )
+
+        try artifact.validate()
+        #expect(artifact.sourceContactStacks.count == 1)
+        #expect(nativeRules.first?.antennaCutConnections?.contains {
+            $0.layer == "VIA1" && $0.lowerLayer == "MET1" && $0.upperLayer == "MET2"
+        } == true)
+    }
+
+    @Test func nativeAntennaArtifactRejectsIncompleteProvenanceAndSidewallMetadata() throws {
+        let imported = try Self.importSky130Fixture(
+            text: """
+            style gdsii
+            layer POLY poly
+              calma 66 20
+            drc
+              width poly 100 "Poly width"
+            end
+            extract
+              model partial sidewall
+              height poly 0.0 0.18
+              antenna poly 50 none
+            """,
+            sourcePath: "/tmp/antenna-artifact-validation.magic.tech"
+        )
+        let nativeRules = try NativeDRCAntennaRuleFactory.makeRules(from: imported.report)
+        let artifact = NativeDRCAntennaArtifact(
+            sourceReport: imported.report,
+            nativeRules: nativeRules,
+            oracleEvidence: nil
+        )
+
+        guard var object = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(artifact)
+        ) as? [String: Any] else {
+            Issue.record("Could not encode the antenna artifact as a JSON object.")
+            return
+        }
+        object["processLayerOrder"] = []
+        let emptyOrderArtifact = try JSONDecoder().decode(
+            NativeDRCAntennaArtifact.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+        #expect(throws: NativeDRCAntennaArtifact.ValidationError.emptyProcessLayerOrder) {
+            try emptyOrderArtifact.validate()
+        }
+
+        object["processLayerOrder"] = artifact.processLayerOrder
+        var nativeRule = nativeRules[0]
+        nativeRule = NativeDRCRule(
+            id: nativeRule.id,
+            kind: nativeRule.kind,
+            layer: nativeRule.layer,
+            value: nativeRule.value,
+            gateLayer: nativeRule.gateLayer,
+            conductorLayers: nativeRule.conductorLayers,
+            antennaModel: nativeRule.antennaModel,
+            antennaLayers: [NativeDRCAntennaLayer(
+                layer: "POLY",
+                measurement: .sidewall,
+                ratioGate: 50,
+                thickness: nil,
+                diffusionCorrection: .none
+            )]
+        )
+        object["nativeRules"] = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode([nativeRule])
+        )
+        let missingThicknessArtifact = try JSONDecoder().decode(
+            NativeDRCAntennaArtifact.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+        #expect(throws: NativeDRCAntennaArtifact.ValidationError.qualificationInconsistent) {
+            try missingThicknessArtifact.validate()
+        }
+    }
+
+    @Test func antennaQualificationBlocksConflictingSourceThickness() throws {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.antenna-thickness-conflict",
+            layerOrder: ["POLY"],
+            baseLayerNames: ["POLY"]
+        )
+        let imported = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            style gdsii
+            layer POLY poly
+              calma 66 20
+            drc
+              width poly 100 "Poly width"
+            end
+            extract
+              model partial sidewall
+              height poly 0.0 0.18
+              height poly 0.0 0.20
+              antenna poly 10 none
+            """,
+            sourcePath: "/tmp/antenna-thickness-conflict.magic.tech",
+            profile: profile
+        )
+        let rules = try NativeDRCAntennaRuleFactory.makeRules(from: imported.report)
+        let qualification = NativeDRCAntennaQualification(
+            sourceReport: imported.report,
+            nativeRules: rules,
+            oracleEvidence: nil
+        )
+
+        #expect(qualification.qualified == false)
+        #expect(qualification.failureCodes.contains("source_antenna_diagnostic:magic_drc_antenna_thickness_conflict"))
+    }
+
+    @Test func antennaOracleEvidenceRejectsNativeSelfQualification() {
+        let evidence = NativeDRCAntennaOracleEvidence(
+            oracleID: "native",
+            executableDigest: String(repeating: "a", count: 64),
+            ruleDeckDigest: String(repeating: "b", count: 64),
+            technologyDigest: String(repeating: "c", count: 64),
+            sourceDigest: String(repeating: "d", count: 64),
+            profileDigest: String(repeating: "e", count: 64),
+            nativeRuleDigest: String(repeating: "f", count: 64),
+            layoutCorpusDigest: String(repeating: "0", count: 64),
+            comparisonArtifactDigest: String(repeating: "1", count: 64),
+            evaluatedCaseCount: 1,
+            agreedCaseCount: 1,
+            passed: true,
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
+
+        #expect(throws: NativeDRCAntennaOracleEvidence.ValidationError.nativeOracleNotIndependent) {
+            try evidence.validate()
+        }
+
+        let whitespaceNativeEvidence = NativeDRCAntennaOracleEvidence(
+            oracleID: "  native-gds  ",
+            executableDigest: String(repeating: "a", count: 64),
+            ruleDeckDigest: String(repeating: "b", count: 64),
+            technologyDigest: String(repeating: "c", count: 64),
+            sourceDigest: String(repeating: "d", count: 64),
+            profileDigest: String(repeating: "e", count: 64),
+            nativeRuleDigest: String(repeating: "f", count: 64),
+            layoutCorpusDigest: String(repeating: "0", count: 64),
+            comparisonArtifactDigest: String(repeating: "1", count: 64),
+            evaluatedCaseCount: 1,
+            agreedCaseCount: 1,
+            passed: true,
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
+        #expect(throws: NativeDRCAntennaOracleEvidence.ValidationError.nativeOracleNotIndependent) {
+            try whitespaceNativeEvidence.validate()
+        }
+    }
+
     @Test func importProfileDoesNotFallbackToSky130LayerKnowledge() {
         let profile = MagicDRCLayoutTechImportProfile(
             profileID: "test.magic.no-sky130-fallback",
@@ -462,6 +881,31 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(overhangRule?.layerName == "POLY")
         #expect(overhangRule?.secondaryLayerName == "DIFF")
         #expect(overhangRule?.value == 0.13)
+    }
+
+    @Test func importsSky130ExtractSectionAntennaEvidenceWithoutClaimingNativeCoverage() throws {
+        let result = try Self.importSky130Fixture(
+            text: Self.fixtureMagicTech + """
+
+            extract
+              model partial
+              antenna poly sidewall 50 none
+              antenna v1 surface 3 0 18
+            """,
+            sourcePath: "/tmp/sky130A-with-antenna.tech",
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
+
+        #expect(result.report.status == .partial)
+        #expect(result.report.sourceAntennaRuleCount == 2)
+        #expect(result.report.sourceAntennaRules.first?.layerNames == ["POLY"])
+        #expect(result.report.sourceAntennaRules.last?.layerNames == ["VIA1"])
+        #expect(result.report.sourceAntennaRules.last?.correctionParameters == [0, 18])
+        #expect(result.report.skippedFamilyCounts["antenna"] == 2)
+        #expect(!result.report.diagnostics.contains {
+            $0.code == "magic_drc_antenna_thickness_conflict"
+        })
+        #expect(result.technology.antennaRules.isEmpty)
     }
 
     @Test func unresolvedLayerPairIsSkippedWithoutBlockingImportedSeed() throws {
@@ -1382,6 +1826,28 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(polyMinimumCutRule?.bottomLayer == poly)
         #expect(polyMinimumCutRule?.topLayer == li)
         #expect(polyMinimumCutRule?.minimumCount == 1)
+    }
+
+    private func makeOracleEvidence(
+        report: MagicDRCLayoutTechImportReport,
+        nativeRules: [NativeDRCRule]
+    ) throws -> NativeDRCAntennaOracleEvidence {
+        NativeDRCAntennaOracleEvidence(
+            oracleID: "magic",
+            oracleVersion: "test",
+            executableDigest: String(repeating: "a", count: 64),
+            ruleDeckDigest: String(repeating: "b", count: 64),
+            technologyDigest: String(repeating: "c", count: 64),
+            sourceDigest: try #require(report.sourceDigest),
+            profileDigest: try #require(report.profileDigest),
+            nativeRuleDigest: try #require(NativeDRCAntennaQualification.nativeRuleDigest(nativeRules)),
+            layoutCorpusDigest: String(repeating: "d", count: 64),
+            comparisonArtifactDigest: String(repeating: "e", count: 64),
+            evaluatedCaseCount: 1,
+            agreedCaseCount: 1,
+            passed: true,
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
     }
 
     private static let fixtureMagicTech = """

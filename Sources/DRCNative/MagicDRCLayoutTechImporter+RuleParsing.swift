@@ -27,6 +27,26 @@ extension MagicDRCLayoutTechImporter {
                 inDRC = false
                 continue
             }
+            if command == "model" {
+                importAntennaModel(tokens: tokens, line: line, state: &state)
+                continue
+            }
+            if command == "height" {
+                importAntennaHeight(tokens: tokens, line: line, resolver: resolver, state: &state)
+                continue
+            }
+            // Magic antenna declarations live in the extract section in
+            // foundry decks (rather than in the DRC block). Preserve them
+            // wherever they occur in the technology file.
+            if command == "antenna" {
+                importAntennaSourceRule(
+                    tokens: tokens,
+                    line: line,
+                    resolver: resolver,
+                    state: &state
+                )
+                continue
+            }
             guard inDRC else {
                 continue
             }
@@ -119,6 +139,239 @@ extension MagicDRCLayoutTechImporter {
                 state: &state
             )
         }
+    }
+
+    private static func importAntennaSourceRule(
+        tokens: [String],
+        line: LogicalLine,
+        resolver: LayerResolver,
+        state: inout ParsedRuleState
+    ) {
+        let explicitMeasurement = tokens.count > 2
+            ? MagicDRCAntennaMeasurement(rawValue: tokens[2].lowercased())
+            : nil
+        let measurement = explicitMeasurement ?? state.sourceAntennaDefaultMeasurement
+        let ratioIndex = explicitMeasurement == nil ? 2 : 3
+        guard tokens.count > ratioIndex,
+              let measurement,
+              let maxRatio = Double(tokens[ratioIndex]),
+              maxRatio.isFinite,
+              maxRatio > 0 else {
+            skipAntenna(
+                line: line,
+                code: "magic_drc_antenna_rule_parse_failed",
+                state: &state
+            )
+            return
+        }
+        let layerNames = resolver.resolveLayerSet(tokens[1])
+        guard !layerNames.isEmpty else {
+            skipAntenna(
+                line: line,
+                code: "magic_drc_antenna_layer_unresolved",
+                state: &state
+            )
+            return
+        }
+
+        let correctionTokens = Array(tokens.dropFirst(ratioIndex + 1))
+        guard !correctionTokens.contains(where: { $0.lowercased() == "none" }) else {
+            guard correctionTokens.count == 1 else {
+                skipAntenna(
+                    line: line,
+                    code: "magic_drc_antenna_rule_parse_failed",
+                    state: &state
+                )
+                return
+            }
+            appendAntennaSourceRule(
+                layerNames: layerNames,
+                measurement: measurement,
+                maxRatio: maxRatio,
+                correctionParameters: [],
+                model: state.sourceAntennaModel,
+                diffusionCorrection: MagicDRCAntennaDiffusionCorrection.none,
+                line: line,
+                state: &state
+            )
+            return
+        }
+
+        guard !correctionTokens.isEmpty, correctionTokens.count <= 2,
+              let correctionParameters = Optional(correctionTokens.compactMap(Double.init)),
+              correctionParameters.count == correctionTokens.count,
+              correctionParameters.allSatisfy({ $0.isFinite }) else {
+            skipAntenna(
+                line: line,
+                code: "magic_drc_antenna_rule_parse_failed",
+                state: &state
+            )
+            return
+        }
+        appendAntennaSourceRule(
+            layerNames: layerNames,
+            measurement: measurement,
+            maxRatio: maxRatio,
+            correctionParameters: correctionParameters,
+            model: state.sourceAntennaModel,
+            diffusionCorrection: .finite,
+            diffusionRatioConstant: correctionParameters.first,
+            diffusionRatioPerArea: correctionParameters.dropFirst().first,
+            line: line,
+            state: &state
+        )
+    }
+
+    private static func importAntennaModel(
+        tokens: [String],
+        line: LogicalLine,
+        state: inout ParsedRuleState
+    ) {
+        guard (tokens.count == 2 || tokens.count == 3),
+              let model = MagicDRCAntennaModel(rawValue: tokens[1].lowercased()) else {
+            state.skippedFamilyCounts["model", default: 0] += 1
+            state.diagnostics.append(MagicDRCImportDiagnostic(
+                code: "magic_drc_antenna_model_parse_failed",
+                message: "The Magic antenna model declaration must select partial or cumulative.",
+                sourceLineNumber: line.lineNumber,
+                sourceLine: line.text
+            ))
+            return
+        }
+        if tokens.count == 3 {
+            guard let measurement = MagicDRCAntennaMeasurement(rawValue: tokens[2].lowercased()) else {
+                state.skippedFamilyCounts["model", default: 0] += 1
+                state.diagnostics.append(MagicDRCImportDiagnostic(
+                    code: "magic_drc_antenna_model_measurement_parse_failed",
+                    message: "The Magic antenna model default measurement must be surface or sidewall.",
+                    sourceLineNumber: line.lineNumber,
+                    sourceLine: line.text
+                ))
+                return
+            }
+            state.sourceAntennaDefaultMeasurement = measurement
+        }
+        state.sourceAntennaModel = model
+    }
+
+    private static func importAntennaHeight(
+        tokens: [String],
+        line: LogicalLine,
+        resolver: LayerResolver,
+        state: inout ParsedRuleState
+    ) {
+        guard tokens.count >= 4,
+              let thickness = Double(tokens[3]),
+              thickness.isFinite,
+              thickness > 0 else {
+            state.skippedFamilyCounts["antennaThickness", default: 0] += 1
+            state.diagnostics.append(MagicDRCImportDiagnostic(
+                code: "magic_drc_antenna_thickness_parse_failed",
+                message: "The Magic height declaration did not provide a positive finite thickness.",
+                sourceLineNumber: line.lineNumber,
+                sourceLine: line.text
+            ))
+            return
+        }
+        let layerNames = resolver.resolveLayerSet(tokens[1])
+        guard !layerNames.isEmpty else {
+            state.skippedFamilyCounts["antennaThickness", default: 0] += 1
+            state.diagnostics.append(MagicDRCImportDiagnostic(
+                code: "magic_drc_antenna_thickness_layer_unresolved",
+                message: "The Magic height declaration layer could not be resolved.",
+                sourceLineNumber: line.lineNumber,
+                sourceLine: line.text
+            ))
+            return
+        }
+        let sourceExpression = MagicDRCLayoutTechImporter.normalizedToken(tokens[1])
+        for layerName in layerNames {
+            if let existingThickness = state.sourceAntennaThicknesses[layerName], existingThickness != thickness {
+                // Magic often declares derived aliases such as `pc` or
+                // `mrdlc` with a different physical thickness than the
+                // canonical conductor (`poly` / `m5`). Those aliases do not
+                // change the antenna layer's process thickness. Only a
+                // repeated declaration of the same source expression is a
+                // real ambiguity and must block lowering.
+                let isPrimaryExpression = resolver.isPrimaryLayerExpression(
+                    tokens[1],
+                    for: layerName
+                )
+                let existingIsPrimary = state.sourceAntennaThicknessPrimary[layerName] ?? false
+                if isPrimaryExpression && !existingIsPrimary {
+                    state.sourceAntennaThicknesses[layerName] = thickness
+                    state.sourceAntennaThicknessSources[layerName] = sourceExpression
+                    state.sourceAntennaThicknessPrimary[layerName] = true
+                    continue
+                }
+                if state.sourceAntennaThicknessSources[layerName] == sourceExpression
+                    || (isPrimaryExpression && existingIsPrimary) {
+                    state.skippedFamilyCounts["antennaThickness", default: 0] += 1
+                    state.diagnostics.append(MagicDRCImportDiagnostic(
+                        code: "magic_drc_antenna_thickness_conflict",
+                        message: "The Magic height declarations provide conflicting thicknesses for layer \(layerName) and source expression \(tokens[1]).",
+                        sourceLineNumber: line.lineNumber,
+                        sourceLine: line.text
+                    ))
+                }
+                continue
+            }
+            state.sourceAntennaThicknesses[layerName] = thickness
+            state.sourceAntennaThicknessSources[layerName] = sourceExpression
+            state.sourceAntennaThicknessPrimary[layerName] = resolver.isPrimaryLayerExpression(
+                tokens[1],
+                for: layerName
+            )
+        }
+    }
+
+    private static func appendAntennaSourceRule(
+        layerNames: [String],
+        measurement: MagicDRCAntennaMeasurement,
+        maxRatio: Double,
+        correctionParameters: [Double],
+        model: MagicDRCAntennaModel?,
+        diffusionCorrection: MagicDRCAntennaDiffusionCorrection?,
+        diffusionRatioConstant: Double? = nil,
+        diffusionRatioPerArea: Double? = nil,
+        line: LogicalLine,
+        state: inout ParsedRuleState
+    ) {
+        let id = "antenna.\(layerNames.joined(separator: ",")).\(measurement.rawValue).\(line.lineNumber)"
+        state.sourceAntennaRules.append(MagicDRCSourceAntennaRule(
+            id: id,
+            layerNames: layerNames,
+            measurement: measurement,
+            model: model,
+            maxRatio: maxRatio,
+            correctionParameters: correctionParameters,
+            diffusionCorrection: diffusionCorrection,
+            diffusionRatioConstant: diffusionRatioConstant,
+            diffusionRatioPerArea: diffusionRatioPerArea,
+            sourceLineNumber: line.lineNumber,
+            sourceLine: line.text
+        ))
+        state.skippedFamilyCounts["antenna", default: 0] += 1
+        state.diagnostics.append(MagicDRCImportDiagnostic(
+            code: "magic_drc_antenna_rule_not_materialized",
+            message: "The Magic antenna rule was parsed as source evidence but was not lowered to LayoutTech because its \(measurement.rawValue) area and correction semantics are not representable by the current native rule model.",
+            sourceLineNumber: line.lineNumber,
+            sourceLine: line.text
+        ))
+    }
+
+    private static func skipAntenna(
+        line: LogicalLine,
+        code: String,
+        state: inout ParsedRuleState
+    ) {
+        state.skippedFamilyCounts["antenna", default: 0] += 1
+        state.diagnostics.append(MagicDRCImportDiagnostic(
+            code: code,
+            message: "The Magic antenna rule could not be parsed into typed source evidence.",
+            sourceLineNumber: line.lineNumber,
+            sourceLine: line.text
+        ))
     }
 
     private static func importSpacing(

@@ -6,6 +6,7 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
     public let oracleAgreementPassedCaseCount: Int
     public let oracleExecutionFailedCaseCount: Int
     public let oracleReadinessBlockedCaseCount: Int
+    public let nonIndependentOracleCaseCount: Int
     public let failureCategoryCounts: [String: Int]
     public let coverageTagCounts: [String: Int]
     public let passRate: Double
@@ -19,6 +20,7 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
         case oracleAgreementPassedCaseCount
         case oracleExecutionFailedCaseCount
         case oracleReadinessBlockedCaseCount
+        case nonIndependentOracleCaseCount
         case failureCategoryCounts
         case coverageTagCounts
         case passRate
@@ -36,7 +38,8 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
         failureCategoryCounts: [String: Int],
         coverageTagCounts: [String: Int] = [:],
         passRate: Double,
-        oracleAgreementRate: Double?
+        oracleAgreementRate: Double?,
+        nonIndependentOracleCaseCount: Int = 0
     ) {
         self.expectationMatchedCaseCount = expectationMatchedCaseCount
         self.durationBudgetPassedCaseCount = durationBudgetPassedCaseCount
@@ -45,6 +48,7 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
         self.oracleAgreementPassedCaseCount = oracleAgreementPassedCaseCount
         self.oracleExecutionFailedCaseCount = oracleExecutionFailedCaseCount
         self.oracleReadinessBlockedCaseCount = oracleReadinessBlockedCaseCount
+        self.nonIndependentOracleCaseCount = nonIndependentOracleCaseCount
         self.failureCategoryCounts = failureCategoryCounts
         self.coverageTagCounts = coverageTagCounts
         self.passRate = passRate
@@ -67,7 +71,8 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
             passRate: caseCount == 0 ? 0 : Double(caseResults.filter(\.matched).count) / Double(caseCount),
             oracleAgreementRate: oracleResults.isEmpty
                 ? nil
-                : Double(oracleResults.filter(\.agreementPassed).count) / Double(oracleResults.count)
+                : Double(oracleResults.filter(\.agreementPassed).count) / Double(oracleResults.count),
+            nonIndependentOracleCaseCount: caseResults.filter(Self.hasNonIndependentOracle).count
         )
     }
 
@@ -80,6 +85,10 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
         oracleAgreementPassedCaseCount = try container.decode(Int.self, forKey: .oracleAgreementPassedCaseCount)
         oracleExecutionFailedCaseCount = try container.decode(Int.self, forKey: .oracleExecutionFailedCaseCount)
         oracleReadinessBlockedCaseCount = try container.decode(Int.self, forKey: .oracleReadinessBlockedCaseCount)
+        nonIndependentOracleCaseCount = try container.decodeIfPresent(
+            Int.self,
+            forKey: .nonIndependentOracleCaseCount
+        ) ?? 0
         failureCategoryCounts = try container.decode([String: Int].self, forKey: .failureCategoryCounts)
         coverageTagCounts = try container.decode([String: Int].self, forKey: .coverageTagCounts)
         passRate = try container.decode(Double.self, forKey: .passRate)
@@ -107,5 +116,28 @@ public struct DRCCorpusSummary: Sendable, Hashable, Codable {
             return String(reason[..<separatorIndex])
         }
         return reason
+    }
+
+    private static func hasNonIndependentOracle(_ caseResult: DRCCorpusCaseResult) -> Bool {
+        let failureReasonIndicatesNonIndependence = caseResult.oracleResult?.failureReasons.contains {
+            switch category(for: $0) {
+            case "same_backend_reference", "same_implementation_family_reference", "reference_independence_unproven":
+                return true
+            default:
+                return false
+            }
+        } ?? false
+        if failureReasonIndicatesNonIndependence {
+            return true
+        }
+        guard let primaryBackendID = caseResult.primaryProvenance?.backendID,
+              let oracleResult = caseResult.oracleResult else {
+            return false
+        }
+        let primaryIdentity = caseResult.primaryProvenance?.backendIdentity
+            ?? DRCBackendIdentity(backendID: primaryBackendID)
+        let oracleIdentity = oracleResult.backendIdentity
+            ?? DRCBackendIdentity(backendID: oracleResult.backendID)
+        return !primaryIdentity.isIndependent(from: oracleIdentity)
     }
 }

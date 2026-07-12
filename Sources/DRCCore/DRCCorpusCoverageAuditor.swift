@@ -37,6 +37,45 @@ public struct DRCCorpusCoverageAuditor: Sendable {
                 suggestedActions: ["inspect_drc_corpus_failures", "fix_or_mark_blocked_drc_oracle_cases"]
             ))
         }
+        if policy.requireIndependentOracle {
+            let nonIndependentCases = report.caseResults.compactMap { caseResult -> String? in
+                guard let oracleResult = caseResult.oracleResult else {
+                    return nil
+                }
+                let primaryBackendID = caseResult.primaryProvenance?.backendID
+                    ?? caseResult.oracleComparison?.primaryBackendID
+                guard let primaryBackendID else {
+                    return "\(caseResult.caseID):reference_independence_unproven"
+                }
+                let primaryIdentity = caseResult.primaryProvenance?.backendIdentity
+                    ?? DRCBackendIdentity(backendID: primaryBackendID)
+                let oracleIdentity = oracleResult.backendIdentity
+                    ?? DRCBackendIdentity(backendID: oracleResult.backendID)
+                guard let failureCode = primaryIdentity.independenceFailureCode(comparedTo: oracleIdentity) else {
+                    return nil
+                }
+                return "\(caseResult.caseID):\(failureCode)"
+            }
+            let missingOracleCaseCount = max(0, report.caseCount - report.summary.oracleCaseCount)
+            if !nonIndependentCases.isEmpty || missingOracleCaseCount > 0 {
+                missingRequirements.append(DRCCorpusCoverageAudit.MissingRequirement(
+                    requirementID: "independent-oracle",
+                    title: "Independent oracle",
+                    missingCoverageTags: [],
+                    observedCaseCount: max(
+                        0,
+                        report.summary.oracleCaseCount - nonIndependentCases.count
+                    ),
+                    requiredCaseCount: report.caseCount,
+                    reason: missingOracleCaseCount > 0
+                        ? "Independent-oracle qualification requires an oracle comparison for every corpus case."
+                        : "One or more oracle comparisons use the same backend implementation family or lack verifiable backend identity.",
+                    suggestedActions: missingOracleCaseCount > 0
+                        ? ["run_drc_corpus_with_independent_reference", "inspect_drc_oracle_readiness"]
+                        : ["replace_self_oracle_with_independent_reference", "inspect_drc_backend_identity"]
+                ))
+            }
+        }
         if policy.requireOracleAgreement, report.summary.oracleCaseCount == 0 {
             missingRequirements.append(DRCCorpusCoverageAudit.MissingRequirement(
                 requirementID: "oracle-agreement",
@@ -118,6 +157,7 @@ public struct DRCCorpusCoverageAuditor: Sendable {
         let requiredRequirementCount = policy.requirements.count
             + (policy.requireQualifiedCorpus ? 1 : 0)
             + (policy.requireOracleAgreement ? 1 : 0)
+            + (policy.requireIndependentOracle ? 1 : 0)
             + (policy.requireOracleReadiness ? 1 : 0)
             + (policy.requireDurationBudget ? 1 : 0)
             + (policy.maxReportAgeSeconds == nil ? 0 : 1)

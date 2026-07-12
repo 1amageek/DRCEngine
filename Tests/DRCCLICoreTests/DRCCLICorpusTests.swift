@@ -20,23 +20,24 @@ extension DRCCLIOptionsTests {
             "--json",
         ])
 
-        #expect(exitCode == 0)
+        #expect(exitCode == 2)
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
         let report = try JSONDecoder().decode(DRCCorpusReport.self, from: Data(contentsOf: reportURL))
-        #expect(report.passed)
-        #expect(report.caseCount == 38)
-        #expect(report.matchedCaseCount == 38)
+        #expect(!report.passed)
+        #expect(report.caseCount == 40)
+        #expect(report.matchedCaseCount == 0)
         #expect(report.budgetExceededCaseCount == 0)
         #expect(report.totalDurationSeconds >= 0)
-        #expect(report.summary.passRate == 1)
-        #expect(report.summary.oracleCaseCount == 38)
-        #expect(report.summary.oracleAgreementPassedCaseCount == 38)
-        #expect(report.summary.oracleAgreementRate == 1)
+        #expect(report.summary.passRate == 0)
+        #expect(report.summary.oracleCaseCount == 40)
+        #expect(report.summary.oracleAgreementPassedCaseCount == 0)
+        #expect(report.summary.oracleAgreementRate == 0)
         #expect(report.summary.primaryExecutionFailedCaseCount == 0)
         #expect(report.summary.oracleExecutionFailedCaseCount == 0)
-        #expect(report.summary.oracleReadinessBlockedCaseCount == 0)
-        #expect(report.summary.failureCategoryCounts.isEmpty)
-        #expect(report.summary.coverageTagCounts["drc.antenna"] == 4)
+        #expect(report.summary.oracleReadinessBlockedCaseCount == 40)
+        #expect(report.summary.failureCategoryCounts["oracle_agreement_mismatch"] == 40)
+        #expect(report.summary.failureCategoryCounts["same_backend_reference"] == 40)
+        #expect(report.summary.coverageTagCounts["drc.antenna"] == 6)
         #expect(report.summary.coverageTagCounts["drc.antenna.multi-layer"] == 1)
         #expect(report.summary.coverageTagCounts["drc.antenna.process-step"] == 1)
         #expect(report.summary.coverageTagCounts["drc.antenna.via-aware"] == 2)
@@ -84,11 +85,14 @@ extension DRCCLIOptionsTests {
         #expect(report.summary.coverageTagCounts["drc.enclosure"] == 2)
         #expect(report.summary.coverageTagCounts["drc.enclosure.composite"] == 1)
         #expect(report.summary.coverageTagCounts["drc.waiver"] == 1)
-        #expect(report.qualification.qualified)
+        #expect(!report.qualification.qualified)
         #expect(report.qualification.policy.requiredCoverageTags == [
             "drc.antenna",
+            "drc.antenna.cumulative",
+            "drc.antenna.detailed",
             "drc.antenna.multi-layer",
             "drc.antenna.process-step",
+            "drc.antenna.sidewall",
             "drc.antenna.via-aware",
             "drc.antenna.via-topology",
             "drc.area",
@@ -134,17 +138,22 @@ extension DRCCLIOptionsTests {
             "drc.width",
             "drc.width.maximum",
         ])
-        #expect(report.qualification.failures.isEmpty)
+        #expect(report.qualification.failures.map(\.code).contains("corpus_not_passed"))
         #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
         #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 10 })
-        #expect(report.caseResults.allSatisfy { $0.failureReasons.isEmpty })
+        #expect(report.caseResults.allSatisfy {
+            $0.failureReasons.contains("oracle_agreement_mismatch")
+                && $0.failureReasons.contains("same_backend_reference")
+        })
         #expect(report.caseResults.allSatisfy { !$0.coverageTags.isEmpty })
         #expect(Set(report.caseResults.compactMap { $0.oracleResult?.backendID }) == ["native", "native-gds"])
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.agreementPassed == true })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessStatus == .ready })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessDiagnostics.isEmpty == true })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.reportPath != nil })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.manifestPath != nil })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult?.agreementPassed == false })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessStatus == .blocked })
+        #expect(report.caseResults.allSatisfy {
+            $0.oracleResult?.readinessDiagnostics.contains { $0.contains("same_backend_reference") } == true
+        })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult?.reportPath == nil })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult?.manifestPath == nil })
         #expect(report.caseResults.allSatisfy { $0.primaryProvenance != nil })
         #expect(report.caseResults.allSatisfy {
             $0.primaryProvenance?.inputArtifacts.contains { $0.id == "input-layout" && $0.kind == .layout } == true
@@ -155,15 +164,11 @@ extension DRCCLIOptionsTests {
         #expect(report.caseResults.allSatisfy {
             $0.primaryProvenance?.outputArtifacts.contains { $0.id == "manifest" && $0.kind == .manifest } == true
         })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult?.provenance == nil })
+        #expect(report.caseResults.allSatisfy { $0.oracleComparison != nil })
+        #expect(report.caseResults.allSatisfy { $0.oracleComparison?.agreementPassed == false })
         #expect(report.caseResults.allSatisfy {
-            $0.oracleResult?.provenance?.inputArtifacts.contains { $0.id == "input-layout" && $0.kind == .layout } == true
-        })
-        #expect(report.caseResults.allSatisfy {
-            $0.oracleResult?.provenance?.outputArtifacts.contains { $0.id == "report" && $0.kind == .report } == true
-        })
-        #expect(report.caseResults.allSatisfy {
-            $0.oracleComparison?.agreementPassed == true
-                && $0.oracleComparison?.mismatchReasons.isEmpty == true
+            $0.oracleComparison?.mismatchReasons.contains("same_backend_reference") == true
         })
         #expect(report.caseResults.contains {
             $0.caseID == "manufacturing-grid-violation"
@@ -368,12 +373,9 @@ extension DRCCLIOptionsTests {
         #expect(report.summary.coverageTagCounts["layout.gds"] == 2)
         #expect(report.summary.oracleCaseCount == 2)
         #expect(report.summary.oracleReadinessBlockedCaseCount == 2)
-        #expect(report.summary.oracleExecutionFailedCaseCount == 2)
-        #expect(report.summary.failureCategoryCounts["oracle_execution_failed"] == 2)
+        #expect(report.summary.oracleExecutionFailedCaseCount == 0)
+        #expect(report.summary.failureCategoryCounts["reference_independence_unproven"] == 2)
         #expect(report.summary.failureCategoryCounts["oracle_agreement_mismatch"] == 2)
-        #expect(report.summary.failureCategoryCounts["passed_mismatch"] == 1)
-        #expect(report.summary.failureCategoryCounts["active_error_rule_ids_mismatch"] == 1)
-        #expect(report.summary.failureCategoryCounts["diagnostic_summary_mismatch"] == 1)
         #expect(report.caseResults.allSatisfy { $0.expectationMatched })
         #expect(report.caseResults.allSatisfy { $0.primaryProvenance != nil })
         #expect(report.caseResults.allSatisfy { $0.oracleResult?.backendID == "missing-magic-oracle" })
@@ -382,12 +384,12 @@ extension DRCCLIOptionsTests {
         #expect(report.caseResults.allSatisfy { $0.oracleComparison != nil })
         #expect(report.caseResults.allSatisfy {
             $0.oracleComparison?.mismatchReasons.contains {
-                $0.hasPrefix("oracle_execution_failed:")
+                $0 == "reference_independence_unproven"
             } == true
         })
         #expect(report.caseResults.allSatisfy {
             $0.oracleResult?.readinessDiagnostics.contains {
-                $0.contains("Unsupported DRC backend: missing-magic-oracle")
+                $0.contains("reference_independence_unproven")
             } == true
         })
         #expect(report.caseResults.contains {
@@ -401,7 +403,10 @@ extension DRCCLIOptionsTests {
         })
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    // The retained Sky130 Magic corpus launches one external process per case.
+    // Keep the test timeout above the serialized six-case runtime so a busy
+    // host cannot turn a valid oracle regression into a partial corpus report.
+    @Test(.timeLimit(.minutes(2)))
     func magicNativeViaSpacingCorpusCasesRunAgainstMagicOracle() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
@@ -416,7 +421,7 @@ extension DRCCLIOptionsTests {
             "--json",
         ])
 
-        #expect(exitCode == 0)
+        #expect(exitCode == 2)
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
         let report = try JSONDecoder().decode(DRCCorpusReport.self, from: Data(contentsOf: reportURL))
         try assertMagicNativeViaSpacingCorpusReport(report)
@@ -525,22 +530,27 @@ extension DRCCLIOptionsTests {
     }
 
     private func assertMagicNativeViaSpacingSummary(_ report: DRCCorpusReport) {
-        #expect(report.passed)
-        #expect(report.qualification.qualified)
+        #expect(!report.passed)
+        #expect(!report.qualification.qualified)
         #expect(report.caseCount == 6)
-        #expect(report.matchedCaseCount == 6)
+        #expect(report.matchedCaseCount == 0)
         #expect(report.summary.oracleCaseCount == 6)
-        #expect(report.summary.oracleAgreementPassedCaseCount == 6)
+        #expect(report.summary.oracleAgreementPassedCaseCount == 0)
+        #expect(report.summary.oracleAgreementRate == 0)
         for (tag, count) in magicNativeViaExpectedCoverageCounts {
             #expect(report.summary.coverageTagCounts[tag] == count)
         }
         #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 20 })
         #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
-        #expect(report.caseResults.allSatisfy { $0.failureReasons.isEmpty })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessStatus == .ready })
         #expect(report.caseResults.allSatisfy {
-            $0.oracleComparison?.agreementPassed == true
-                && $0.oracleComparison?.mismatchReasons.isEmpty == true
+            $0.failureReasons.contains("oracle_agreement_mismatch")
+                && $0.failureReasons.contains("same_backend_reference")
+        })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessStatus == .blocked })
+        #expect(report.caseResults.allSatisfy { $0.oracleComparison != nil })
+        #expect(report.caseResults.allSatisfy { $0.oracleComparison?.agreementPassed == false })
+        #expect(report.caseResults.allSatisfy {
+            $0.oracleComparison?.mismatchReasons.contains("same_backend_reference") == true
         })
     }
 
@@ -571,7 +581,9 @@ extension DRCCLIOptionsTests {
     private func assertMagicNativeViaSpacingArtifacts(_ report: DRCCorpusReport) {
         for result in report.caseResults {
             #expect(primaryArtifactContractIsComplete(for: result))
-            #expect(oracleArtifactContractIsComplete(for: result))
+            #expect(!oracleArtifactContractIsComplete(for: result))
+            #expect(result.oracleResult?.reportPath == nil)
+            #expect(result.oracleResult?.manifestPath == nil)
         }
     }
 
@@ -647,12 +659,10 @@ extension DRCCLIOptionsTests {
         let expectedOracleCaseCount = report.caseResults.count
         #expect(report.runOptions.oracleBackendIDOverride == "missing-oracle")
         #expect(report.summary.oracleCaseCount == expectedOracleCaseCount)
-        #expect(report.summary.oracleExecutionFailedCaseCount == expectedOracleCaseCount)
+        #expect(report.summary.oracleExecutionFailedCaseCount == 0)
         #expect(report.summary.oracleReadinessBlockedCaseCount == expectedOracleCaseCount)
-        #expect(report.summary.failureCategoryCounts["oracle_execution_failed"] == expectedOracleCaseCount)
+        #expect(report.summary.failureCategoryCounts["reference_independence_unproven"] == expectedOracleCaseCount)
         #expect(report.summary.failureCategoryCounts["oracle_agreement_mismatch"] == expectedOracleCaseCount)
-        #expect((report.summary.failureCategoryCounts["passed_mismatch"] ?? 0) > 0)
-        #expect((report.summary.failureCategoryCounts["active_error_rule_ids_mismatch"] ?? 0) > 0)
         #expect(report.caseResults.allSatisfy { $0.oracleResult?.backendID == "missing-oracle" })
         #expect(report.caseResults.allSatisfy { $0.oracleResult?.agreementPassed == false })
         #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessStatus == .blocked })
@@ -661,15 +671,14 @@ extension DRCCLIOptionsTests {
         #expect(report.caseResults.allSatisfy { $0.oracleComparison != nil })
         #expect(report.caseResults.allSatisfy {
             $0.oracleComparison?.mismatchReasons.contains {
-                $0.hasPrefix("oracle_execution_failed:")
+                $0 == "reference_independence_unproven"
             } == true
         })
         #expect(report.caseResults.allSatisfy {
             $0.oracleResult?.readinessDiagnostics.contains {
-                $0.contains("Unsupported DRC backend: missing-oracle")
+                $0.contains("reference_independence_unproven")
             } == true
         })
-        #expect(report.qualification.failures.map(\.code).contains("oracle_execution_failed"))
     }
 
     @Test func corpusCLIFailsWhenDurationBudgetIsExceeded() async throws {

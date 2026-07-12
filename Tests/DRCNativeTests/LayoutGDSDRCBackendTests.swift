@@ -27,6 +27,16 @@ struct LayoutGDSDRCBackendTests {
         return url
     }
 
+    private func writeTechWithoutAntennaRules(in root: URL) throws -> URL {
+        let url = root.appending(path: "tech-without-antenna.json")
+        var technology = LayoutTechDatabase.sampleProcess()
+        technology.antennaRules = []
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(technology).write(to: url)
+        return url
+    }
+
     private func writeExactOverlapTech(in root: URL) throws -> URL {
         let url = root.appending(path: "exact-overlap-tech.json")
         var tech = LayoutTechDatabase.sampleProcess()
@@ -793,7 +803,7 @@ struct LayoutGDSDRCBackendTests {
         #expect(diagnostic.region != nil)
     }
 
-    @Test func angleFaultFailsThroughStandardInputBackend() async throws {
+    @Test func nonManhattanAngleInputFailsClosedUntilExactKernelIsQualified() async throws {
         let root = try makeRoot()
         defer { removeTemporaryDirectory(root) }
         let gds = try writeLayout(
@@ -809,13 +819,10 @@ struct LayoutGDSDRCBackendTests {
             workingDirectory: root
         ))
 
-        let diagnostic = try #require(execution.result.diagnostics.first { $0.kind == "angle" })
+        let diagnostic = try #require(execution.result.diagnostics.first { $0.ruleID == "drc.unsupported_exact_geometry" })
         #expect(!execution.result.passed)
-        #expect(diagnostic.ruleID == "layer.M1.drawing.angle")
-        #expect(diagnostic.layer == "M1:drawing")
-        #expect(diagnostic.measured == 45)
-        #expect(diagnostic.required == 90)
-        #expect(diagnostic.region != nil)
+        #expect(diagnostic.kind == "layout-diagnostic")
+        #expect(diagnostic.message.contains("non-rectilinear polygon"))
     }
 
     @Test func pairSpacingFaultFailsThroughStandardInputBackend() async throws {
@@ -1642,6 +1649,29 @@ struct LayoutGDSDRCBackendTests {
 
         await #expect(throws: DRCError.self) {
             _ = try await LayoutGDSDRCBackend().run(DRCRequest(layoutURL: gds, topCell: "CLEAN"))
+        }
+    }
+
+    @Test func requiredAntennaCoverageBlocksEmptyTechnologyDeck() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let technologyURL = try writeTechWithoutAntennaRules(in: root)
+        let gds = try writeLayout(
+            shapes: [m1(0, 0, 2.0, 0.3)],
+            cellName: "CLEAN_ANTENNA_GATE",
+            in: root
+        )
+
+        await #expect(throws: DRCError.invalidInput(
+            "Antenna rule coverage is required, but the technology deck contains no antennaRules. The run is blocked instead of being reported as zero antenna violations."
+        )) {
+            _ = try await LayoutGDSDRCBackend().run(DRCRequest(
+                layoutURL: gds,
+                topCell: "CLEAN_ANTENNA_GATE",
+                layoutFormat: .gds,
+                technologyURL: technologyURL,
+                options: DRCOptions(requireAntennaRules: true)
+            ))
         }
     }
 

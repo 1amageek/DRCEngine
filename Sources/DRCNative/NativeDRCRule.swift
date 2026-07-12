@@ -39,6 +39,11 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
         case vertical
     }
 
+    public enum AntennaModel: String, Sendable, Hashable, Codable {
+        case partial
+        case cumulative
+    }
+
     public let id: String
     public let kind: Kind
     public let layer: String
@@ -63,6 +68,10 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
     public let lowerLayer: String?
     public let upperLayer: String?
     public let extensionDirection: ExtensionDirection?
+    /// Detailed process-layer antenna semantics. When nil, the legacy
+    /// `value`/`conductorLayers` area-ratio contract is used.
+    public let antennaModel: AntennaModel?
+    public let antennaLayers: [NativeDRCAntennaLayer]?
 
     public init(
         id: String,
@@ -88,7 +97,9 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
         wideWidthThreshold: Double? = nil,
         lowerLayer: String? = nil,
         upperLayer: String? = nil,
-        extensionDirection: ExtensionDirection? = nil
+        extensionDirection: ExtensionDirection? = nil,
+        antennaModel: AntennaModel? = nil,
+        antennaLayers: [NativeDRCAntennaLayer]? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -114,5 +125,7 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
         self.lowerLayer = lowerLayer
         self.upperLayer = upperLayer
         self.extensionDirection = extensionDirection
+        self.antennaModel = antennaModel
+        self.antennaLayers = antennaLayers
     }
 }

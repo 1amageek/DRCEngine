@@ -483,6 +483,57 @@ extension NativeDRCBackend {
         return area
     }
 
+    /// Returns the outer perimeter of the union of axis-aligned rectangles.
+    /// Coordinate compression keeps shared/touching edges from being counted
+    /// twice, which is required for sidewall antenna area.
+    func unionPerimeter(of rectangles: [DensityRectangle]) -> Double {
+        let xCoordinates = Array(Set(rectangles.flatMap { [$0.xMin, $0.xMax] })).sorted()
+        let yCoordinates = Array(Set(rectangles.flatMap { [$0.yMin, $0.yMax] })).sorted()
+        guard xCoordinates.count >= 2, yCoordinates.count >= 2 else {
+            return 0
+        }
+
+        var covered = Array(
+            repeating: Array(repeating: false, count: yCoordinates.count - 1),
+            count: xCoordinates.count - 1
+        )
+        for xIndex in 0..<(xCoordinates.count - 1) {
+            for yIndex in 0..<(yCoordinates.count - 1) {
+                let xMin = xCoordinates[xIndex]
+                let xMax = xCoordinates[xIndex + 1]
+                let yMin = yCoordinates[yIndex]
+                let yMax = yCoordinates[yIndex + 1]
+                covered[xIndex][yIndex] = rectangles.contains { rectangle in
+                    rectangle.xMin <= xMin
+                        && rectangle.xMax >= xMax
+                        && rectangle.yMin <= yMin
+                        && rectangle.yMax >= yMax
+                }
+            }
+        }
+
+        var perimeter = 0.0
+        for xIndex in covered.indices {
+            for yIndex in covered[xIndex].indices where covered[xIndex][yIndex] {
+                let width = xCoordinates[xIndex + 1] - xCoordinates[xIndex]
+                let height = yCoordinates[yIndex + 1] - yCoordinates[yIndex]
+                if yIndex == 0 || !covered[xIndex][yIndex - 1] {
+                    perimeter += width
+                }
+                if yIndex == covered[xIndex].count - 1 || !covered[xIndex][yIndex + 1] {
+                    perimeter += width
+                }
+                if xIndex == 0 || !covered[xIndex - 1][yIndex] {
+                    perimeter += height
+                }
+                if xIndex == covered.count - 1 || !covered[xIndex + 1][yIndex] {
+                    perimeter += height
+                }
+            }
+        }
+        return perimeter
+    }
+
     private func unionLength(of intervals: [(Double, Double)]) -> Double {
         var covered = 0.0
         var current: (Double, Double)?

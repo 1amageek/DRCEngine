@@ -37,6 +37,127 @@ extension DRCCLIOptionsTests {
         #expect(options.emitJSON)
     }
 
+    @Test func approvedWaiverGateIsForwardedToRequest() throws {
+        let options = try DRCCLIOptions(arguments: [
+            "--layout", "/tmp/inverter.json",
+            "--top-cell", "inv",
+            "--waivers", "/tmp/drc-waivers.json",
+            "--out", "/tmp/drc",
+            "--require-approved-waivers",
+        ])
+
+        #expect(options.requireApprovedWaivers)
+        #expect(options.makeRequest().options.requireApprovedWaivers)
+    }
+
+    @Test func signedArtifactTrustGateIsForwardedToRequest() throws {
+        let options = try DRCCLIOptions(arguments: [
+            "--layout", "/tmp/inverter.json",
+            "--top-cell", "inv",
+            "--out", "/tmp/drc",
+            "--require-signed-artifacts",
+            "--trusted-artifact-public-key", Data(repeating: 0, count: 32).base64EncodedString(),
+            "--artifact-signing-private-key", "/tmp/drc-signing-key",
+        ])
+
+        #expect(options.requireSignedArtifacts)
+        #expect(options.artifactSigningPrivateKeyURL?.path(percentEncoded: false) == "/tmp/drc-signing-key")
+        #expect(options.trustedArtifactPublicKey == Data(repeating: 0, count: 32).base64EncodedString())
+        #expect(options.makeRequest().options.requireSignedArtifacts)
+        #expect(options.makeRequest().options.trustedArtifactPublicKey == Data(repeating: 0, count: 32).base64EncodedString())
+    }
+
+    @Test func antennaRuleReadinessGateIsForwardedToRequest() throws {
+        let options = try DRCCLIOptions(arguments: [
+            "--layout", "/tmp/inverter.gds",
+            "--top-cell", "inv",
+            "--tech", "/tmp/tech.json",
+            "--out", "/tmp/drc",
+            "--require-antenna-rules",
+        ])
+
+        #expect(options.requireAntennaRules)
+        #expect(options.makeRequest().options.requireAntennaRules)
+    }
+
+    @Test func signedArtifactCLIFlowPersistsVerifiableManifest() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let layoutURL = root.appending(path: "layout.json")
+        let outputDirectory = root.appending(path: "artifacts")
+        let keyURL = root.appending(path: "ed25519.key")
+        let keyData = Data(repeating: 7, count: 32)
+        let signer = try DRCEd25519ArtifactSigner(rawRepresentation: keyData)
+        try keyData.write(to: keyURL, options: [.atomic])
+        try Data("""
+        {
+          "rectangles" : [
+            { "id" : "m1", "layer" : "met1", "xMax" : 1, "xMin" : 0, "yMax" : 1, "yMin" : 0 }
+          ],
+          "rules" : [
+            { "id" : "met1.width", "kind" : "minimumWidth", "layer" : "met1", "value" : 0.5 }
+          ],
+          "technologyID" : "signed-cli-test-tech",
+          "topCell" : "inv",
+          "unit" : "micrometer"
+        }
+        """.utf8).write(to: layoutURL, options: [.atomic])
+
+        let invocation = await DRCCLI.invoke(arguments: [
+            "--layout", layoutURL.path(percentEncoded: false),
+            "--top-cell", "inv",
+            "--backend", "native",
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--require-signed-artifacts",
+            "--trusted-artifact-public-key", signer.publicKey,
+            "--artifact-signing-private-key", keyURL.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(invocation.exitCode == 0)
+        let manifestURL = try #require(
+            FileManager.default.contentsOfDirectory(at: outputDirectory, includingPropertiesForKeys: nil)
+                .first { $0.lastPathComponent.hasPrefix("drc-artifact-manifest-") }
+        )
+        #expect(try DRCArtifactManifestVerifier().verify(
+            manifestURL: manifestURL,
+            requireSignature: true,
+            trustedPublicKey: signer.publicKey
+        ).isEmpty)
+    }
+
+    @Test func signedCorpusCLIFlowVerifiesCaseArtifacts() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let outputDirectory = root.appending(path: "corpus-output")
+        let keyURL = root.appending(path: "corpus.key")
+        let keyData = Data(repeating: 11, count: 32)
+        let signer = try DRCEd25519ArtifactSigner(rawRepresentation: keyData)
+        try keyData.write(to: keyURL, options: [.atomic])
+
+        let exitCode = await DRCCLI.run(arguments: [
+            "--corpus", fixtureCorpusSpecURL("drc-corpus-tight-budget.json").path(percentEncoded: false),
+            "--out", outputDirectory.path(percentEncoded: false),
+            "--require-signed-artifacts",
+            "--trusted-artifact-public-key", signer.publicKey,
+            "--artifact-signing-private-key", keyURL.path(percentEncoded: false),
+            "--json",
+        ])
+
+        #expect(exitCode == 2)
+        let caseManifestURL = try #require(
+            FileManager.default.contentsOfDirectory(
+                at: outputDirectory.appending(path: "cases/clean-tight-budget"),
+                includingPropertiesForKeys: nil
+            ).first { $0.lastPathComponent.hasPrefix("drc-artifact-manifest-") }
+        )
+        #expect(try DRCArtifactManifestVerifier().verify(
+            manifestURL: caseManifestURL,
+            requireSignature: true,
+            trustedPublicKey: signer.publicKey
+        ).isEmpty)
+    }
+
     @Test func nativeJSONFormatIsParsedForAgentFacingCanonicalLayoutInput() throws {
         let options = try DRCCLIOptions(arguments: [
             "--layout", "/tmp/inverter.layout.json",

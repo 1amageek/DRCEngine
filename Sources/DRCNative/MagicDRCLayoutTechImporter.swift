@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import LayoutCore
 import LayoutTech
 @_exported import DRCFoundryImport
@@ -6,14 +7,24 @@ public enum MagicDRCLayoutTechImporter {
     public static func importTechnology(
         from magicTechURL: URL,
         profile: MagicDRCLayoutTechImportProfile,
-        generatedAt: String? = nil
+        generatedAt: String? = nil,
+        profileDigest: String? = nil
     ) throws -> MagicDRCLayoutTechImport {
-        let text = try String(contentsOf: magicTechURL, encoding: .utf8)
+        let data = try Data(contentsOf: magicTechURL)
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw NSError(
+                domain: "MagicDRCLayoutTechImporter",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Magic technology file is not valid UTF-8."]
+            )
+        }
         return importTechnology(
             text: text,
             sourcePath: magicTechURL.path(percentEncoded: false),
             profile: profile,
-            generatedAt: generatedAt
+            generatedAt: generatedAt,
+            sourceDigest: sha256(data),
+            profileDigest: profileDigest
         )
     }
 
@@ -21,13 +32,17 @@ public enum MagicDRCLayoutTechImporter {
         text: String,
         sourcePath: String,
         profile: MagicDRCLayoutTechImportProfile,
-        generatedAt: String? = nil
+        generatedAt: String? = nil,
+        sourceDigest: String? = nil,
+        profileDigest: String? = nil
     ) -> MagicDRCLayoutTechImport {
         importValidatedTechnology(
             text: text,
             sourcePath: sourcePath,
             generatedAt: generatedAt,
-            profile: profile
+            profile: profile,
+            sourceDigest: sourceDigest ?? sha256(Data(text.utf8)),
+            profileDigest: profileDigest
         )
     }
 
@@ -35,8 +50,12 @@ public enum MagicDRCLayoutTechImporter {
         text: String,
         sourcePath: String,
         generatedAt: String? = nil,
-        profile: MagicDRCLayoutTechImportProfile
+        profile: MagicDRCLayoutTechImportProfile,
+        sourceDigest: String? = nil,
+        profileDigest: String? = nil
     ) -> MagicDRCLayoutTechImport {
+        let resolvedSourceDigest = sourceDigest ?? sha256(Data(text.utf8))
+        let resolvedProfileDigest = profileDigest ?? Self.profileDigest(profile)
         do {
             try profile.validateForImport()
         } catch {
@@ -46,6 +65,8 @@ public enum MagicDRCLayoutTechImporter {
                 sourceLayers: [],
                 sourceCutAliases: [],
                 profile: profile,
+                sourceDigest: resolvedSourceDigest,
+                profileDigest: resolvedProfileDigest,
                 diagnostic: profileValidationDiagnostic(error)
             )
         }
@@ -88,6 +109,8 @@ public enum MagicDRCLayoutTechImporter {
                 sourceLayers: sourceLayers,
                 sourceCutAliases: sourceCutAliases,
                 profile: profile,
+                sourceDigest: resolvedSourceDigest,
+                profileDigest: resolvedProfileDigest,
                 diagnostic: MagicDRCImportDiagnostic(
                     code: "magic_drc_source_rule_validation_failed",
                     message: "Magic DRC source rule validation failed: \(error)"
@@ -215,7 +238,7 @@ public enum MagicDRCLayoutTechImporter {
         let status: MagicDRCLayoutTechImportStatus
         if parsed.importedRules.isEmpty || importedLayerNames.isEmpty {
             status = .blocked
-        } else if parsed.skippedFamilyCounts.isEmpty && diagnostics.isEmpty {
+        } else if parsed.skippedFamilyCounts.isEmpty && diagnostics.isEmpty && parsed.sourceAntennaRules.isEmpty {
             status = .complete
         } else {
             status = .partial
@@ -225,6 +248,10 @@ public enum MagicDRCLayoutTechImporter {
             generatedAt: generatedAt ?? utcTimestamp(),
             status: status,
             sourcePath: sourcePath,
+            sourceDigest: resolvedSourceDigest,
+            profileDigest: resolvedProfileDigest,
+            profileID: profile.profileID,
+            profileLayerOrder: profile.layerOrder,
             supportedRuleFamilies: supportedRuleFamilies,
             importedRuleCount: parsed.importedRules.count,
             skippedRuleCount: parsed.skippedFamilyCounts.values.reduce(0, +),
@@ -253,6 +280,8 @@ public enum MagicDRCLayoutTechImporter {
             sourceTempLayerMaterializedRuleCount: sourceTempLayerDerivedLayerAggregation.materializedRuleIDs.count,
             sourceMinimumCutPolicies: parsed.sourceMinimumCutPolicies,
             profileMinimumCutPolicies: profileMinimumCutPolicies,
+            sourceAntennaRules: parsed.sourceAntennaRules,
+            sourceAntennaThicknesses: parsed.sourceAntennaThicknesses,
             derivedViaDefinitionIDs: interconnectDefinitions.vias.map(\.id),
             derivedContactDefinitionIDs: interconnectDefinitions.contacts.map(\.id),
             derivedMinimumCutRuleIDs: minimumCutRules.map(\.id),
@@ -300,12 +329,18 @@ public enum MagicDRCLayoutTechImporter {
         sourceLayers: [SourceLayer],
         sourceCutAliases: [SourceCutAlias],
         profile: MagicDRCLayoutTechImportProfile,
+        sourceDigest: String?,
+        profileDigest: String?,
         diagnostic: MagicDRCImportDiagnostic
     ) -> MagicDRCLayoutTechImport {
         let report = MagicDRCLayoutTechImportReport(
             generatedAt: generatedAt ?? utcTimestamp(),
             status: .blocked,
             sourcePath: sourcePath,
+            sourceDigest: sourceDigest,
+            profileDigest: profileDigest,
+            profileID: profile.profileID,
+            profileLayerOrder: profile.layerOrder,
             supportedRuleFamilies: supportedRuleFamilies,
             importedRuleCount: 0,
             skippedRuleCount: 0,
@@ -326,6 +361,22 @@ public enum MagicDRCLayoutTechImporter {
             layerRules: []
         )
         return MagicDRCLayoutTechImport(technology: technology, report: report)
+    }
+
+    private static func sha256(_ data: Data) -> String {
+        SHA256.hash(data: data)
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
+    private static func profileDigest(_ profile: MagicDRCLayoutTechImportProfile) -> String? {
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            return sha256(try encoder.encode(profile))
+        } catch {
+            return nil
+        }
     }
 
     static let supportedRuleFamilies = [
@@ -367,6 +418,7 @@ public enum MagicDRCLayoutTechImporter {
         "cifspacing",
         "extend",
         "cifwidth",
+        "antenna",
     ]
     struct LogicalLine: Sendable, Hashable {
         let lineNumber: Int
@@ -414,6 +466,12 @@ public enum MagicDRCLayoutTechImporter {
         var sourceEnclosedHoleRules: [MagicDRCSourceEnclosedHoleRule] = []
         var sourceForbiddenMarkerRules: [MagicDRCSourceForbiddenMarkerRule] = []
         var sourceMinimumCutPolicies: [MagicDRCSourceMinimumCutPolicy] = []
+        var sourceAntennaRules: [MagicDRCSourceAntennaRule] = []
+        var sourceAntennaModel: MagicDRCAntennaModel?
+        var sourceAntennaDefaultMeasurement: MagicDRCAntennaMeasurement?
+        var sourceAntennaThicknesses: [String: Double] = [:]
+        var sourceAntennaThicknessSources: [String: String] = [:]
+        var sourceAntennaThicknessPrimary: [String: Bool] = [:]
     }
 
     struct LayerRuleState: Sendable, Hashable {
@@ -556,6 +614,19 @@ public enum MagicDRCLayoutTechImporter {
 
         func sourceLayer(for baseName: String) -> SourceLayer? {
             baseLayerSources[baseName]
+        }
+
+        func isPrimaryLayerExpression(_ expression: String, for baseName: String) -> Bool {
+            guard let sourceLayer = sourceLayer(for: baseName) else {
+                return false
+            }
+            let normalizedExpression = MagicDRCLayoutTechImporter.normalizedToken(expression)
+            return [sourceLayer.name, sourceLayer.baseName]
+                .map(MagicDRCLayoutTechImporter.normalizedToken)
+                .contains(normalizedExpression)
+                || sourceLayer.expressionTerms
+                    .map(MagicDRCLayoutTechImporter.normalizedToken)
+                    .contains(normalizedExpression)
         }
 
         func resolve(_ expression: String) -> String? {

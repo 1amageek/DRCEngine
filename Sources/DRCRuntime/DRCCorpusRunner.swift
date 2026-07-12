@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import DRCCore
 import LayoutCore
 import LayoutIO
@@ -14,28 +15,64 @@ public struct DRCCorpusRunner: Sendable {
     public func run(
         specURL: URL,
         outputDirectory: URL,
-        options: DRCCorpusRunOptions = DRCCorpusRunOptions()
+        options: DRCCorpusRunOptions = DRCCorpusRunOptions(),
+        eventHandler: DRCCorpusRunEventHandler? = nil
     ) async throws -> DRCCorpusReport {
-        let spec = try loadSpec(from: specURL)
+        let (spec, specData) = try loadSpec(from: specURL)
+        try spec.validate()
+        try options.validate()
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         try validateBudget(spec.defaultMaxDurationSeconds, label: "defaultMaxDurationSeconds")
-
-        let caseResults = try await runCases(
-            spec: spec,
-            specDirectory: specURL.deletingLastPathComponent(),
-            outputDirectory: outputDirectory,
-            options: options
+        let specSHA256 = sha256(specData)
+        let runID = options.runID ?? UUID().uuidString.lowercased()
+        let resumedReport = try loadResumeReport(
+            from: options.resumeReportURL,
+            expectedSpecSHA256: specSHA256,
+            expectedEvidenceKind: spec.evidenceKind
         )
+        await emit(
+            .started(
+                runID: runID,
+                caseCount: spec.cases.count,
+                resumedFromRunID: resumedReport?.runID
+            ),
+            using: eventHandler
+        )
+
+        let caseResults: [DRCCorpusCaseResult]
+        do {
+            caseResults = try await runCases(
+                spec: spec,
+                specDirectory: specURL.deletingLastPathComponent(),
+                outputDirectory: outputDirectory,
+                options: options,
+                runID: runID,
+                specSHA256: specSHA256,
+                parentRunID: resumedReport?.runID,
+                priorResults: resumedReport?.caseResults ?? [],
+                eventHandler: eventHandler
+            )
+        } catch is CancellationError {
+            await emit(.cancelled(runID: runID), using: eventHandler)
+            throw CancellationError()
+        }
         let report = makeReport(
             caseResults: caseResults,
             options: options,
-            qualificationPolicy: spec.qualificationPolicy
+            qualificationPolicy: spec.effectiveQualificationPolicy,
+            evidenceKind: spec.evidenceKind,
+            runID: runID,
+            parentRunID: resumedReport?.runID,
+            specSHA256: specSHA256,
+            completed: true
         )
+        try report.validate()
         try writeReport(report, to: outputDirectory)
+        await emit(.completed(report), using: eventHandler)
         return report
     }
 
-    private func loadSpec(from specURL: URL) throws -> DRCCorpusSpec {
+    private func loadSpec(from specURL: URL) throws -> (DRCCorpusSpec, Data) {
         let data: Data
         do {
             data = try Data(contentsOf: specURL)
@@ -48,25 +85,127 @@ public struct DRCCorpusRunner: Sendable {
         } catch {
             throw DRCError.invalidInput("Could not decode DRC corpus spec: \(error.localizedDescription)")
         }
-        return spec
+        return (spec, data)
+    }
+
+    private func loadResumeReport(
+        from reportURL: URL?,
+        expectedSpecSHA256: String,
+        expectedEvidenceKind: DRCCorpusEvidenceKind
+    ) throws -> DRCCorpusReport? {
+        guard let reportURL else { return nil }
+        let data: Data
+        do {
+            data = try Data(contentsOf: reportURL)
+        } catch {
+            throw DRCError.invalidInput(
+                "Could not read DRC corpus resume report: \(error.localizedDescription)"
+            )
+        }
+        let report: DRCCorpusReport
+        do {
+            report = try JSONDecoder().decode(DRCCorpusReport.self, from: data)
+        } catch {
+            throw DRCError.invalidInput(
+                "Could not decode DRC corpus resume report: \(error.localizedDescription)"
+            )
+        }
+        try report.validateEvidence()
+        guard report.specSHA256 == expectedSpecSHA256 else {
+            throw DRCError.invalidInput(
+                "DRC corpus resume report spec digest does not match the requested corpus spec."
+            )
+        }
+        guard report.evidenceKind == expectedEvidenceKind else {
+            throw DRCError.invalidInput(
+                "DRC corpus resume report evidence kind does not match the requested corpus spec."
+            )
+        }
+        return report
+    }
+
+    private func isReusable(_ result: DRCCorpusCaseResult, options: DRCCorpusRunOptions) -> Bool {
+        guard result.matched,
+              let reportPath = result.reportPath,
+              let manifestPath = result.manifestPath,
+              !reportPath.isEmpty,
+              !manifestPath.isEmpty else {
+            return false
+        }
+        guard FileManager.default.fileExists(atPath: reportPath),
+              FileManager.default.fileExists(atPath: manifestPath) else {
+            return false
+        }
+        do {
+            return try DRCArtifactManifestVerifier().verify(
+                manifestURL: URL(filePath: manifestPath),
+                requireSignature: options.requireSignedArtifacts,
+                trustedPublicKey: options.trustedArtifactPublicKey
+            ).isEmpty
+        } catch {
+            return false
+        }
     }
 
     private func runCases(
         spec: DRCCorpusSpec,
         specDirectory: URL,
         outputDirectory: URL,
-        options: DRCCorpusRunOptions
+        options: DRCCorpusRunOptions,
+        runID: String,
+        specSHA256: String,
+        parentRunID: String?,
+        priorResults: [DRCCorpusCaseResult],
+        eventHandler: DRCCorpusRunEventHandler?
     ) async throws -> [DRCCorpusCaseResult] {
         var caseResults: [DRCCorpusCaseResult] = []
 
-        for corpusCase in spec.cases {
-            caseResults.append(try await runCase(
+        for (index, corpusCase) in spec.cases.enumerated() {
+            try Task.checkCancellation()
+            await emit(.caseStarted(caseID: corpusCase.caseID, index: index), using: eventHandler)
+            if let previous = priorResults.first(where: { $0.caseID == corpusCase.caseID }),
+               isReusable(previous, options: options) {
+                caseResults.append(previous)
+                await emit(.caseResumed(caseID: corpusCase.caseID, index: index), using: eventHandler)
+                await emit(
+                    .caseCompleted(caseID: corpusCase.caseID, index: index, result: previous),
+                    using: eventHandler
+                )
+                let checkpointURL = try writeCheckpoint(
+                    caseResults: caseResults,
+                    spec: spec,
+                    options: options,
+                    runID: runID,
+                    parentRunID: parentRunID,
+                    specSHA256: specSHA256,
+                    outputDirectory: outputDirectory
+                )
+                await emit(.checkpointWritten(checkpointURL), using: eventHandler)
+                continue
+            }
+            let result = try await runCase(
                 corpusCase,
                 defaultMaxDurationSeconds: spec.defaultMaxDurationSeconds,
                 specDirectory: specDirectory,
                 outputDirectory: outputDirectory,
-                options: options
-            ))
+                options: options,
+                requireMarkerCorrelation: spec.evidenceKind == .independentCorrelation
+            )
+            caseResults.append(result)
+            await emit(
+                .caseCompleted(caseID: corpusCase.caseID, index: index, result: result),
+                using: eventHandler
+            )
+            let checkpointURL = try writeCheckpoint(
+                caseResults: caseResults,
+                spec: spec,
+                options: options,
+                runID: runID,
+                parentRunID: parentRunID,
+                specSHA256: specSHA256,
+                outputDirectory: outputDirectory
+            )
+            await emit(.checkpointWritten(checkpointURL), using: eventHandler)
         }
         return caseResults
     }
@@ -76,7 +215,8 @@ public struct DRCCorpusRunner: Sendable {
         defaultMaxDurationSeconds: Double?,
         specDirectory: URL,
         outputDirectory: URL,
-        options: DRCCorpusRunOptions
+        options: DRCCorpusRunOptions,
+        requireMarkerCorrelation: Bool
     ) async throws -> DRCCorpusCaseResult {
         try validateBudget(corpusCase.maxDurationSeconds, label: "\(corpusCase.caseID).maxDurationSeconds")
         let maxDurationSeconds = corpusCase.maxDurationSeconds ?? defaultMaxDurationSeconds
@@ -105,7 +245,9 @@ public struct DRCCorpusRunner: Sendable {
                 for: corpusCase,
                 preparedInputs: preparedInputs,
                 specDirectory: specDirectory,
-                caseDirectory: caseDirectory
+                caseDirectory: caseDirectory,
+                timeoutSeconds: executionTimeoutSeconds(for: maxDurationSeconds),
+                runOptions: options
             ))
         } catch {
             return failedCaseResult(
@@ -124,14 +266,15 @@ public struct DRCCorpusRunner: Sendable {
             caseDirectory: caseDirectory,
             startedAt: startedAt,
             maxDurationSeconds: maxDurationSeconds,
-            options: options
+            options: options,
+            requireMarkerCorrelation: requireMarkerCorrelation
         )
     }
 
     private func createCaseDirectory(for corpusCase: DRCCorpusCase, outputDirectory: URL) throws -> URL {
         let caseDirectory = outputDirectory
             .appending(path: "cases")
-            .appending(path: safePathComponent(corpusCase.caseID))
+            .appending(path: DRCCorpusNamespace.safePathComponent(corpusCase.caseID))
         try FileManager.default.createDirectory(at: caseDirectory, withIntermediateDirectories: true)
         return caseDirectory
     }
@@ -152,7 +295,9 @@ public struct DRCCorpusRunner: Sendable {
         for corpusCase: DRCCorpusCase,
         preparedInputs: PreparedDRCCorpusInputs,
         specDirectory: URL,
-        caseDirectory: URL
+        caseDirectory: URL,
+        timeoutSeconds: Double?,
+        runOptions: DRCCorpusRunOptions
     ) -> DRCRequest {
         DRCRequest(
             layoutURL: preparedInputs.layoutURL,
@@ -162,7 +307,15 @@ public struct DRCCorpusRunner: Sendable {
             waiverURL: corpusCase.waiverPath.map { resolve($0, relativeTo: specDirectory) },
             workingDirectory: caseDirectory,
             backendSelection: DRCBackendSelection(backendID: corpusCase.backendID ?? "native"),
-            options: DRCOptions(additionalEnvironment: corpusCase.additionalEnvironment)
+            options: DRCOptions(
+                timeoutSeconds: timeoutSeconds ?? DRCOptions().timeoutSeconds,
+                additionalEnvironment: corpusCase.additionalEnvironment,
+                requireSignedArtifacts: runOptions.requireSignedArtifacts,
+                trustedArtifactPublicKey: runOptions.trustedArtifactPublicKey,
+                requireAntennaRules: runOptions.requireAntennaRules
+            ),
+            designRevision: corpusCase.designRevision,
+            canonicalStateDigest: corpusCase.canonicalStateDigest
         )
     }
 
@@ -174,7 +327,8 @@ public struct DRCCorpusRunner: Sendable {
         caseDirectory: URL,
         startedAt: Date,
         maxDurationSeconds: Double?,
-        options: DRCCorpusRunOptions
+        options: DRCCorpusRunOptions,
+        requireMarkerCorrelation: Bool
     ) async -> DRCCorpusCaseResult {
         let durationSeconds = Date().timeIntervalSince(startedAt)
         let actualRuleIDs = activeErrorRuleIDs(in: executionResult.result.diagnostics)
@@ -183,6 +337,9 @@ public struct DRCCorpusRunner: Sendable {
         let expectationMatched = executionResult.result.passed == corpusCase.expectedPassed
             && actualRuleIDs == expectedRuleIDs
         let durationBudgetPassed = maxDurationSeconds.map { durationSeconds <= $0 } ?? true
+        let remainingTimeoutSeconds = maxDurationSeconds.map {
+            max(0, $0 - durationSeconds)
+        }
         let oracleResult = await runOracleIfNeeded(
             corpusCase: corpusCase,
             oracleBackendID: options.oracleBackendIDOverride ?? corpusCase.oracleBackendID,
@@ -192,7 +349,15 @@ public struct DRCCorpusRunner: Sendable {
             primaryPassed: executionResult.result.passed,
             primaryBackendID: executionResult.result.backendID,
             primaryActiveRuleIDs: actualRuleIDs,
-            primaryDiagnosticSummary: primaryDiagnosticSummary
+            primaryDiagnosticSummary: primaryDiagnosticSummary,
+            primaryMarkerFingerprints: DRCCorpusMarkerFingerprint.fingerprints(
+                from: executionResult.result.diagnostics
+            ),
+            timeoutSeconds: remainingTimeoutSeconds,
+            requireMarkerCorrelation: requireMarkerCorrelation,
+            requireSignedArtifacts: options.requireSignedArtifacts,
+            trustedArtifactPublicKey: options.trustedArtifactPublicKey,
+            requireAntennaRules: options.requireAntennaRules
         )
         return buildCaseResult(
             corpusCase: corpusCase,
@@ -204,7 +369,8 @@ public struct DRCCorpusRunner: Sendable {
             durationSeconds: durationSeconds,
             maxDurationSeconds: maxDurationSeconds,
             durationBudgetPassed: durationBudgetPassed,
-            oracleResult: oracleResult
+            oracleResult: oracleResult,
+            requireMarkerCorrelation: requireMarkerCorrelation
         )
     }
 
@@ -218,7 +384,8 @@ public struct DRCCorpusRunner: Sendable {
         durationSeconds: Double,
         maxDurationSeconds: Double?,
         durationBudgetPassed: Bool,
-        oracleResult: DRCCorpusOracleResult?
+        oracleResult: DRCCorpusOracleResult?,
+        requireMarkerCorrelation: Bool
     ) -> DRCCorpusCaseResult {
         let oracleComparison = oracleResult.map {
             self.oracleComparison(
@@ -226,7 +393,11 @@ public struct DRCCorpusRunner: Sendable {
                 primaryPassed: executionResult.result.passed,
                 primaryActiveRuleIDs: actualRuleIDs,
                 primaryDiagnosticSummary: primaryDiagnosticSummary,
-                oracleResult: $0
+                primaryMarkerFingerprints: DRCCorpusMarkerFingerprint.fingerprints(
+                    from: executionResult.result.diagnostics
+                ),
+                oracleResult: $0,
+                requireMarkerCorrelation: requireMarkerCorrelation
             )
         }
         let oracleAgreementPassed = oracleResult?.agreementPassed ?? true
@@ -262,27 +433,79 @@ public struct DRCCorpusRunner: Sendable {
     private func makeReport(
         caseResults: [DRCCorpusCaseResult],
         options: DRCCorpusRunOptions,
-        qualificationPolicy: DRCCorpusQualificationPolicy
+        qualificationPolicy: DRCCorpusQualificationPolicy,
+        evidenceKind: DRCCorpusEvidenceKind,
+        runID: String?,
+        parentRunID: String?,
+        specSHA256: String?,
+        completed: Bool
     ) -> DRCCorpusReport {
         DRCCorpusReport(
             generatedAt: ISO8601DateFormatter().string(from: Date()),
+            runID: runID,
+            parentRunID: parentRunID,
+            specSHA256: specSHA256,
+            completed: completed,
             passed: caseResults.allSatisfy(\.matched),
             caseCount: caseResults.count,
             matchedCaseCount: caseResults.filter(\.matched).count,
             budgetExceededCaseCount: caseResults.filter { !$0.durationBudgetPassed }.count,
             totalDurationSeconds: caseResults.reduce(0) { $0 + $1.durationSeconds },
+            evidenceKind: evidenceKind,
             runOptions: options,
             qualificationPolicy: qualificationPolicy,
             caseResults: caseResults
         )
     }
 
-    private func writeReport(_ report: DRCCorpusReport, to outputDirectory: URL) throws {
-        let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
+    @discardableResult
+    private func writeCheckpoint(
+        caseResults: [DRCCorpusCaseResult],
+        spec: DRCCorpusSpec,
+        options: DRCCorpusRunOptions,
+        runID: String,
+        parentRunID: String?,
+        specSHA256: String,
+        outputDirectory: URL
+    ) throws -> URL {
+        let report = makeReport(
+            caseResults: caseResults,
+            options: options,
+            qualificationPolicy: spec.effectiveQualificationPolicy,
+            evidenceKind: spec.evidenceKind,
+            runID: runID,
+            parentRunID: parentRunID,
+            specSHA256: specSHA256,
+            completed: false
+        )
+        try report.validate()
+        return try writeReport(report, to: outputDirectory, fileName: "drc-corpus-checkpoint.json")
+    }
+
+    @discardableResult
+    private func writeReport(
+        _ report: DRCCorpusReport,
+        to outputDirectory: URL,
+        fileName: String = "drc-corpus-report.json"
+    ) throws -> URL {
+        let reportURL = outputDirectory.appending(path: fileName)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let reportData = try encoder.encode(report)
         try reportData.write(to: reportURL, options: [.atomic])
+        return reportURL
+    }
+
+    private func emit(
+        _ event: DRCCorpusRunEvent,
+        using handler: DRCCorpusRunEventHandler?
+    ) async {
+        guard let handler else { return }
+        await handler(event)
+    }
+
+    private func sha256(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     private func validateBudget(_ value: Double?, label: String) throws {
@@ -290,6 +513,13 @@ public struct DRCCorpusRunner: Sendable {
         guard value.isFinite, value > 0 else {
             throw DRCError.invalidInput("\(label) must be positive finite seconds")
         }
+    }
+
+    private func executionTimeoutSeconds(for budget: Double?) -> Double {
+        // Very small budgets cannot be observed reliably after process
+        // startup and input preparation. Keep the declared budget for the
+        // verdict, while using a bounded minimum for backend execution.
+        max(budget ?? DRCOptions().timeoutSeconds, 1)
     }
 
     private func failureReasons(
@@ -357,19 +587,58 @@ public struct DRCCorpusRunner: Sendable {
         primaryPassed: Bool,
         primaryBackendID: String,
         primaryActiveRuleIDs: [String],
-        primaryDiagnosticSummary: DRCDiagnosticSummary
+        primaryDiagnosticSummary: DRCDiagnosticSummary,
+        primaryMarkerFingerprints: [String],
+        timeoutSeconds: Double?,
+        requireMarkerCorrelation: Bool,
+        requireSignedArtifacts: Bool,
+        trustedArtifactPublicKey: String?,
+        requireAntennaRules: Bool
     ) async -> DRCCorpusOracleResult? {
         guard let oracleBackendID else {
             return nil
         }
+        let primaryIdentity = engine.backendIdentity(for: primaryBackendID)
+            ?? DRCBackendIdentity(backendID: primaryBackendID)
+        let oracleIdentity = engine.backendIdentity(for: oracleBackendID)
+            ?? DRCBackendIdentity(backendID: oracleBackendID)
+        let primaryFamilyIsKnown = primaryIdentity.implementationFamily != .unknown
+        if let independenceFailureCode = primaryIdentity.independenceFailureCode(comparedTo: oracleIdentity),
+           independenceFailureCode != "reference_independence_unproven"
+            || (independenceFailureCode == "reference_independence_unproven"
+                && primaryFamilyIsKnown
+                && !engine.hasBackend(oracleBackendID)) {
+            return rejectedOracleResult(
+                backendID: oracleBackendID,
+                backendIdentity: oracleIdentity,
+                failureCode: independenceFailureCode,
+                primaryBackendID: primaryBackendID,
+                primaryPassed: primaryPassed,
+                primaryActiveRuleIDs: primaryActiveRuleIDs,
+                primaryDiagnosticSummary: primaryDiagnosticSummary,
+                primaryMarkerFingerprints: primaryMarkerFingerprints,
+                durationSeconds: 0
+            )
+        }
+        if let timeoutSeconds, timeoutSeconds <= 0 {
+            return failedOracleResult(
+                backendID: oracleBackendID,
+                backendIdentity: oracleIdentity,
+                durationSeconds: 0,
+                error: DRCError.timedOut(
+                    "DRC corpus case exhausted its duration budget before oracle execution."
+                )
+            )
+        }
         let oracleDirectory = caseDirectory
-            .appending(path: "oracle-\(safePathComponent(oracleBackendID))")
+            .appending(path: "oracle-\(DRCCorpusNamespace.safePathComponent(oracleBackendID))")
         let startedAt = Date()
         do {
             try FileManager.default.createDirectory(at: oracleDirectory, withIntermediateDirectories: true)
         } catch {
             return failedOracleResult(
                 backendID: oracleBackendID,
+                backendIdentity: oracleIdentity,
                 durationSeconds: Date().timeIntervalSince(startedAt),
                 error: error
             )
@@ -382,7 +651,15 @@ public struct DRCCorpusRunner: Sendable {
             waiverURL: corpusCase.waiverPath.map { resolve($0, relativeTo: specDirectory) },
             workingDirectory: oracleDirectory,
             backendSelection: DRCBackendSelection(backendID: oracleBackendID),
-            options: DRCOptions(additionalEnvironment: corpusCase.additionalEnvironment)
+            options: DRCOptions(
+                timeoutSeconds: executionTimeoutSeconds(for: timeoutSeconds),
+                additionalEnvironment: corpusCase.additionalEnvironment,
+                requireSignedArtifacts: requireSignedArtifacts,
+                trustedArtifactPublicKey: trustedArtifactPublicKey,
+                requireAntennaRules: requireAntennaRules
+            ),
+            designRevision: corpusCase.designRevision,
+            canonicalStateDigest: corpusCase.canonicalStateDigest
         )
         let executionResult: DRCExecutionResult
         do {
@@ -390,6 +667,7 @@ public struct DRCCorpusRunner: Sendable {
         } catch {
             return failedOracleResult(
                 backendID: oracleBackendID,
+                backendIdentity: oracleIdentity,
                 durationSeconds: Date().timeIntervalSince(startedAt),
                 error: error
             )
@@ -397,12 +675,17 @@ public struct DRCCorpusRunner: Sendable {
         let durationSeconds = Date().timeIntervalSince(startedAt)
         let oracleRuleIDs = activeErrorRuleIDs(in: executionResult.result.diagnostics)
         let oracleDiagnosticSummary = diagnosticSummary(executionResult.result.diagnostics)
+        let oracleMarkerFingerprints = DRCCorpusMarkerFingerprint.fingerprints(
+            from: executionResult.result.diagnostics
+        )
         let readinessDiagnostics = oracleReadinessDiagnostics(for: executionResult.result)
         let readinessStatus: DRCCorpusOracleReadinessStatus = readinessDiagnostics.isEmpty ? .ready : .blocked
         let executionError = readinessDiagnostics.first
         let readinessFailureReasons = executionError.map { ["oracle_execution_failed:\($0)"] } ?? []
         let agreementPassed = executionResult.result.passed == primaryPassed
             && oracleRuleIDs == primaryActiveRuleIDs
+            && (!requireMarkerCorrelation || oracleMarkerFingerprints == primaryMarkerFingerprints)
+        let markerSetMatched = oracleMarkerFingerprints == primaryMarkerFingerprints
         let comparison = DRCCorpusOracleComparison(
             primaryBackendID: primaryBackendID,
             oracleBackendID: executionResult.result.backendID,
@@ -422,11 +705,20 @@ public struct DRCCorpusRunner: Sendable {
                 oracleActiveRuleIDs: oracleRuleIDs,
                 primaryDiagnosticSummary: primaryDiagnosticSummary,
                 oracleDiagnosticSummary: oracleDiagnosticSummary,
+                primaryMarkerFingerprints: primaryMarkerFingerprints,
+                oracleMarkerFingerprints: oracleMarkerFingerprints,
+                requireMarkerCorrelation: requireMarkerCorrelation,
                 oracleFailureReasons: readinessFailureReasons + ["oracle_agreement_mismatch"]
-            )
+            ),
+            agreementPassed: agreementPassed && readinessFailureReasons.isEmpty,
+            primaryMarkerFingerprints: primaryMarkerFingerprints,
+            oracleMarkerFingerprints: oracleMarkerFingerprints,
+            markerSetMatched: markerSetMatched,
+            markerCorrelationRequired: requireMarkerCorrelation
         )
         return DRCCorpusOracleResult(
             backendID: executionResult.result.backendID,
+            backendIdentity: executionResult.result.backendIdentity,
             passed: executionResult.result.passed,
             activeErrorRuleIDs: oracleRuleIDs,
             diagnosticSummary: oracleDiagnosticSummary,
@@ -435,6 +727,7 @@ public struct DRCCorpusRunner: Sendable {
             readinessStatus: readinessStatus,
             readinessDiagnostics: readinessDiagnostics,
             failureReasons: comparison.mismatchReasons,
+            markerFingerprints: oracleMarkerFingerprints,
             executionError: executionError,
             reportPath: executionResult.reportURL?.path(percentEncoded: false),
             manifestPath: executionResult.artifactManifestURL?.path(percentEncoded: false),
@@ -442,14 +735,45 @@ public struct DRCCorpusRunner: Sendable {
         )
     }
 
+    private func rejectedOracleResult(
+        backendID: String,
+        backendIdentity: DRCBackendIdentity,
+        failureCode: String,
+        primaryBackendID: String,
+        primaryPassed: Bool,
+        primaryActiveRuleIDs: [String],
+        primaryDiagnosticSummary: DRCDiagnosticSummary,
+        primaryMarkerFingerprints: [String],
+        durationSeconds: Double
+    ) -> DRCCorpusOracleResult {
+        let message = "Oracle backend '\(backendID)' is not independent from primary backend '\(primaryBackendID)': \(failureCode)."
+        return DRCCorpusOracleResult(
+            backendID: backendID,
+            backendIdentity: backendIdentity,
+            passed: primaryPassed,
+            activeErrorRuleIDs: primaryActiveRuleIDs,
+            diagnosticSummary: primaryDiagnosticSummary,
+            durationSeconds: durationSeconds,
+            agreementPassed: false,
+            readinessStatus: .blocked,
+            readinessDiagnostics: [message],
+            failureReasons: [failureCode],
+            markerFingerprints: primaryMarkerFingerprints,
+            reportPath: nil,
+            manifestPath: nil
+        )
+    }
+
     private func failedOracleResult(
         backendID: String,
+        backendIdentity: DRCBackendIdentity,
         durationSeconds: Double,
         error: any Error
     ) -> DRCCorpusOracleResult {
         let message = executionErrorMessage(error)
         return DRCCorpusOracleResult(
             backendID: backendID,
+            backendIdentity: backendIdentity,
             passed: false,
             activeErrorRuleIDs: [],
             diagnosticSummary: zeroDiagnosticSummary(),
@@ -475,6 +799,7 @@ public struct DRCCorpusRunner: Sendable {
         } catch {
             return DRCCorpusCaseProvenance(
                 backendID: executionResult.result.backendID,
+                backendIdentity: executionResult.result.backendIdentity,
                 reportPath: executionResult.reportURL?.path(percentEncoded: false),
                 manifestPath: manifestURL.path(percentEncoded: false)
             )
@@ -482,11 +807,16 @@ public struct DRCCorpusRunner: Sendable {
 
         return DRCCorpusCaseProvenance(
             backendID: executionResult.result.backendID,
+            backendIdentity: executionResult.result.backendIdentity,
             inputArtifacts: manifest.inputs,
-            outputArtifacts: manifest.outputs,
-            reportPath: executionResult.reportURL?.path(percentEncoded: false),
-            manifestPath: manifestURL.path(percentEncoded: false)
-        )
+                outputArtifacts: manifest.outputs,
+                reportPath: executionResult.reportURL?.path(percentEncoded: false),
+                manifestPath: manifestURL.path(percentEncoded: false),
+                runID: manifest.runID,
+                requestSHA256: manifest.requestSHA256,
+                requestEnvironmentSHA256: manifest.requestEnvironmentSHA256,
+                artifactRootSHA256: manifest.artifactRootSHA256
+            )
     }
 
     private func oracleComparison(
@@ -494,9 +824,12 @@ public struct DRCCorpusRunner: Sendable {
         primaryPassed: Bool,
         primaryActiveRuleIDs: [String],
         primaryDiagnosticSummary: DRCDiagnosticSummary,
-        oracleResult: DRCCorpusOracleResult
+        primaryMarkerFingerprints: [String],
+        oracleResult: DRCCorpusOracleResult,
+        requireMarkerCorrelation: Bool
     ) -> DRCCorpusOracleComparison {
-        DRCCorpusOracleComparison(
+        let markerSetMatched = primaryMarkerFingerprints == oracleResult.markerFingerprints
+        return DRCCorpusOracleComparison(
             primaryBackendID: primaryBackendID,
             oracleBackendID: oracleResult.backendID,
             passedMatched: primaryPassed == oracleResult.passed,
@@ -515,8 +848,17 @@ public struct DRCCorpusRunner: Sendable {
                 oracleActiveRuleIDs: oracleResult.activeErrorRuleIDs,
                 primaryDiagnosticSummary: primaryDiagnosticSummary,
                 oracleDiagnosticSummary: oracleResult.diagnosticSummary,
+                primaryMarkerFingerprints: primaryMarkerFingerprints,
+                oracleMarkerFingerprints: oracleResult.markerFingerprints,
+                requireMarkerCorrelation: requireMarkerCorrelation,
                 oracleFailureReasons: oracleResult.failureReasons
-            )
+            ),
+            agreementPassed: oracleResult.agreementPassed
+                && (!requireMarkerCorrelation || markerSetMatched),
+            primaryMarkerFingerprints: primaryMarkerFingerprints,
+            oracleMarkerFingerprints: oracleResult.markerFingerprints,
+            markerSetMatched: markerSetMatched,
+            markerCorrelationRequired: requireMarkerCorrelation
         )
     }
 
@@ -527,6 +869,9 @@ public struct DRCCorpusRunner: Sendable {
         oracleActiveRuleIDs: [String],
         primaryDiagnosticSummary: DRCDiagnosticSummary,
         oracleDiagnosticSummary: DRCDiagnosticSummary,
+        primaryMarkerFingerprints: [String] = [],
+        oracleMarkerFingerprints: [String] = [],
+        requireMarkerCorrelation: Bool = false,
         oracleFailureReasons: [String]
     ) -> [String] {
         var reasons: [String] = []
@@ -538,6 +883,9 @@ public struct DRCCorpusRunner: Sendable {
         }
         if primaryDiagnosticSummary != oracleDiagnosticSummary {
             reasons.append("diagnostic_summary_mismatch")
+        }
+        if requireMarkerCorrelation && primaryMarkerFingerprints != oracleMarkerFingerprints {
+            reasons.append("marker_set_mismatch")
         }
         for reason in oracleFailureReasons where !reasons.contains(reason) {
             reasons.append(reason)
@@ -615,12 +963,6 @@ public struct DRCCorpusRunner: Sendable {
         return base.appending(path: path)
     }
 
-    private func safePathComponent(_ value: String) -> String {
-        let allowed = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
-        let mapped = value.map { allowed.contains($0) ? $0 : "_" }
-        let result = String(mapped)
-        return result.isEmpty ? "case" : result
-    }
 }
 
 struct PreparedDRCCorpusInputs: Sendable {

@@ -22,7 +22,7 @@ public struct DRCRunSummaryBuilder: Sendable {
             reportURL: reportURL ?? result.reportURL,
             manifestURL: result.artifactManifestURL,
             summary: DRCRunSummary(
-                status: result.result.passed ? "passed" : "failed",
+                status: result.result.verdict.rawValue,
                 backendID: result.result.backendID,
                 toolName: result.result.toolName,
                 topCell: result.request.topCell,

@@ -97,6 +97,15 @@ public struct DRCMagicRuleImportCatalogResolver: Sendable {
                 expected: "schemaVersion 1"
             )
         }
+        let validationIssues = catalog.validationIssues()
+        guard validationIssues.isEmpty else {
+            let issueCodes = validationIssues.map(\.code).joined(separator: ",")
+            throw DRCCLIError.invalidValue(
+                argument: "--catalog",
+                value: catalogURL.path(percentEncoded: false),
+                expected: "valid Magic rule import catalog (issues: \(issueCodes))"
+            )
+        }
         return catalog
     }
 

@@ -5,30 +5,38 @@ import DRCCore
 public struct DRCArtifactSaveResult: Sendable, Hashable {
     public let reportURL: URL
     public let manifestURL: URL
+    public let runID: String?
 
-    public init(reportURL: URL, manifestURL: URL) {
+    public init(reportURL: URL, manifestURL: URL, runID: String? = nil) {
         self.reportURL = reportURL
         self.manifestURL = manifestURL
+        self.runID = runID
     }
 }
 
 public struct DRCArtifactStore: Sendable {
-    public init() {}
+    private let signer: (any DRCArtifactSigner)?
+
+    public init(signer: (any DRCArtifactSigner)? = nil) {
+        self.signer = signer
+    }
 
     public func save(_ executionResult: DRCExecutionResult, to directory: URL) throws -> DRCArtifactSaveResult {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let reportURL = directory.appending(path: "drc-report-\(UUID().uuidString).json")
-            let manifestURL = directory.appending(path: "drc-artifact-manifest-\(UUID().uuidString).json")
+            let runID = UUID().uuidString.lowercased()
+            let reportURL = directory.appending(path: "drc-report-\(runID).json")
+            let manifestURL = directory.appending(path: "drc-artifact-manifest-\(runID).json")
             let storedResult = DRCExecutionResult(
                 request: executionResult.request,
                 result: executionResult.result,
                 waiverReport: executionResult.waiverReport,
                 repairHintGeometry: executionResult.repairHintGeometry,
                 reportURL: reportURL,
-                artifactManifestURL: manifestURL
+                artifactManifestURL: manifestURL,
+                artifactRunID: runID
             )
             let data = try encoder.encode(storedResult)
             try data.write(to: reportURL, options: [.atomic])
@@ -37,11 +45,21 @@ public struct DRCArtifactStore: Sendable {
                 for: storedResult,
                 reportURL: reportURL,
                 manifestURL: manifestURL,
-                baseDirectory: directory
+                baseDirectory: directory,
+                runID: runID
             )
-            let manifestData = try encoder.encode(manifest)
+            let signedManifest: DRCArtifactManifest
+            if let signer {
+                let canonicalEncoder = JSONEncoder()
+                canonicalEncoder.outputFormatting = [.sortedKeys]
+                let unsignedData = try canonicalEncoder.encode(manifest.withSignature(nil))
+                signedManifest = manifest.withSignature(try signer.sign(unsignedData))
+            } else {
+                signedManifest = manifest
+            }
+            let manifestData = try encoder.encode(signedManifest)
             try manifestData.write(to: manifestURL, options: [.atomic])
-            return DRCArtifactSaveResult(reportURL: reportURL, manifestURL: manifestURL)
+            return DRCArtifactSaveResult(reportURL: reportURL, manifestURL: manifestURL, runID: runID)
         } catch {
             throw DRCError.artifactWriteFailed(error.localizedDescription)
         }
@@ -51,7 +69,8 @@ public struct DRCArtifactStore: Sendable {
         for executionResult: DRCExecutionResult,
         reportURL: URL,
         manifestURL: URL,
-        baseDirectory: URL
+        baseDirectory: URL,
+        runID: String
     ) throws -> DRCArtifactManifest {
         var inputs = [
             try record(
@@ -99,17 +118,51 @@ public struct DRCArtifactStore: Sendable {
             sha256: nil
         ))
 
+        let requestSHA256 = try digest(executionResult.request)
+        let requestEnvironmentSHA256 = digestEnvironment(executionResult.request.options.additionalEnvironment)
+        let artifactRootSHA256 = digestArtifactRecords(inputs: inputs, outputs: outputs)
         return DRCArtifactManifest(
             generatedAt: ISO8601DateFormatter().string(from: Date()),
             backendID: executionResult.result.backendID,
+            backendIdentity: executionResult.result.backendIdentity,
             toolName: executionResult.result.toolName,
             passed: executionResult.result.passed,
             completed: executionResult.result.completed,
+            verdict: executionResult.result.verdict,
             inputs: inputs,
             outputs: outputs,
             diagnosticSummary: diagnosticSummary(executionResult.result.diagnostics),
-            waiverReport: executionResult.waiverReport
+            waiverReport: executionResult.waiverReport,
+            runID: runID,
+            requestSHA256: requestSHA256,
+            requestEnvironmentSHA256: requestEnvironmentSHA256,
+            artifactRootSHA256: artifactRootSHA256
         )
+    }
+
+    private func digest<T: Encodable>(_ value: T) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(value)
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func digestEnvironment(_ environment: [String: String]) -> String {
+        let canonical = environment.keys.sorted().map { key in
+            key + "=" + (environment[key] ?? "")
+        }.joined(separator: "\n")
+        return SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func digestArtifactRecords(inputs: [DRCArtifactRecord], outputs: [DRCArtifactRecord]) -> String {
+        let canonical = (inputs + outputs)
+            .filter { $0.kind != .manifest }
+            .sorted { $0.id < $1.id }
+            .map { record in
+                [record.id, record.kind.rawValue, record.path, String(record.byteCount ?? -1), record.sha256 ?? ""].joined(separator: "|")
+            }
+            .joined(separator: "\n")
+        return SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     private func diagnosticSummary(_ diagnostics: [DRCDiagnostic]) -> DRCDiagnosticSummary {

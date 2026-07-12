@@ -5,6 +5,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     public let policyID: String
     public let requireQualifiedCorpus: Bool
     public let requireOracleAgreement: Bool
+    public let requireIndependentOracle: Bool
     public let requireOracleReadiness: Bool
     public let requireDurationBudget: Bool
     public let minimumCaseCount: Int
@@ -16,6 +17,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         policyID: String,
         requireQualifiedCorpus: Bool = true,
         requireOracleAgreement: Bool = true,
+        requireIndependentOracle: Bool = false,
         requireOracleReadiness: Bool = true,
         requireDurationBudget: Bool = true,
         minimumCaseCount: Int = 1,
@@ -26,6 +28,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         self.policyID = policyID
         self.requireQualifiedCorpus = requireQualifiedCorpus
         self.requireOracleAgreement = requireOracleAgreement
+        self.requireIndependentOracle = requireIndependentOracle
         self.requireOracleReadiness = requireOracleReadiness
         self.requireDurationBudget = requireDurationBudget
         self.minimumCaseCount = max(0, minimumCaseCount)
@@ -40,6 +43,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     public static var magicFoundryExpansion: DRCCorpusCoverageAuditPolicy {
         DRCCorpusCoverageAuditPolicy(
             policyID: "drc.magic-foundry-expansion.v1",
+            requireIndependentOracle: true,
             minimumCaseCount: 4,
             requirements: [
                 Requirement(
@@ -758,6 +762,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         case policyID
         case requireQualifiedCorpus
         case requireOracleAgreement
+        case requireIndependentOracle
         case requireOracleReadiness
         case requireDurationBudget
         case minimumCaseCount
@@ -772,6 +777,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         policyID = try container.decode(String.self, forKey: .policyID)
         requireQualifiedCorpus = try container.decodeIfPresent(Bool.self, forKey: .requireQualifiedCorpus) ?? true
         requireOracleAgreement = try container.decodeIfPresent(Bool.self, forKey: .requireOracleAgreement) ?? true
+        requireIndependentOracle = try container.decodeIfPresent(Bool.self, forKey: .requireIndependentOracle) ?? false
         requireOracleReadiness = try container.decodeIfPresent(Bool.self, forKey: .requireOracleReadiness) ?? true
         requireDurationBudget = try container.decodeIfPresent(Bool.self, forKey: .requireDurationBudget) ?? true
         minimumCaseCount = max(0, try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1)

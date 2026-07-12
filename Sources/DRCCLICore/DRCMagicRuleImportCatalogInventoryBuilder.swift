@@ -91,17 +91,27 @@ public struct DRCMagicRuleImportCatalogInventoryBuilder: Sendable {
                     issues: [issue]
                 )
             }
+            let catalogValidationIssues = catalog.validationIssues().map {
+                DRCMagicRuleImportCatalogInventoryIssue(
+                    code: $0.code,
+                    message: $0.message,
+                    path: catalogPath,
+                    field: $0.field
+                )
+            }
             let entries = catalog.entries.map {
                 entryInventory($0, catalogURL: catalogURL, pdkRootURL: source.pdkRootURL)
             }
             let status: DRCMagicRuleImportCatalogInventoryStatus = entries.allSatisfy { $0.status == .passed }
+                && catalogValidationIssues.isEmpty
                 ? .passed
                 : .failed
             return DRCMagicRuleImportCatalogInventoryItem(
                 catalogPath: catalogPath,
                 entryCount: entries.count,
                 entries: entries,
-                status: status
+                status: status,
+                issues: catalogValidationIssues
             )
         } catch {
             let issue = DRCMagicRuleImportCatalogInventoryIssue(

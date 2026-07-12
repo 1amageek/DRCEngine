@@ -6,18 +6,21 @@ public struct NativeDRCLayout: Sendable, Hashable, Codable {
     public let unit: String
     public let rectangles: [NativeDRCRectangle]
     public let rules: [NativeDRCRule]
+    public let antennaMetadata: NativeDRCAntennaMetadata?
 
     public init(
         technologyID: String,
         topCell: String,
         unit: String = "micrometer",
         rectangles: [NativeDRCRectangle],
-        rules: [NativeDRCRule]
+        rules: [NativeDRCRule],
+        antennaMetadata: NativeDRCAntennaMetadata? = nil
     ) {
         self.technologyID = technologyID
         self.topCell = topCell
         self.unit = unit
         self.rectangles = rectangles
         self.rules = rules
+        self.antennaMetadata = antennaMetadata
     }
 }

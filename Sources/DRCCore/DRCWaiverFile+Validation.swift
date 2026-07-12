@@ -36,7 +36,7 @@ public extension DRCWaiverFile {
                     suggestedActions: ["deduplicate_drc_waiver_ids"]
                 ))
             }
-            issues.append(contentsOf: waiver.validationIssues(fieldPathPrefix: prefix))
+        issues.append(contentsOf: waiver.validationIssues(fieldPathPrefix: prefix))
         }
         return issues
     }
@@ -123,6 +123,16 @@ public extension DRCWaiver {
                     "add_drc_waiver_layer_selector",
                     "add_drc_waiver_shape_selector",
                 ]
+            ))
+        }
+        if let approval,
+           let message = approval.validationMessage() {
+            issues.append(DRCWaiverValidationIssue(
+                code: "drc_waiver_approval_invalid",
+                waiverID: normalizedID.isEmpty ? nil : normalizedID,
+                fieldPath: "\(fieldPathPrefix).approval",
+                message: message,
+                suggestedActions: ["fix_drc_waiver_approval_metadata"]
             ))
         }
         return issues
