@@ -1,10 +1,65 @@
 # DRCEngine
 
-Design rule checking engine with a protocol-composed backend model. The native
-in-process backends are development and preview paths until a pinned PDK/deck
-qualification envelope has passed. Magic is an optional, headless-batch reference
-adapter; a same-backend or same-implementation-family comparison is never an
-independent oracle.
+Protocol-composed design-rule checking for local, scriptable semiconductor
+layout flows. DRCEngine provides native Swift DRC, standard mask-data checking,
+Magic batch integration, foundry-deck import, structured diagnostics, retained
+artifacts, and Agent-facing qualification gates.
+
+> **Qualification status:** the DRC/ARC kernels, import pipeline, regression
+> corpus, and evidence contracts are implemented and tested. Production
+> signoff is **not claimed** until a pinned foundry PDK/deck has been compared
+> with an independently identified oracle and the resulting evidence has been
+> retained. An empty or incomplete antenna deck fails the release gate; it is
+> never reported as a clean antenna result.
+
+## Scope at a glance
+
+| Capability | Current contract |
+|---|---|
+| Native DRC | In-process Swift backend for canonical layout JSON and standard mask inputs |
+| ARC | PAR/CAR, surface/sidewall, process-stage, diffusion, via/contact connectivity, and structured repair diagnostics |
+| Foundry import | Magic tech/deck parsing into typed technology and native antenna artifacts |
+| External reference | Optional headless Magic adapter; external identity and file digests are retained |
+| Agent / CI | CLI, typed APIs, corpus runs, resumable checkpoints, artifact manifests, signatures, and qualification gates |
+| Production signoff | Blocked until independent-oracle evidence and a pinned PDK qualification envelope are present |
+
+```mermaid
+flowchart LR
+    Input["Layout + technology"] --> Native["Native DRC / ARC"]
+    Input --> Magic["Optional Magic adapter"]
+    Native --> Evidence["Reports + manifests + diagnostics"]
+    Magic --> Evidence
+    Evidence --> Gate["Independent-oracle qualification"]
+    Gate -->|qualified| Signoff["Signoff-eligible artifact"]
+    Gate -->|blocked| Review["Human / Agent review"]
+```
+
+## Requirements and workspace layout
+
+- macOS 26 or later
+- Swift 6.3 or later
+- SwiftPM
+- Optional: Magic and an installed PDK for external reference runs
+
+The current `Package.swift` intentionally uses sibling workspace dependencies
+for `SignoffToolSupport` and `semiconductor-layout`; this repository is therefore
+published as a **workspace-first engineering package**, not as a standalone
+single-directory distribution yet. A complete local checkout has this shape:
+
+```text
+LSI/
+├── DRCEngine/
+├── SignoffToolSupport/
+├── semiconductor-layout/
+└── swift-mask-data/     # required transitively by semiconductor-layout
+```
+
+[`semiconductor-layout`](https://github.com/1amageek/semiconductor-layout) and
+[`swift-mask-data`](https://github.com/1amageek/swift-mask-data) are public repositories. The
+`SignoffToolSupport` checkout is currently supplied by the surrounding LSI
+workspace. Until that package is published or the dependency is replaced with
+a versioned URL, a fresh clone must be placed into the workspace layout above
+before `swift build` or `swift test` can run.
 
 ## Modules
 
@@ -691,3 +746,13 @@ regression lane retains the legacy rule-ID and verdict comparison contract.
 swift build
 swift test   # Magic-gated suites skip themselves when Magic is absent
 ```
+
+For the full developer boundary check, run it from this package directory:
+
+```bash
+../scripts/check-developer-cli.sh
+```
+
+The committed regression corpus demonstrates kernel behavior and CLI
+reproducibility. It is deliberately not independent foundry qualification;
+release claims require retained external-oracle artifacts and their digests.
