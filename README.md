@@ -1,5 +1,26 @@
 # DRCEngine
 
+## CircuiteFoundation boundary
+
+DRCEngine is an independent signoff engine. It owns DRC and antenna-rule
+evaluation, while `CircuiteFoundation` owns only the cross-engine vocabulary:
+`Engine`, `DesignObjectReference`, `ArtifactReference`, `EvidenceManifest`,
+`ExecutionProvenance`, and typed diagnostics.
+
+```mermaid
+flowchart LR
+    Request["DRCRequest"] --> Engine["DRCEngineProtocol"]
+    Engine --> Result["DRCExecutionResult"]
+    Result --> Domain["DRC manifest / waivers / ARC"]
+    Result --> Boundary["DRCFoundationEvidence"]
+    Boundary --> Foundation["EvidenceManifest + DesignDiagnostic"]
+```
+
+`DRCFoundationEvidence` is an explicit boundary view. It does not replace
+the DRC-specific manifest or claim that a native ARC kernel has been
+validated against a foundry deck. Foundry-rule qualification remains the
+responsibility of DRC's independent-oracle and PDK evidence gates.
+
 Protocol-composed design-rule checking for local, scriptable semiconductor
 layout flows. DRCEngine provides native Swift DRC, standard mask-data checking,
 Magic batch integration, foundry-deck import, structured diagnostics, retained
@@ -644,7 +665,8 @@ report artifact reference and digest, and a generic `qualification` summary with
 pass-rate, duration-budget, oracle-agreement, coverage-count, count, and typed
 failure-code fields. The command exits with the same pass/fail convention as the embedded
 qualification verdict, so CI can gate on it while Agents can copy the
-`toolEvidence` object into `XcircuiteFlowToolSpec.evidence`.
+`toolEvidence` object into the flow runtime tool-evidence field consumed by
+DesignFlowKernel and Xcircuite.
 
 For a retained release artifact, sign and persist the evidence in one command:
 

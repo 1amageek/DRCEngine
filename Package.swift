@@ -17,11 +17,17 @@ let package = Package(
         .executable(name: "drcengine", targets: ["DRCCLI"]),
     ],
     dependencies: [
+        .package(path: "../CircuiteFoundation"),
         .package(path: "../SignoffToolSupport"),
         .package(path: "../semiconductor-layout"),
     ],
     targets: [
-        .target(name: "DRCCore"),
+        .target(
+            name: "DRCCore",
+            dependencies: [
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
+            ]
+        ),
         .target(
             name: "DRCFoundryImport",
             dependencies: [
@@ -61,6 +67,7 @@ let package = Package(
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
                 .product(name: "LayoutIO", package: "semiconductor-layout"),
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
             ]
         ),
         .target(

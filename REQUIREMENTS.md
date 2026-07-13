@@ -1,0 +1,26 @@
+# DRCEngine Requirements
+
+## Required boundary
+
+- Depend on `CircuiteFoundation` for engine, evidence, artifact, provenance,
+  diagnostics, and design-object contracts.
+- Expose `DRCEngineProtocol` and `DefaultDRCEngine.execute`.
+- Keep DRC-specific result, waiver, ARC, and qualification models intact.
+- Convert DRC diagnostics to typed `DesignDiagnostic` values without
+  discarding conversion errors.
+- Accept only caller-supplied, digest-bearing `ArtifactReference` values in
+  Foundation evidence.
+- Preserve fail-closed behavior for missing antenna rules and unqualified
+  foundry references.
+
+## Non-goals
+
+- `CircuiteFoundation` does not become a DRC rule database.
+- DRC does not claim that native rules equal a foundry deck.
+- DRC does not own project state, approvals, or flow orchestration.
+
+## Verification
+
+`swift build` must pass in the package checkout. Targeted DRC tests should
+continue to cover native rules, ARC, external adapters, persistence, waiver
+gates, and artifact integrity.
