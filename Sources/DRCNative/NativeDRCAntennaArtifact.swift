@@ -116,19 +116,6 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
         )
     }
 
-    @available(*, deprecated, message: "Use oracleEvidence with reproducible provenance instead of a boolean.")
-    public init(
-        sourceReport: MagicDRCLayoutTechImportReport,
-        nativeRules: [NativeDRCRule],
-        independentOracleVerified: Bool
-    ) {
-        self.init(
-            sourceReport: sourceReport,
-            nativeRules: nativeRules,
-            oracleEvidence: nil
-        )
-    }
-
     /// Returns a new artifact with the Oracle comparison evidence attached.
     /// The original artifact remains immutable and can be retained as the
     /// pre-qualification record.
@@ -244,9 +231,6 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
         }
         guard (qualification.qualified && qualification.failureCodes.isEmpty)
                 || (!qualification.qualified && !qualification.failureCodes.isEmpty) else {
-            throw ValidationError.qualificationInconsistent
-        }
-        guard qualification.independentOracleVerified == (qualification.oracleEvidence?.passed == true) else {
             throw ValidationError.qualificationInconsistent
         }
         if let oracleEvidence = qualification.oracleEvidence {

@@ -21,7 +21,6 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
     public let sourceRuleCount: Int
     public let nativeRuleCount: Int
     public let oracleEvidence: NativeDRCAntennaOracleEvidence?
-    public let independentOracleVerified: Bool
     public let failureCodes: [String]
 
     public var qualified: Bool {
@@ -45,19 +44,6 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
         )
     }
 
-    @available(*, deprecated, message: "Use oracleEvidence with reproducible provenance instead of a boolean.")
-    public init(
-        sourceReport: MagicDRCLayoutTechImportReport,
-        nativeRules: [NativeDRCRule],
-        independentOracleVerified: Bool
-    ) {
-        self.init(
-            sourceReport: sourceReport,
-            nativeRules: nativeRules,
-            oracleEvidence: nil
-        )
-    }
-
     private init(
         sourceImportStatus: MagicDRCLayoutTechImportStatus,
         sourceDigest: String?,
@@ -74,7 +60,6 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
         self.sourceRuleCount = sourceAntennaRuleCount
         self.nativeRuleCount = nativeRules.count
         self.oracleEvidence = oracleEvidence
-        self.independentOracleVerified = oracleEvidence?.passed == true
         self.nativeRuleDigest = Self.nativeRuleDigest(nativeRules)
 
         var failures: [String] = []
@@ -167,7 +152,6 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
         self.nativeRuleCount = nativeRules.count
         self.nativeRuleDigest = Self.nativeRuleDigest(nativeRules)
         self.oracleEvidence = oracleEvidence
-        self.independentOracleVerified = oracleEvidence?.passed == true
         self.failureCodes = failureCodes
         self.status = failureCodes.isEmpty ? .qualified : .blocked
     }
@@ -189,7 +173,6 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
         self.nativeRuleCount = nativeRuleCount
         self.nativeRuleDigest = nativeRuleDigest
         self.oracleEvidence = oracleEvidence
-        self.independentOracleVerified = oracleEvidence?.passed == true
         self.failureCodes = failureCodes
         self.status = failureCodes.isEmpty ? .qualified : .blocked
     }
