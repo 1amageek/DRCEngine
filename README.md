@@ -33,6 +33,14 @@ artifacts, and Agent-facing qualification gates.
 > retained. An empty or incomplete antenna deck fails the release gate; it is
 > never reported as a clean antenna result.
 
+## Xcircuite integration
+
+[`Xcircuite`](https://github.com/1amageek/Xcircuite) is the umbrella runtime
+that invokes DRCEngine through a flow stage executor and indexes DRC reports,
+diagnostics, evidence, and artifact manifests in the shared run ledger.
+DRCEngine remains independently usable and owns DRC/ARC semantics,
+qualification, and signoff diagnostics.
+
 ## Scope at a glance
 
 | Capability | Current contract |
