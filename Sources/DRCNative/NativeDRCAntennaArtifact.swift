@@ -302,14 +302,15 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
             throw ValidationError.assessmentInconsistent
         }
         guard let antennaLayers = rule.antennaLayers, !antennaLayers.isEmpty else {
-            // Legacy maximum-ratio rules are valid without detailed layer
-            // semantics; the native backend validates their scalar value.
-            guard rule.antennaModel == nil else {
-                throw ValidationError.assessmentInconsistent
-            }
-            return
+            throw ValidationError.assessmentInconsistent
+        }
+        guard rule.antennaModel != nil else {
+            throw ValidationError.assessmentInconsistent
         }
         guard let stage = antennaLayers.first(where: { $0.layer == rule.layer }) else {
+            throw ValidationError.assessmentInconsistent
+        }
+        guard rule.value == stage.ratioGate else {
             throw ValidationError.assessmentInconsistent
         }
         guard antennaLayers.allSatisfy({ layer in

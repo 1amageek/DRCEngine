@@ -9,9 +9,8 @@
       "id" : "met2.antenna.cumulative",
       "kind" : "maximumAntennaRatio",
       "layer" : "met2",
-      "value" : 1,
+      "value" : 4,
       "gateLayer" : "poly",
-      "conductorLayers" : ["met2"],
       "antennaModel" : "cumulative",
       "antennaLayers" : [
         { "layer" : "met1", "measurement" : "surface", "ratioGate" : 4 },

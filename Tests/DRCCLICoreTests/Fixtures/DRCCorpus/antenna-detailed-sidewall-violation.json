@@ -9,9 +9,8 @@
       "id" : "met1.antenna.sidewall",
       "kind" : "maximumAntennaRatio",
       "layer" : "met1",
-      "value" : 1,
+      "value" : 9,
       "gateLayer" : "poly",
-      "conductorLayers" : ["met1"],
       "antennaModel" : "partial",
       "antennaLayers" : [
         { "layer" : "met1", "measurement" : "sidewall", "ratioGate" : 9, "thickness" : 1 }

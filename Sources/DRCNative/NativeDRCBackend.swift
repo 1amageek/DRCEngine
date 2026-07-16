@@ -119,13 +119,11 @@ public struct NativeDRCBackend: DRCCancellableBackend {
         rules: [NativeDRCRule]
     ) throws {
         for rule in rules {
-            let conductorLayers = rule.antennaLayers?.map(\.layer)
-                ?? rule.conductorLayers
-                ?? [rule.layer]
+            let antennaLayerNames = rule.antennaLayers?.map(\.layer) ?? []
             let candidateNetIDs = Set(
                 layout.rectangles
                     .filter { rectangle in
-                        rectangle.netID != nil && conductorLayers.contains(rectangle.layer)
+                        rectangle.netID != nil && antennaLayerNames.contains(rectangle.layer)
                     }
                     .compactMap(\.netID)
             ).sorted()
@@ -233,13 +231,6 @@ public struct NativeDRCBackend: DRCCancellableBackend {
             }) else {
                 throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty layer reference.")
             }
-            if let conductorLayers = rule.conductorLayers {
-                guard conductorLayers.allSatisfy({
-                    !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                }) else {
-                    throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty conductor layer.")
-                }
-            }
             if let processStep = rule.processStep,
                processStep.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 throw DRCError.invalidInput("Native DRC rule \(rule.id) has an empty processStep.")
@@ -258,6 +249,13 @@ public struct NativeDRCBackend: DRCCancellableBackend {
                 throw DRCError.invalidInput(
                     "Native DRC rule \(rule.id) requires antennaModel when antennaLayers is set."
                 )
+            }
+            if rule.kind == .maximumAntennaRatio {
+                guard rule.antennaModel != nil, rule.antennaLayers != nil else {
+                    throw DRCError.invalidInput(
+                        "Native DRC antenna rule \(rule.id) requires antennaModel and antennaLayers."
+                    )
+                }
             }
             if let antennaLayers = rule.antennaLayers {
                 guard !antennaLayers.isEmpty else {
@@ -313,6 +311,12 @@ public struct NativeDRCBackend: DRCCancellableBackend {
                 guard antennaLayers.contains(where: { $0.layer == rule.layer }) else {
                     throw DRCError.invalidInput(
                         "Native DRC rule \(rule.id) must include its stage layer \(rule.layer) in antennaLayers."
+                    )
+                }
+                guard let stageLayer = antennaLayers.first(where: { $0.layer == rule.layer }),
+                      rule.value == stageLayer.ratioGate else {
+                    throw DRCError.invalidInput(
+                        "Native DRC antenna rule \(rule.id) value must equal its stage-layer ratioGate."
                     )
                 }
             }
@@ -607,13 +611,8 @@ public struct NativeDRCBackend: DRCCancellableBackend {
         _ rule: NativeDRCRule,
         context: EvaluationContext
     ) throws -> [DRCDiagnostic] {
-        let conductorLayers = try antennaConductorLayers(for: rule)
-        let conductorLayerSet = Set(conductorLayers)
-        let rectangles = context.layout.rectangles.filter { conductorLayerSet.contains($0.layer) }
-        guard !rectangles.isEmpty else { return [] }
         return try evaluateMaximumAntennaRatio(
             rule: rule,
-            conductorRectangles: rectangles,
             allRectangles: context.layout.rectangles,
             unit: context.layout.unit
         )

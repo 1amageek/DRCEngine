@@ -4,94 +4,14 @@ import DRCCore
 extension NativeDRCBackend {
     func evaluateMaximumAntennaRatio(
         rule: NativeDRCRule,
-        conductorRectangles: [NativeDRCRectangle],
         allRectangles: [NativeDRCRectangle],
         unit: String
     ) throws -> [DRCDiagnostic] {
-        guard rule.value.isFinite, rule.value > 0 else {
-            throw DRCError.invalidInput("Rule \(rule.id) requires a positive finite antenna ratio threshold")
-        }
-        if rule.antennaLayers != nil {
-            return try evaluateDetailedAntennaRatio(
-                rule: rule,
-                allRectangles: allRectangles,
-                unit: unit
-            )
-        }
-        let conductorLayers = try antennaConductorLayers(for: rule)
-        let layerDescription = conductorLayers.joined(separator: ",")
-        try validateAntennaGateAreas(in: allRectangles)
-        try validateAntennaProcessSteps(in: allRectangles)
-        let processStep = try antennaProcessStep(for: rule)
-        let cutConnections = try antennaCutConnections(for: rule)
-        let stepScopedConductors = antennaConductors(
-            conductorRectangles,
-            matching: processStep
+        try evaluateDetailedAntennaRatio(
+            rule: rule,
+            allRectangles: allRectangles,
+            unit: unit
         )
-        let conductorsByNet = Dictionary(grouping: stepScopedConductors.compactMap { rectangle in
-            rectangle.netID.map { netID in (netID: netID, rectangle: rectangle) }
-        }, by: \.netID)
-
-        return conductorsByNet.compactMap { netID, entries in
-            let netConductors = entries.map(\.rectangle)
-            let gateRectangles = allRectangles.filter { rectangle in
-                rectangle.netID == netID
-                    && (rectangle.antennaGateArea ?? 0) > 0
-                    && (rule.gateLayer == nil || rectangle.layer == rule.gateLayer)
-            }
-            let gateArea = gateRectangles.reduce(0) { partial, rectangle in
-                partial + (rectangle.antennaGateArea ?? 0)
-            }
-            guard gateArea > 0 else {
-                return nil
-            }
-
-            let connected = antennaConnectedConductors(
-                netConductors,
-                gateRectangles: gateRectangles,
-                allRectangles: allRectangles,
-                netID: netID,
-                cutConnections: cutConnections,
-                allowLowerOnlyForCutStage: rule.antennaModel == nil
-                    && cutConnections.contains { $0.layer == rule.layer }
-            )
-            let conductors = connected.conductors
-            guard !conductors.isEmpty else {
-                return nil
-            }
-
-            let conductorArea = antennaConductorArea(of: conductors)
-            let ratio = conductorArea / gateArea
-            guard ratio > rule.value else {
-                return nil
-            }
-            let region = conductors.map(\.region).dropFirst().reduce(conductors[0].region) { partial, region in
-                partial.enclosing(region)
-            }
-            let relatedShapeIDs = conductors.map(\.id) + connected.cutRectangles.map(\.id) + gateRectangles.map(\.id)
-            let stepMessage = processStep.map { " at process step \($0)" } ?? ""
-            let stepRawLine = processStep.map { " step=\($0)" } ?? ""
-            let cutLayerDescription = connectedCutLayerDescription(connected.cutRectangles)
-            let cutMessage = cutLayerDescription.isEmpty ? "" : " through \(cutLayerDescription)"
-            let cutRawLine = cutLayerDescription.isEmpty ? "" : " cuts=\(cutLayerDescription)"
-            return DRCDiagnostic(
-                severity: .error,
-                message: "Net \(netID)\(stepMessage) across \(layerDescription)\(cutMessage) exceeds maximum antenna ratio \(rule.value)",
-                ruleID: rule.id,
-                count: 1,
-                kind: "maximumAntennaRatio",
-                layer: rule.layer,
-                measured: ratio,
-                required: rule.value,
-                unit: "ratio",
-                region: region,
-                relatedShapeIDs: relatedShapeIDs,
-                relatedViaIDs: connected.cutRectangles.map(\.id),
-                relatedNetIDs: [netID],
-                suggestedFix: "Reduce conductor area on net \(netID)\(stepMessage) across \(layerDescription)\(cutMessage), increase gate area, add antenna protection, or review the cut stack.",
-                rawLine: "MAX_ANTENNA_RATIO\(stepRawLine) layers=\(layerDescription)\(cutRawLine) net=\(netID)"
-            )
-        }
     }
 
     private func evaluateDetailedAntennaRatio(
@@ -199,8 +119,10 @@ extension NativeDRCBackend {
                 + connected.cutRectangles.map(\.id)
                 + gateRectangles.map(\.id)
             let stepMessage = processStep.map { " at process step \($0)" } ?? ""
+            let stepRawLine = processStep.map { " step=\($0)" } ?? ""
             let cutLayerDescription = connectedCutLayerDescription(connected.cutRectangles)
             let cutMessage = cutLayerDescription.isEmpty ? "" : " through \(cutLayerDescription)"
+            let cutRawLine = cutLayerDescription.isEmpty ? "" : " cuts=\(cutLayerDescription)"
             let contributionMessage = contributions.map {
                 "\($0.layer.layer):area=\($0.area),denominator=\($0.denominator)"
             }.joined(separator: ";")
@@ -219,7 +141,7 @@ extension NativeDRCBackend {
                 relatedViaIDs: connected.cutRectangles.map(\.id),
                 relatedNetIDs: [netID],
                 suggestedFix: "Reduce the measured antenna contribution on net \(netID)\(stepMessage) across \(layerDescription)\(cutMessage), increase gate area, add protection, or review the cut stack.",
-                rawLine: "MAX_ANTENNA_EFFECTIVE_RATIO model=\(model.rawValue) layers=\(layerDescription) contributions=\(contributionMessage) net=\(netID)"
+                rawLine: "MAX_ANTENNA_EFFECTIVE_RATIO model=\(model.rawValue)\(stepRawLine) layers=\(layerDescription)\(cutRawLine) contributions=\(contributionMessage) net=\(netID)"
             ))
         }
         return diagnostics
@@ -419,26 +341,6 @@ extension NativeDRCBackend {
             return cut.layer
         }
         return layers.joined(separator: ",")
-    }
-
-    func antennaConductorLayers(for rule: NativeDRCRule) throws -> [String] {
-        guard let configuredLayers = rule.conductorLayers else {
-            return [rule.layer]
-        }
-        guard !configuredLayers.isEmpty else {
-            throw DRCError.invalidInput("Rule \(rule.id) requires at least one conductor layer")
-        }
-        var layers: [String] = []
-        var seenLayers = Set<String>()
-        for layer in configuredLayers {
-            guard !layer.isEmpty else {
-                throw DRCError.invalidInput("Rule \(rule.id) includes an empty conductor layer")
-            }
-            if seenLayers.insert(layer).inserted {
-                layers.append(layer)
-            }
-        }
-        return layers
     }
 
     private func antennaCutConnections(for rule: NativeDRCRule) throws -> [NativeDRCAntennaCutConnection] {

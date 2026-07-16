@@ -56,7 +56,6 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
     public let windowOriginX: Double?
     public let windowOriginY: Double?
     public let gateLayer: String?
-    public let conductorLayers: [String]?
     public let processStep: String?
     public let antennaCutConnections: [NativeDRCAntennaCutConnection]?
     public let spacingNetScope: SpacingNetScope?
@@ -68,8 +67,6 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
     public let lowerLayer: String?
     public let upperLayer: String?
     public let extensionDirection: ExtensionDirection?
-    /// Detailed process-layer antenna semantics. When nil, the legacy
-    /// `value`/`conductorLayers` area-ratio contract is used.
     public let antennaModel: AntennaModel?
     public let antennaLayers: [NativeDRCAntennaLayer]?
 
@@ -86,7 +83,6 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
         windowOriginX: Double? = nil,
         windowOriginY: Double? = nil,
         gateLayer: String? = nil,
-        conductorLayers: [String]? = nil,
         processStep: String? = nil,
         antennaCutConnections: [NativeDRCAntennaCutConnection]? = nil,
         spacingNetScope: SpacingNetScope? = nil,
@@ -113,7 +109,6 @@ public struct NativeDRCRule: Sendable, Hashable, Codable {
         self.windowOriginX = windowOriginX
         self.windowOriginY = windowOriginY
         self.gateLayer = gateLayer
-        self.conductorLayers = conductorLayers
         self.processStep = processStep
         self.antennaCutConnections = antennaCutConnections
         self.spacingNetScope = spacingNetScope

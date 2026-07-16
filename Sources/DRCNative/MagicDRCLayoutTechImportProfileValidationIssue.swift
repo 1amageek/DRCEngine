@@ -3,7 +3,6 @@ import Foundation
 public struct MagicDRCLayoutTechImportProfileValidationIssue: Codable, Sendable, Hashable {
     public enum Code: String, Codable, Sendable, Hashable {
         case emptyProfileID
-        case unsupportedSchemaVersion
         case emptyLayerName
         case duplicateLayerName
         case emptyMapKey

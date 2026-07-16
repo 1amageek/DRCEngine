@@ -22,7 +22,18 @@ struct NativeDRCBasicRuleTests {
                     NativeDRCRule(id: "met1.area", kind: .minimumArea, layer: "met1", value: 0.5),
                     NativeDRCRule(id: "met1.density", kind: .maximumDensity, layer: "met1", value: 1.0),
                     NativeDRCRule(id: "met1.notch", kind: .minimumNotch, layer: "met1", value: 0.5),
-                    NativeDRCRule(id: "met1.antenna", kind: .maximumAntennaRatio, layer: "met1", value: 10),
+                    NativeDRCRule(
+                        id: "met1.antenna",
+                        kind: .maximumAntennaRatio,
+                        layer: "met1",
+                        value: 10,
+                        antennaModel: .partial,
+                        antennaLayers: [NativeDRCAntennaLayer(
+                            layer: "met1",
+                            measurement: .surface,
+                            ratioGate: 10
+                        )]
+                    ),
                 ]
             ),
             in: directory

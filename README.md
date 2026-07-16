@@ -477,11 +477,13 @@ spacing, enclosure, extension, angle, forbidden-layer, forbidden-overlap, and di
 `ruleID`, `kind`, `layer`, `measured`, `required`, `unit`, `region`,
 `relatedShapeIDs`, `relatedNetIDs`, and `suggestedFix`, so an Agent can identify
 the offending shapes and propose a targeted edit without scraping a text log.
-`maximumAntennaRatio` rules can also declare `conductorLayers`, letting a single
-net-aware antenna diagnostic accumulate conductor area across multiple routing
-layers while keeping `layer` as the report's primary rule layer. A rule may also
-declare `processStep`; when present, only conductor rectangles tagged with the
-same `antennaProcessStep` participate in the ratio. This lets the native path
+Every `maximumAntennaRatio` rule declares `antennaModel` and `antennaLayers`.
+The ordered layer records define partial or cumulative process exposure and
+carry each layer's measurement and ratio gate; scalar-only antenna rules are
+rejected before evaluation. The rule's `value` mirrors its stage layer's
+`ratioGate` and mismatches are rejected. A rule may also declare `processStep`;
+when present, only conductor rectangles tagged with the same
+`antennaProcessStep` participate in the ratio. This lets the native path
 model process-step antenna checks without mixing later routing metal into an
 earlier fabrication step. A rule may also declare `antennaCutConnections`, which
 describe cut-layer links between adjacent conductor layers. When cut connections
@@ -493,8 +495,7 @@ stage whose measured layer is itself a cut/contact, lower-layer connectivity is
 sufficient, matching Magic's contact-stage exposure check. Multi-layer antenna
 area is summed per conductor layer after same-layer union, so overlapping metal
 on different layers is still counted as separate process exposure.
-Detailed antenna rules additionally declare `antennaModel` and
-`antennaLayers`. The native evaluator supports per-layer surface union area,
+The native evaluator supports per-layer surface union area,
 sidewall union perimeter multiplied by process thickness, partial versus
 cumulative process exposure, and finite or `none` diffusion correction. A
 `requireAntennaRules` request option is enforced by both native backends, so an

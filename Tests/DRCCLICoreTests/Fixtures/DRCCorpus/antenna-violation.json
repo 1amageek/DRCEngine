@@ -31,12 +31,16 @@
   ],
   "rules" : [
     {
-      "conductorLayers" : ["met1", "met2"],
       "gateLayer" : "poly",
       "id" : "met2.antenna",
       "kind" : "maximumAntennaRatio",
       "layer" : "met2",
-      "value" : 5
+      "value" : 5,
+      "antennaModel" : "cumulative",
+      "antennaLayers" : [
+        { "layer" : "met1", "measurement" : "surface", "ratioGate" : 5 },
+        { "layer" : "met2", "measurement" : "surface", "ratioGate" : 5 }
+      ]
     }
   ],
   "technologyID" : "portable-drc-corpus",

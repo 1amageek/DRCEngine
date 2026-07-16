@@ -13,7 +13,6 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     public let requirements: [Requirement]
 
     public init(
-        schemaVersion: Int = DRCCorpusCoverageAuditPolicy.currentSchemaVersion,
         policyID: String,
         requireQualifiedCorpus: Bool = true,
         requireOracleAgreement: Bool = true,
@@ -24,7 +23,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         maxReportAgeSeconds: Double? = nil,
         requirements: [Requirement]
     ) {
-        self.schemaVersion = schemaVersion
+        self.schemaVersion = Self.currentSchemaVersion
         self.policyID = policyID
         self.requireQualifiedCorpus = requireQualifiedCorpus
         self.requireOracleAgreement = requireOracleAgreement
@@ -772,8 +771,14 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
-            ?? DRCCorpusCoverageAuditPolicy.currentSchemaVersion
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported DRC corpus coverage audit policy schema version: \(schemaVersion)."
+            )
+        }
         policyID = try container.decode(String.self, forKey: .policyID)
         requireQualifiedCorpus = try container.decodeIfPresent(Bool.self, forKey: .requireQualifiedCorpus) ?? true
         requireOracleAgreement = try container.decodeIfPresent(Bool.self, forKey: .requireOracleAgreement) ?? true

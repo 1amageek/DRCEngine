@@ -5,6 +5,43 @@ import DRCNative
 
 @Suite("Native DRC backend")
 struct NativeDRCBackendTests {
+    @Test func scalarAntennaRuleIsRejected() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeLayout(
+            NativeDRCLayout(
+                technologyID: "unit-test-tech",
+                topCell: "inv",
+                rectangles: [
+                    NativeDRCRectangle(
+                        id: "wire",
+                        layer: "met1",
+                        xMin: 0,
+                        yMin: 0,
+                        xMax: 1,
+                        yMax: 1
+                    ),
+                ],
+                rules: [NativeDRCRule(
+                    id: "met1.antenna",
+                    kind: .maximumAntennaRatio,
+                    layer: "met1",
+                    value: 10
+                )]
+            ),
+            in: directory
+        )
+
+        await #expect(throws: DRCError.invalidInput(
+            "Native DRC antenna rule met1.antenna requires antennaModel and antennaLayers."
+        )) {
+            _ = try await NativeDRCBackend().run(DRCRequest(
+                layoutURL: layoutURL,
+                topCell: "inv",
+                backendSelection: DRCBackendSelection(backendID: "native")
+            ))
+        }
+    }
+
     @Test func invalidRectangleGeometryIsRejectedBeforeRuleEvaluation() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = try writeLayout(
@@ -177,7 +214,13 @@ struct NativeDRCBackendTests {
                     kind: .maximumAntennaRatio,
                     layer: "met1",
                     value: 10,
-                    gateLayer: "poly"
+                    gateLayer: "poly",
+                    antennaModel: .partial,
+                    antennaLayers: [NativeDRCAntennaLayer(
+                        layer: "met1",
+                        measurement: .surface,
+                        ratioGate: 10
+                    )]
                 )]
             ),
             in: directory
@@ -228,7 +271,13 @@ struct NativeDRCBackendTests {
                         kind: .maximumAntennaRatio,
                         layer: "met1",
                         value: 5,
-                        gateLayer: "poly"
+                        gateLayer: "poly",
+                        antennaModel: .partial,
+                        antennaLayers: [NativeDRCAntennaLayer(
+                            layer: "met1",
+                            measurement: .surface,
+                            ratioGate: 5
+                        )]
                     ),
                 ]
             ),
@@ -299,7 +348,11 @@ struct NativeDRCBackendTests {
                         layer: "met2",
                         value: 5,
                         gateLayer: "poly",
-                        conductorLayers: ["met1", "met2"]
+                        antennaModel: .cumulative,
+                        antennaLayers: [
+                            NativeDRCAntennaLayer(layer: "met1", measurement: .surface, ratioGate: 5),
+                            NativeDRCAntennaLayer(layer: "met2", measurement: .surface, ratioGate: 5),
+                        ]
                     ),
                 ]
             ),
@@ -316,10 +369,10 @@ struct NativeDRCBackendTests {
         #expect(result.result.diagnostics.count == 1)
         let diagnostic = result.result.diagnostics[0]
         #expect(diagnostic.ruleID == "met2.antenna")
-        #expect(diagnostic.kind == "maximumAntennaRatio")
+        #expect(diagnostic.kind == "maximumAntennaEffectiveRatio")
         #expect(diagnostic.layer == "met2")
-        #expect(diagnostic.measured == 6)
-        #expect(diagnostic.required == 5)
+        #expect(abs((diagnostic.measured ?? 0) - 1.2) < 0.000001)
+        #expect(diagnostic.required == 1)
         #expect(diagnostic.unit == "ratio")
         #expect(diagnostic.region == DRCRegion(x: 0, y: 0, width: 8, height: 2))
         #expect(diagnostic.relatedShapeIDs == ["m1_wire", "m2_wire", "gate"])
@@ -359,9 +412,8 @@ struct NativeDRCBackendTests {
                         id: "met1.antenna.detailed",
                         kind: .maximumAntennaRatio,
                         layer: "met1",
-                        value: 1,
+                        value: 5,
                         gateLayer: "poly",
-                        conductorLayers: ["met1"],
                         antennaModel: .partial,
                         antennaLayers: [NativeDRCAntennaLayer(
                             layer: "met1",
@@ -416,7 +468,13 @@ struct NativeDRCBackendTests {
                     id: "met1.antenna",
                     kind: .maximumAntennaRatio,
                     layer: "met1",
-                    value: 10
+                    value: 10,
+                    antennaModel: .partial,
+                    antennaLayers: [NativeDRCAntennaLayer(
+                        layer: "met1",
+                        measurement: .surface,
+                        ratioGate: 10
+                    )]
                 )],
                 antennaMetadata: NativeDRCAntennaMetadata(
                     gateAreasComplete: true,
@@ -457,9 +515,8 @@ struct NativeDRCBackendTests {
                         id: "met1.antenna.sidewall",
                         kind: .maximumAntennaRatio,
                         layer: "met1",
-                        value: 1,
+                        value: 9,
                         gateLayer: "poly",
-                        conductorLayers: ["met1"],
                         antennaModel: .partial,
                         antennaLayers: [NativeDRCAntennaLayer(
                             layer: "met1",
@@ -501,9 +558,8 @@ struct NativeDRCBackendTests {
                         id: "met2.antenna.cumulative",
                         kind: .maximumAntennaRatio,
                         layer: "met2",
-                        value: 1,
+                        value: 4,
                         gateLayer: "poly",
-                        conductorLayers: ["met2"],
                         antennaModel: .cumulative,
                         antennaLayers: [
                             NativeDRCAntennaLayer(layer: "met1", measurement: .surface, ratioGate: 4),
@@ -544,9 +600,8 @@ struct NativeDRCBackendTests {
                         id: "met1.antenna.diffusion",
                         kind: .maximumAntennaRatio,
                         layer: "met1",
-                        value: 1,
+                        value: 10,
                         gateLayer: "poly",
-                        conductorLayers: ["met1"],
                         antennaModel: .partial,
                         antennaLayers: [NativeDRCAntennaLayer(
                             layer: "met1",
@@ -590,9 +645,8 @@ struct NativeDRCBackendTests {
                         id: "met1.antenna.none",
                         kind: .maximumAntennaRatio,
                         layer: "met1",
-                        value: 1,
+                        value: 10,
                         gateLayer: "poly",
-                        conductorLayers: ["met1"],
                         antennaModel: .partial,
                         antennaLayers: [NativeDRCAntennaLayer(
                             layer: "met1",
@@ -658,11 +712,15 @@ struct NativeDRCBackendTests {
                     NativeDRCRule(
                         id: "met1.antenna.processStep",
                         kind: .maximumAntennaRatio,
-                        layer: "met1",
+                        layer: "met2",
                         value: 5,
                         gateLayer: "poly",
-                        conductorLayers: ["met1", "met2"],
-                        processStep: "m1"
+                        processStep: "m1",
+                        antennaModel: .cumulative,
+                        antennaLayers: [
+                            NativeDRCAntennaLayer(layer: "met1", measurement: .surface, ratioGate: 5),
+                            NativeDRCAntennaLayer(layer: "met2", measurement: .surface, ratioGate: 5),
+                        ]
                     ),
                 ]
             ),
@@ -721,11 +779,15 @@ struct NativeDRCBackendTests {
                     NativeDRCRule(
                         id: "met1.antenna.processStep",
                         kind: .maximumAntennaRatio,
-                        layer: "met1",
+                        layer: "met2",
                         value: 5,
                         gateLayer: "poly",
-                        conductorLayers: ["met1", "met2"],
-                        processStep: "m1"
+                        processStep: "m1",
+                        antennaModel: .cumulative,
+                        antennaLayers: [
+                            NativeDRCAntennaLayer(layer: "met1", measurement: .surface, ratioGate: 5),
+                            NativeDRCAntennaLayer(layer: "met2", measurement: .surface, ratioGate: 5),
+                        ]
                     ),
                 ]
             ),
@@ -743,7 +805,7 @@ struct NativeDRCBackendTests {
         let diagnostic = result.result.diagnostics[0]
         #expect(diagnostic.ruleID == "met1.antenna.processStep")
         #expect(diagnostic.kind == "maximumAntennaRatio")
-        #expect(diagnostic.layer == "met1")
+        #expect(diagnostic.layer == "met2")
         #expect(diagnostic.measured == 8)
         #expect(diagnostic.required == 5)
         #expect(diagnostic.unit == "ratio")
@@ -797,10 +859,14 @@ struct NativeDRCBackendTests {
                         layer: "met2",
                         value: 5,
                         gateLayer: "poly",
-                        conductorLayers: ["met1", "met2"],
                         antennaCutConnections: [
                             NativeDRCAntennaCutConnection(layer: "contact", lowerLayer: "poly", upperLayer: "met1"),
                             NativeDRCAntennaCutConnection(layer: "via1", lowerLayer: "met1", upperLayer: "met2"),
+                        ],
+                        antennaModel: .cumulative,
+                        antennaLayers: [
+                            NativeDRCAntennaLayer(layer: "met1", measurement: .surface, ratioGate: 5),
+                            NativeDRCAntennaLayer(layer: "met2", measurement: .surface, ratioGate: 5),
                         ]
                     ),
                 ]
@@ -879,10 +945,14 @@ struct NativeDRCBackendTests {
                         layer: "met2",
                         value: 5,
                         gateLayer: "poly",
-                        conductorLayers: ["met1", "met2"],
                         antennaCutConnections: [
                             NativeDRCAntennaCutConnection(layer: "contact", lowerLayer: "poly", upperLayer: "met1"),
                             NativeDRCAntennaCutConnection(layer: "via1", lowerLayer: "met1", upperLayer: "met2"),
+                        ],
+                        antennaModel: .cumulative,
+                        antennaLayers: [
+                            NativeDRCAntennaLayer(layer: "met1", measurement: .surface, ratioGate: 5),
+                            NativeDRCAntennaLayer(layer: "met2", measurement: .surface, ratioGate: 5),
                         ]
                     ),
                 ]
@@ -961,10 +1031,14 @@ struct NativeDRCBackendTests {
                         layer: "met2",
                         value: 5,
                         gateLayer: "poly",
-                        conductorLayers: ["met1", "met2"],
                         antennaCutConnections: [
                             NativeDRCAntennaCutConnection(layer: "contact", lowerLayer: "poly", upperLayer: "met1"),
                             NativeDRCAntennaCutConnection(layer: "via1", lowerLayer: "met1", upperLayer: "met2"),
+                        ],
+                        antennaModel: .cumulative,
+                        antennaLayers: [
+                            NativeDRCAntennaLayer(layer: "met1", measurement: .surface, ratioGate: 5),
+                            NativeDRCAntennaLayer(layer: "met2", measurement: .surface, ratioGate: 5),
                         ]
                     ),
                 ]
@@ -982,10 +1056,10 @@ struct NativeDRCBackendTests {
         #expect(result.result.diagnostics.count == 1)
         let diagnostic = result.result.diagnostics[0]
         #expect(diagnostic.ruleID == "met2.antenna.viaAware")
-        #expect(diagnostic.kind == "maximumAntennaRatio")
+        #expect(diagnostic.kind == "maximumAntennaEffectiveRatio")
         #expect(diagnostic.layer == "met2")
-        #expect(diagnostic.measured == 8)
-        #expect(diagnostic.required == 5)
+        #expect(abs((diagnostic.measured ?? 0) - 1.6) < 0.000001)
+        #expect(diagnostic.required == 1)
         #expect(diagnostic.unit == "ratio")
         #expect(diagnostic.relatedShapeIDs == ["m1_wire", "m2_wire", "contact", "via1", "gate"])
         #expect(diagnostic.relatedViaIDs == ["contact", "via1"])
@@ -1028,7 +1102,6 @@ struct NativeDRCBackendTests {
                     layer: "via1",
                     value: 1,
                     gateLayer: "poly",
-                    conductorLayers: ["via1"],
                     antennaCutConnections: [
                         NativeDRCAntennaCutConnection(
                             layer: "via1",

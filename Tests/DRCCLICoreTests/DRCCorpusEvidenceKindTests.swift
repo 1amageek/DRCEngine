@@ -1,8 +1,35 @@
+import Foundation
 import Testing
 import DRCCore
 
 @Suite("DRC corpus evidence kind")
 struct DRCCorpusEvidenceKindTests {
+    @Test func corpusSpecDecodingRequiresCurrentSchemaVersion() {
+        let missingSchema = Data(#"{"cases":[]}"#.utf8)
+        let unsupportedSchema = Data(#"{"schemaVersion":0,"cases":[]}"#.utf8)
+
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCCorpusSpec.self, from: missingSchema)
+        }
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCCorpusSpec.self, from: unsupportedSchema)
+        }
+    }
+
+    @Test func coveragePolicyDecodingRequiresCurrentSchemaVersion() {
+        let missingSchema = Data(#"{"policyID":"strict","requirements":[]}"#.utf8)
+        let unsupportedSchema = Data(
+            #"{"schemaVersion":0,"policyID":"strict","requirements":[]}"#.utf8
+        )
+
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCCorpusCoverageAuditPolicy.self, from: missingSchema)
+        }
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCCorpusCoverageAuditPolicy.self, from: unsupportedSchema)
+        }
+    }
+
     @Test func corpusCaseCanonicalIdentityIsValidated() {
         let invalid = DRCCorpusSpec(cases: [
             DRCCorpusCase(

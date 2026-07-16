@@ -162,12 +162,8 @@ public enum NativeDRCAntennaRuleFactory {
                 id: "antenna.\(stage.source.id).\(stage.layer)",
                 kind: .maximumAntennaRatio,
                 layer: stage.layer,
-                // Detailed evaluation uses the per-layer ratioGate values.
-                // The positive sentinel activates the rule through the legacy
-                // dispatch contract while preserving the detailed threshold.
-                value: 1,
+                value: stage.source.maxRatio,
                 gateLayer: gateLayer,
-                conductorLayers: [stage.layer],
                 processStep: processStepByLayer[stage.layer],
                 antennaCutConnections: antennaCutConnections,
                 antennaModel: model,

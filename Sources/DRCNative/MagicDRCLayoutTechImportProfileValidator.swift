@@ -13,14 +13,6 @@ struct MagicDRCLayoutTechImportProfileValidator {
                 message: "Profile identifier must not be empty."
             ))
         }
-        if profile.schemaVersion != 1 {
-            issues.append(issue(
-                .unsupportedSchemaVersion,
-                field: "schemaVersion",
-                message: "Only Magic DRC LayoutTech import profile schemaVersion 1 is supported."
-            ))
-        }
-
         let declaredLayerNames = Set(profile.baseLayerNames)
         appendLayerListIssues(profile.layerOrder, field: "layerOrder", issues: &issues)
         appendLayerListIssues(profile.cutLayerNames, field: "cutLayerNames", issues: &issues)

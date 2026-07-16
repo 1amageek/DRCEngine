@@ -3,8 +3,8 @@ import Foundation
 /// Completeness attestation for optional antenna annotations on a canonical
 /// NativeDRC layout.
 ///
-/// The evaluator treats absent annotations as zero/empty data for compatibility
-/// with exploratory runs. A release run must carry this contract so missing
+/// Exploratory runs may omit annotations. A release run must carry this
+/// contract so missing
 /// gate, diffusion, process, or cut metadata cannot be mistaken for a clean
 /// antenna result.
 public struct NativeDRCAntennaMetadata: Sendable, Hashable, Codable {

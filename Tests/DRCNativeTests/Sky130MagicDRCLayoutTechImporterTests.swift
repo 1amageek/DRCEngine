@@ -7,6 +7,18 @@ import Testing
 
 @Suite("Sky130 Magic DRC LayoutTech importer")
 struct Sky130MagicDRCLayoutTechImporterTests {
+    @Test func importProfileDecodingRequiresCurrentSchemaVersion() {
+        let missingSchema = Data(#"{"profileID":"strict"}"#.utf8)
+        let unsupportedSchema = Data(#"{"schemaVersion":0,"profileID":"strict"}"#.utf8)
+
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(MagicDRCLayoutTechImportProfile.self, from: missingSchema)
+        }
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(MagicDRCLayoutTechImportProfile.self, from: unsupportedSchema)
+        }
+    }
+
     @Test func exactOverlapSourceRuleRejectsEmptySecondaryLayers() {
         #expect(throws: MagicDRCSourceRuleValidationError.emptyExactOverlapSecondaryLayers(ruleID: "exactOverlap.invalid")) {
             _ = try MagicDRCSourceExactOverlapRule(
@@ -499,7 +511,6 @@ struct Sky130MagicDRCLayoutTechImporterTests {
             layer: nativeRule.layer,
             value: nativeRule.value,
             gateLayer: nativeRule.gateLayer,
-            conductorLayers: nativeRule.conductorLayers,
             antennaModel: nativeRule.antennaModel,
             antennaLayers: [NativeDRCAntennaLayer(
                 layer: "POLY",

@@ -5,11 +5,6 @@ public extension DRCCorpusSpec {
 
     /// Validates the complete corpus contract before any case is prepared or run.
     func validate() throws {
-        guard schemaVersion == Self.currentSchemaVersion else {
-            throw DRCError.invalidInput(
-                "Unsupported DRC corpus spec schema version: \(schemaVersion)."
-            )
-        }
         try validateDuration(defaultMaxDurationSeconds, field: "defaultMaxDurationSeconds")
         try acceptanceCriteria.validate()
 

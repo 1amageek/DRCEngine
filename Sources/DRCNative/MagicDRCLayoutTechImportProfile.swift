@@ -1,6 +1,8 @@
 import Foundation
 
 public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
+    public static let currentSchemaVersion = 1
+
     public let schemaVersion: Int
     public let profileID: String
     public let displayName: String?
@@ -20,7 +22,6 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
     public let cutStackConnections: [MagicDRCLayoutTechCutStackConnection]
 
     public init(
-        schemaVersion: Int = 1,
         profileID: String,
         displayName: String? = nil,
         layerOrder: [String] = [],
@@ -38,7 +39,7 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
         derivedLayerSeeds: [MagicDRCLayoutTechDerivedLayerSeed] = [],
         cutStackConnections: [MagicDRCLayoutTechCutStackConnection] = []
     ) {
-        self.schemaVersion = schemaVersion
+        self.schemaVersion = Self.currentSchemaVersion
         self.profileID = profileID
         self.displayName = displayName
         self.layerOrder = layerOrder
@@ -120,8 +121,15 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported Magic DRC LayoutTech import profile schema version: \(schemaVersion)."
+            )
+        }
         self.init(
-            schemaVersion: try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1,
             profileID: try container.decode(String.self, forKey: .profileID),
             displayName: try container.decodeIfPresent(String.self, forKey: .displayName),
             layerOrder: try container.decodeIfPresent([String].self, forKey: .layerOrder) ?? [],
