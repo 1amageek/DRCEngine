@@ -22,20 +22,20 @@ struct DRCCorpusEvidenceKindTests {
     @Test func independentCorrelationAutomaticallyRequiresIndependentOracle() {
         let spec = DRCCorpusSpec(
             evidenceKind: .independentCorrelation,
-            qualificationPolicy: DRCCorpusQualificationPolicy(),
+            acceptanceCriteria: DRCCorpusAcceptanceCriteria(),
             cases: []
         )
-        #expect(spec.effectiveQualificationPolicy.requireIndependentOracle)
+        #expect(spec.effectiveAcceptanceCriteria.requireIndependentOracle)
     }
 
     @Test func regressionKeepsExplicitPolicyWithoutPromotingEvidence() {
         let spec = DRCCorpusSpec(
             evidenceKind: .regression,
-            qualificationPolicy: DRCCorpusQualificationPolicy(),
+            acceptanceCriteria: DRCCorpusAcceptanceCriteria(),
             cases: []
         )
         #expect(spec.evidenceKind == .regression)
-        #expect(!spec.effectiveQualificationPolicy.requireIndependentOracle)
+        #expect(!spec.effectiveAcceptanceCriteria.requireIndependentOracle)
     }
 
     @Test func corpusSpecValidationRejectsDuplicateCaseIDsBeforeExecution() {
@@ -78,13 +78,13 @@ struct DRCCorpusEvidenceKindTests {
             passRate: 1,
             oracleAgreementRate: nil
         )
-        let result = DRCCorpusQualificationPolicy(requireIndependentOracle: true).evaluate(
+        let result = DRCCorpusAcceptanceCriteria(requireIndependentOracle: true).evaluate(
             passed: true,
             caseCount: 1,
             summary: summary
         )
 
-        #expect(result.failures.contains { $0.code == "independent_oracle_missing" })
+        #expect(result.findings.contains { $0.code == "independent_oracle_missing" })
     }
 
     @Test func missingOracleAgreementDoesNotHideOtherQualificationFailures() {
@@ -99,15 +99,15 @@ struct DRCCorpusEvidenceKindTests {
             passRate: 0,
             oracleAgreementRate: nil
         )
-        let policy = DRCCorpusQualificationPolicy(
+        let policy = DRCCorpusAcceptanceCriteria(
             minimumOracleAgreementRate: 1,
             requireIndependentOracle: true
         )
         let result = policy.evaluate(passed: false, caseCount: 1, summary: summary)
 
-        #expect(result.failures.contains { $0.code == "oracle_agreement_rate_missing" })
-        #expect(result.failures.contains { $0.code == "independent_oracle_missing" })
-        #expect(result.failures.contains { $0.code == "primary_execution_failed" })
+        #expect(result.findings.contains { $0.code == "oracle_agreement_rate_missing" })
+        #expect(result.findings.contains { $0.code == "independent_oracle_missing" })
+        #expect(result.findings.contains { $0.code == "primary_execution_failed" })
     }
 
     @Test func corpusReportValidationRejectsTamperedCaseCounts() throws {
@@ -166,7 +166,7 @@ struct DRCCorpusEvidenceKindTests {
             caseResults: [caseResult]
         )
 
-        #expect(!report.qualification.qualified)
-        #expect(report.qualification.failures.contains { $0.code == "independent_oracle_missing" })
+        #expect(!report.assessment.meetsCriteria)
+        #expect(report.assessment.findings.contains { $0.code == "independent_oracle_missing" })
     }
 }

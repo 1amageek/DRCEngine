@@ -5,16 +5,16 @@ import DRCCore
 struct DRCCorpusEvidenceValidationTests {
     @Test func persistedQualificationMustMatchCaseResultsAndPolicy() throws {
         let result = caseResult(caseID: "clean")
-        let forgedQualification = DRCCorpusQualificationResult(
-            policy: DRCCorpusQualificationPolicy(requiredCoverageTags: ["missing-tag"]),
-            failures: []
+        let forgedQualification = DRCCorpusAssessment(
+            criteria: DRCCorpusAcceptanceCriteria(requiredCoverageTags: ["missing-tag"]),
+            findings: []
         )
         let report = DRCCorpusReport(
             passed: true,
             caseCount: 1,
             matchedCaseCount: 1,
             summary: DRCCorpusSummary(caseResults: [result]),
-            qualification: forgedQualification,
+            assessment: forgedQualification,
             caseResults: [result]
         )
 

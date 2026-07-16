@@ -1,5 +1,5 @@
-public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
-    public static let strict = DRCCorpusQualificationPolicy()
+public struct DRCCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
+    public static let strict = DRCCorpusAcceptanceCriteria()
 
     public let requireCorpusPassed: Bool
     public let minimumPassRate: Double
@@ -78,16 +78,16 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         caseCount: Int,
         summary: DRCCorpusSummary,
         completed: Bool = true
-    ) -> DRCCorpusQualificationResult {
-        var failures = validationFailures()
+    ) -> DRCCorpusAssessment {
+        var findings = validationFailures()
         if !completed {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "corpus_incomplete",
                 message: "The corpus run did not complete all scheduled cases."
             ))
         }
         if caseCount == 0 {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "empty_corpus",
                 message: "The corpus did not run any cases.",
                 observedCount: 0,
@@ -95,13 +95,13 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         if requireCorpusPassed && !passed {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "corpus_not_passed",
                 message: "The corpus did not pass every case, duration budget, and oracle agreement gate."
             ))
         }
         if summary.passRate < minimumPassRate {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "pass_rate_below_minimum",
                 message: "The corpus pass rate is below the required threshold.",
                 observedDouble: summary.passRate,
@@ -112,7 +112,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ? 0
             : Double(summary.durationBudgetPassedCaseCount) / Double(caseCount)
         if durationBudgetPassRate < minimumDurationBudgetPassRate {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "duration_budget_pass_rate_below_minimum",
                 message: "The corpus duration-budget pass rate is below the required threshold.",
                 observedDouble: durationBudgetPassRate,
@@ -121,7 +121,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         }
         if let minimumOracleCaseCount,
            summary.oracleCaseCount < minimumOracleCaseCount {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "oracle_case_count_below_minimum",
                 message: "The corpus did not run enough oracle comparison cases.",
                 observedCount: summary.oracleCaseCount,
@@ -131,7 +131,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         if let minimumOracleAgreementRate {
             if let oracleAgreementRate = summary.oracleAgreementRate {
                 if oracleAgreementRate < minimumOracleAgreementRate {
-                    failures.append(DRCCorpusQualificationFailure(
+                    findings.append(DRCCorpusAssessmentFinding(
                         code: "oracle_agreement_rate_below_minimum",
                         message: "The corpus oracle agreement rate is below the required threshold.",
                         observedDouble: oracleAgreementRate,
@@ -139,15 +139,15 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
                     ))
                 }
             } else {
-                failures.append(DRCCorpusQualificationFailure(
+                findings.append(DRCCorpusAssessmentFinding(
                     code: "oracle_agreement_rate_missing",
-                    message: "The corpus qualification policy requires oracle agreement, but no oracle cases ran.",
+                    message: "The corpus acceptance criteria requires oracle agreement, but no oracle cases ran.",
                     observedCount: summary.oracleCaseCount
                 ))
             }
         }
         if requireIndependentOracle && summary.nonIndependentOracleCaseCount > 0 {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "independent_oracle_failed",
                 message: "One or more oracle comparisons did not use an independently identified implementation family.",
                 observedCount: summary.nonIndependentOracleCaseCount,
@@ -155,15 +155,15 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         if requireIndependentOracle && summary.oracleCaseCount < caseCount {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "independent_oracle_missing",
-                message: "Independent-oracle qualification requires an oracle comparison for every corpus case.",
+                message: "Independent-oracle acceptance requires an oracle comparison for every corpus case.",
                 observedCount: summary.oracleCaseCount,
                 requiredCount: caseCount
             ))
         }
         if !allowPrimaryExecutionFailures && summary.primaryExecutionFailedCaseCount > 0 {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "primary_execution_failed",
                 message: "One or more primary corpus cases failed to execute.",
                 observedCount: summary.primaryExecutionFailedCaseCount,
@@ -171,7 +171,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         if !allowOracleExecutionFailures && summary.oracleExecutionFailedCaseCount > 0 {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "oracle_execution_failed",
                 message: "One or more oracle corpus cases failed to execute.",
                 observedCount: summary.oracleExecutionFailedCaseCount,
@@ -180,7 +180,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         }
         let missingCoverageTags = requiredCoverageTags.filter { summary.coverageTagCounts[$0] == nil }
         if !missingCoverageTags.isEmpty {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "required_coverage_missing",
                 message: "The corpus is missing one or more required coverage tags.",
                 observedCount: requiredCoverageTags.count - missingCoverageTags.count,
@@ -189,11 +189,11 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
                 requiredText: missingCoverageTags.joined(separator: ",")
             ))
         }
-        return DRCCorpusQualificationResult(policy: self, failures: failures)
+        return DRCCorpusAssessment(criteria: self, findings: findings)
     }
 
-    public func with(requireIndependentOracle: Bool) -> DRCCorpusQualificationPolicy {
-        DRCCorpusQualificationPolicy(
+    public func with(requireIndependentOracle: Bool) -> DRCCorpusAcceptanceCriteria {
+        DRCCorpusAcceptanceCriteria(
             requireCorpusPassed: requireCorpusPassed,
             minimumPassRate: minimumPassRate,
             minimumDurationBudgetPassRate: minimumDurationBudgetPassRate,
@@ -207,19 +207,19 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
     }
 
     public func validate() throws {
-        let failures = validationFailures()
-        guard failures.isEmpty else {
-            let message = failures
+        let findings = validationFailures()
+        guard findings.isEmpty else {
+            let message = findings
                 .map { [$0.code, $0.message].joined(separator: ": ") }
                 .joined(separator: "; ")
-            throw DRCError.invalidInput("Invalid DRC corpus qualification policy: \(message)")
+            throw DRCError.invalidInput("Invalid DRC corpus acceptance criteria: \(message)")
         }
     }
 
-    private func validationFailures() -> [DRCCorpusQualificationFailure] {
-        var failures: [DRCCorpusQualificationFailure] = []
+    private func validationFailures() -> [DRCCorpusAssessmentFinding] {
+        var findings: [DRCCorpusAssessmentFinding] = []
         if minimumPassRate < 0 || minimumPassRate > 1 || !minimumPassRate.isFinite {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "invalid_minimum_pass_rate",
                 message: "minimumPassRate must be a finite value between 0 and 1.",
                 observedDouble: minimumPassRate
@@ -228,7 +228,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         if minimumDurationBudgetPassRate < 0
             || minimumDurationBudgetPassRate > 1
             || !minimumDurationBudgetPassRate.isFinite {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "invalid_minimum_duration_budget_pass_rate",
                 message: "minimumDurationBudgetPassRate must be a finite value between 0 and 1.",
                 observedDouble: minimumDurationBudgetPassRate
@@ -238,7 +238,7 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
            minimumOracleAgreementRate < 0
             || minimumOracleAgreementRate > 1
             || !minimumOracleAgreementRate.isFinite {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "invalid_minimum_oracle_agreement_rate",
                 message: "minimumOracleAgreementRate must be a finite value between 0 and 1.",
                 observedDouble: minimumOracleAgreementRate
@@ -246,13 +246,13 @@ public struct DRCCorpusQualificationPolicy: Sendable, Hashable, Codable {
         }
         if let minimumOracleCaseCount,
            minimumOracleCaseCount < 0 {
-            failures.append(DRCCorpusQualificationFailure(
+            findings.append(DRCCorpusAssessmentFinding(
                 code: "invalid_minimum_oracle_case_count",
                 message: "minimumOracleCaseCount must be zero or greater.",
                 observedCount: minimumOracleCaseCount
             ))
         }
-        return failures
+        return findings
     }
 
     private static func normalizedCoverageTags(_ tags: [String]) -> [String] {

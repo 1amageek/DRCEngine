@@ -3,7 +3,7 @@ import DRCFoundryImport
 
 /// Provenance-bound native antenna rules produced from a Magic source deck.
 ///
-/// The executable rules alone are not a qualification artifact: without the
+/// The executable rules alone are not a assessment artifact: without the
 /// source/profile digests and process connectivity context, a consumer cannot
 /// tell which foundry deck produced them. This envelope keeps those inputs and
 /// the lowering verdict together while still exposing `nativeRules` for a
@@ -27,9 +27,9 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
         case duplicateNativeRuleID(String)
         case sourceRuleUnmaterialized(String)
         case nativeRuleDigestMismatch
-        case qualificationDigestMismatch
-        case qualificationCountMismatch
-        case qualificationInconsistent
+        case assessmentDigestMismatch
+        case assessmentCountMismatch
+        case assessmentInconsistent
         case sourceContactStackUnmaterialized(String)
         case invalidThickness(String)
         case cumulativeLayerOutOfOrder(String)
@@ -66,12 +66,12 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
                 return "Native antenna artifact did not materialize source antenna rule \(id)."
             case .nativeRuleDigestMismatch:
                 return "Native antenna artifact native rule digest does not match its rules."
-            case .qualificationDigestMismatch:
-                return "Native antenna artifact qualification digest does not match its provenance."
-            case .qualificationCountMismatch:
-                return "Native antenna artifact qualification counts do not match its contents."
-            case .qualificationInconsistent:
-                return "Native antenna artifact qualification status, failure codes, and oracle evidence disagree."
+            case .assessmentDigestMismatch:
+                return "Native antenna artifact assessment digest does not match its provenance."
+            case .assessmentCountMismatch:
+                return "Native antenna artifact assessment counts do not match its contents."
+            case .assessmentInconsistent:
+                return "Native antenna artifact assessment status, failure codes, and oracle evidence disagree."
             case .sourceContactStackUnmaterialized(let id):
                 return "Native antenna artifact did not materialize source contact stack \(id)."
             case .invalidThickness(let layer):
@@ -92,7 +92,7 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
     public let sourceAntennaRules: [MagicDRCSourceAntennaRule]
     public let sourceAntennaThicknesses: [String: Double]
     public let nativeRules: [NativeDRCRule]
-    public let qualification: NativeDRCAntennaQualification
+    public let assessment: NativeDRCAntennaAssessment
 
     public init(
         sourceReport: MagicDRCLayoutTechImportReport,
@@ -109,7 +109,7 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
         self.sourceAntennaRules = sourceReport.sourceAntennaRules
         self.sourceAntennaThicknesses = sourceReport.sourceAntennaThicknesses
         self.nativeRules = nativeRules
-        self.qualification = NativeDRCAntennaQualification(
+        self.assessment = NativeDRCAntennaAssessment(
             sourceReport: sourceReport,
             nativeRules: nativeRules,
             oracleEvidence: oracleEvidence
@@ -118,7 +118,7 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
 
     /// Returns a new artifact with the Oracle comparison evidence attached.
     /// The original artifact remains immutable and can be retained as the
-    /// pre-qualification record.
+    /// pre-assessment record.
     public func applying(
         oracleEvidence: NativeDRCAntennaOracleEvidence
     ) -> NativeDRCAntennaArtifact {
@@ -133,7 +133,7 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
             sourceAntennaRules: sourceAntennaRules,
             sourceAntennaThicknesses: sourceAntennaThicknesses,
             nativeRules: nativeRules,
-            qualification: qualification.applying(oracleEvidence: oracleEvidence)
+            assessment: assessment.applying(oracleEvidence: oracleEvidence)
         )
     }
 
@@ -148,7 +148,7 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
         sourceAntennaRules: [MagicDRCSourceAntennaRule],
         sourceAntennaThicknesses: [String: Double],
         nativeRules: [NativeDRCRule],
-        qualification: NativeDRCAntennaQualification
+        assessment: NativeDRCAntennaAssessment
     ) {
         self.schemaVersion = schemaVersion
         self.sourcePath = sourcePath
@@ -160,7 +160,7 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
         self.sourceAntennaRules = sourceAntennaRules
         self.sourceAntennaThicknesses = sourceAntennaThicknesses
         self.nativeRules = nativeRules
-        self.qualification = qualification
+        self.assessment = assessment
     }
 
     /// Validates that the envelope still describes the exact rule lowering it
@@ -218,26 +218,26 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
             throw ValidationError.sourceRuleUnmaterialized(sourceRule.id)
         }
 
-        guard qualification.sourceDigest == sourceDigest,
-              qualification.profileDigest == profileDigest else {
-            throw ValidationError.qualificationDigestMismatch
+        guard assessment.sourceDigest == sourceDigest,
+              assessment.profileDigest == profileDigest else {
+            throw ValidationError.assessmentDigestMismatch
         }
-        guard qualification.sourceRuleCount == sourceAntennaRules.count,
-              qualification.nativeRuleCount == nativeRules.count else {
-            throw ValidationError.qualificationCountMismatch
+        guard assessment.sourceRuleCount == sourceAntennaRules.count,
+              assessment.nativeRuleCount == nativeRules.count else {
+            throw ValidationError.assessmentCountMismatch
         }
-        guard qualification.nativeRuleDigest == NativeDRCAntennaQualification.nativeRuleDigest(nativeRules) else {
+        guard assessment.nativeRuleDigest == NativeDRCAntennaAssessment.nativeRuleDigest(nativeRules) else {
             throw ValidationError.nativeRuleDigestMismatch
         }
-        guard (qualification.qualified && qualification.failureCodes.isEmpty)
-                || (!qualification.qualified && !qualification.failureCodes.isEmpty) else {
-            throw ValidationError.qualificationInconsistent
+        guard (assessment.satisfied && assessment.failureCodes.isEmpty)
+                || (!assessment.satisfied && !assessment.failureCodes.isEmpty) else {
+            throw ValidationError.assessmentInconsistent
         }
-        if let oracleEvidence = qualification.oracleEvidence {
+        if let oracleEvidence = assessment.oracleEvidence {
             guard oracleEvidence.sourceDigest == sourceDigest,
                   oracleEvidence.profileDigest == profileDigest,
-                  oracleEvidence.nativeRuleDigest == qualification.nativeRuleDigest else {
-                throw ValidationError.qualificationDigestMismatch
+                  oracleEvidence.nativeRuleDigest == assessment.nativeRuleDigest else {
+                throw ValidationError.assessmentDigestMismatch
             }
             try oracleEvidence.validate()
         }
@@ -295,22 +295,22 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
             return
         }
         guard rule.value.isFinite, rule.value > 0 else {
-            throw ValidationError.qualificationInconsistent
+            throw ValidationError.assessmentInconsistent
         }
         if let processStep = rule.processStep,
            processStep.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            throw ValidationError.qualificationInconsistent
+            throw ValidationError.assessmentInconsistent
         }
         guard let antennaLayers = rule.antennaLayers, !antennaLayers.isEmpty else {
             // Legacy maximum-ratio rules are valid without detailed layer
             // semantics; the native backend validates their scalar value.
             guard rule.antennaModel == nil else {
-                throw ValidationError.qualificationInconsistent
+                throw ValidationError.assessmentInconsistent
             }
             return
         }
         guard let stage = antennaLayers.first(where: { $0.layer == rule.layer }) else {
-            throw ValidationError.qualificationInconsistent
+            throw ValidationError.assessmentInconsistent
         }
         guard antennaLayers.allSatisfy({ layer in
             !layer.layer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -321,10 +321,10 @@ public struct NativeDRCAntennaArtifact: Sendable, Hashable, Codable {
                 && (layer.diffusionRatioConstant?.isFinite ?? true)
                 && (layer.diffusionRatioPerArea?.isFinite ?? true)
         }) else {
-            throw ValidationError.qualificationInconsistent
+            throw ValidationError.assessmentInconsistent
         }
         guard stage.measurement == .surface || stage.thickness != nil else {
-            throw ValidationError.qualificationInconsistent
+            throw ValidationError.assessmentInconsistent
         }
     }
 }

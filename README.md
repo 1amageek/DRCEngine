@@ -191,8 +191,8 @@ DRC_BIN="$(swift build --show-bin-path)/drcengine"
 
 `drcengine --evidence-packet-from-corpus-report` converts a retained
 `drc-corpus-report.json` into `DRCEvidencePacket`, the richer Agent-facing
-decision-material contract. This is separate from `--evidence-from-corpus-report`,
-which remains the compact ToolEvidence export for qualification gates.
+decision-material contract. This is separate from `--observations-from-corpus-report`,
+which emits the compact, signed corpus observation record consumed by ToolQualification.
 
 ```bash
 drcengine --evidence-packet-from-corpus-report /path/to/drc-corpus-report.json \
@@ -434,7 +434,7 @@ To emit the lowered Native antenna artifact alongside the source report, add
 the source/profile digests, profile layer order, source contact stacks,
 thickness map, source declarations, native rules, and the qualification
 verdict. The artifact can be structurally validated, but its
-`nativeAntennaQualification` remains `blocked` until an independently
+`nativeAntennaAssessment` remains `blocked` until an independently
 identified oracle has been run and recorded as agreeing.
 
 The normal successful state for a fully represented deck is `complete`. Real
@@ -505,23 +505,24 @@ cut-connectivity attestations. The readiness gate also rejects every
 net-bearing conductor covered by an antenna rule when that net has no positive
 gate-area annotation; omitted annotations remain allowed only for non-release
 exploratory runs.
-`NativeDRCAntennaQualification` is the explicit release gate: it records source
+`NativeDRCAntennaAssessment` records raw implementation evidence: source
 import status, source/native rule counts, materialization gaps, and a
 `NativeDRCAntennaOracleEvidence` record. That evidence binds the independent
 oracle ID/version, executable/rule/technology digests, source/profile/native
 rule digests, corpus/comparison artifact digests, and agreement counts.
 Synthetic regression success alone therefore remains `blocked` until this
-evidence is supplied; the deprecated boolean initializer cannot qualify a
-release artifact.
+evidence is supplied. ToolQualification and the composing flow policy own the
+release decision; DRCEngine does not promote its own observation to trusted
+tool status.
 
-When an independent Oracle run becomes available, qualification is reproducible
+When an independent Oracle run becomes available, the assessment is reproducible
 from the two retained artifacts:
 
 ```bash
-drcengine --qualify-native-antenna \
+drcengine --assess-native-antenna \
   --native-antenna-artifact /path/native-antenna-artifact.json \
   --oracle-evidence /path/magic-antenna-oracle-evidence.json \
-  --out /path/native-antenna-qualified.json \
+  --out /path/native-antenna-assessed.json \
   --json
 ```
 
@@ -603,10 +604,9 @@ The waiver file is saved as an input artifact with a digest. The report and
 manifest both include `waiverReport`, including unused waiver IDs so stale policy
 entries remain visible.
 
-Waivers may carry `DRCWaiverApproval` metadata (`approvedBy`, ISO-8601
-`approvedAt`, optional `expiresAt`, and a review `reference`). Pass
-`--require-approved-waivers` or set `DRCOptions.requireApprovedWaivers` when a
-signoff lane must reject missing or expired approval metadata.
+The waiver file records technical scope and rationale only. Human review and
+approval are separate `DesignFlowKernel` records, allowing DRC output to remain
+raw domain evidence while the flow policy evaluates who approved it and when.
 
 ## Corpus mode
 
@@ -636,69 +636,65 @@ supports the same contract with `--run-id <id>` and
 `--resume-report <drc-corpus-report-or-checkpoint.json>`.
 
 Corpus
-specs may declare `qualificationPolicy`; when absent, the strict policy requires
+specs may declare `acceptanceCriteria`; when absent, the strict policy requires
 every case, duration budget, and oracle agreement gate to pass. The summary
 exposes pass rate, expectation-matched case count, duration-budget pass count,
 primary/oracle execution failure counts, oracle agreement rate,
 `nonIndependentOracleCaseCount`, `failureCategoryCounts`, and
-`coverageTagCounts`. The qualification result
-records the policy, a boolean `qualified` verdict, and typed failure codes such
+`coverageTagCounts`. `DRCCorpusAssessment` records the acceptance criteria and
+typed findings such
 as `pass_rate_below_minimum`, `duration_budget_pass_rate_below_minimum`,
 `required_coverage_missing`, `oracle_execution_failed`, or
-`independent_oracle_failed`. Set `qualificationPolicy.requireIndependentOracle`
+`independent_oracle_failed`. Set `acceptanceCriteria.requireIndependentOracle`
 for a release lane; same-backend, same-family, unknown-identity, and missing
-provenance references then fail qualification.
-`drcengine --corpus` uses `qualification.qualified` for its exit status, so
-Agents and CI can rely on the same persisted gate they review later.
+provenance references then remain findings. `drcengine --corpus` uses
+`assessment.meetsCriteria` for its execution exit status; this is corpus
+acceptance evidence, not a tool-trust decision.
 Saved reports can be rechecked without rerunning the corpus:
 
 ```bash
-drcengine --qualify-corpus-report drc-corpus-report.json --json
-drcengine --qualify-corpus-report drc-corpus-report.json \
-  --qualification-policy qualification-policy.json --json
+drcengine --assess-corpus-report drc-corpus-report.json --json
+drcengine --assess-corpus-report drc-corpus-report.json \
+  --acceptance-criteria acceptance-criteria.json --json
 ```
 
-The same immutable report can also be exported as ToolQualification-compatible
-evidence for an Agent or flow runtime config:
+The same immutable report can also be exported as a signed raw observation for
+ToolQualification or a flow consumer:
 
 ```bash
-drcengine --evidence-from-corpus-report drc-corpus-report.json \
+drcengine --observations-from-corpus-report drc-corpus-report.json \
   --evidence-id drc-release-corpus \
   --checked-at 2026-06-18T00:00:00Z \
   --json
 ```
 
-The JSON includes `toolEvidence.kind == "corpus"`, an ISO 8601 `checkedAt`, the
-report artifact reference and digest, and a generic `qualification` summary with
-pass-rate, duration-budget, oracle-agreement, coverage-count, count, and typed
-failure-code fields. The command exits with the same pass/fail convention as the embedded
-qualification verdict, so CI can gate on it while Agents can copy the
-`toolEvidence` object into the flow runtime tool-evidence field consumed by
-DesignFlowKernel and Xcircuite.
+The JSON includes the report artifact reference and digest plus an observation
+record containing the criteria ID, observed metrics, observed counts and
+finding codes. Successful export exits zero even when criteria findings remain;
+the structured observation carries those findings to ToolQualification.
 
 For a retained release artifact, sign and persist the evidence in one command:
 
 ```bash
-drcengine --evidence-from-corpus-report drc-corpus-report.json \
-  --out drc-tool-evidence.json \
+drcengine --observations-from-corpus-report drc-corpus-report.json \
+  --out drc-corpus-observations.json \
   --require-signed-artifacts \
   --trusted-artifact-public-key "$DRC_EVIDENCE_PUBLIC_KEY" \
   --artifact-signing-private-key /secure/path/drc-evidence.key \
   --json
 ```
 
-`DRCCorpusToolEvidenceVerifier` re-reads the report, validates its derived
-summary and qualification, compares the report digest, and verifies the
-signature before evidence is accepted. Corpus runs support the same signed
+`DRCCorpusObservationVerifier` re-reads the report, validates its derived
+summary and assessment, compares the report digest, and verifies the
+signature before the observation is consumed. Corpus runs support the same signed
 artifact flags; resumed cases are reused only when their manifests satisfy
 the active signature policy.
 
-The optional policy file uses the same `DRCCorpusQualificationPolicy` JSON shape
-as `qualificationPolicy` in a corpus spec. This lets CI or an Agent apply a
+The optional policy file uses the same `DRCCorpusAcceptanceCriteria` JSON shape
+as `acceptanceCriteria` in a corpus spec. This lets CI or an Agent apply a
 stricter or looser release gate to retained corpus evidence without changing the
-original run artifacts. Qualification and evidence commands recompute derived
-summary and qualification fields from case results; a persisted `qualified`
-boolean is never trusted by itself.
+original run artifacts. Assessment and observation commands recompute derived
+summary and finding fields from case results.
 
 Persisted corpus reports are structurally validated before CLI qualification or
 coverage audit (schema, case counts, result IDs, duration values, and duplicate

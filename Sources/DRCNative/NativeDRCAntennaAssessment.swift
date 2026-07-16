@@ -2,14 +2,14 @@ import Foundation
 import CryptoKit
 import DRCFoundryImport
 
-/// Qualification verdict for a lowered antenna rule deck.
+/// Assessment verdict for a lowered antenna rule deck.
 ///
 /// A regression pass is not enough for signoff: the source declarations must
 /// be materialized and an independently identified oracle must agree. This
 /// value makes that distinction explicit for CLI, Agent, and CI consumers.
-public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
+public struct NativeDRCAntennaAssessment: Sendable, Hashable, Codable {
     public enum Status: String, Sendable, Hashable, Codable {
-        case qualified
+        case satisfied
         case blocked
     }
 
@@ -23,8 +23,8 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
     public let oracleEvidence: NativeDRCAntennaOracleEvidence?
     public let failureCodes: [String]
 
-    public var qualified: Bool {
-        status == .qualified
+    public var satisfied: Bool {
+        status == .satisfied
     }
 
     public init(
@@ -105,15 +105,15 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
             failures.append("independent_oracle_unverified")
         }
         self.failureCodes = failures
-        self.status = failures.isEmpty ? .qualified : .blocked
+        self.status = failures.isEmpty ? .satisfied : .blocked
     }
 
-    /// Rebinds the qualification to an independently produced oracle artifact.
+    /// Rebinds the assessment to an independently produced oracle artifact.
     /// Existing source/lowering failures are preserved; only the oracle portion
     /// of the verdict is replaced.
     public func applying(
         oracleEvidence: NativeDRCAntennaOracleEvidence
-    ) -> NativeDRCAntennaQualification {
+    ) -> NativeDRCAntennaAssessment {
         let preservedFailures = failureCodes.filter { code in
             !code.hasPrefix("oracle_") && code != "independent_oracle_unverified"
         }
@@ -122,7 +122,7 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
             expectedProfileDigest: profileDigest,
             expectedNativeRuleDigest: nativeRuleDigest
         ) + (oracleEvidence.passed ? [] : ["independent_oracle_unverified"])
-        return NativeDRCAntennaQualification(
+        return NativeDRCAntennaAssessment(
             sourceImportStatus: sourceImportStatus,
             sourceDigest: sourceDigest,
             profileDigest: profileDigest,
@@ -153,7 +153,7 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
         self.nativeRuleDigest = Self.nativeRuleDigest(nativeRules)
         self.oracleEvidence = oracleEvidence
         self.failureCodes = failureCodes
-        self.status = failureCodes.isEmpty ? .qualified : .blocked
+        self.status = failureCodes.isEmpty ? .satisfied : .blocked
     }
 
     private init(
@@ -174,7 +174,7 @@ public struct NativeDRCAntennaQualification: Sendable, Hashable, Codable {
         self.nativeRuleDigest = nativeRuleDigest
         self.oracleEvidence = oracleEvidence
         self.failureCodes = failureCodes
-        self.status = failureCodes.isEmpty ? .qualified : .blocked
+        self.status = failureCodes.isEmpty ? .satisfied : .blocked
     }
 
     public static func nativeRuleDigest(_ rules: [NativeDRCRule]) -> String? {

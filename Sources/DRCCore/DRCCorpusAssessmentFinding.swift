@@ -1,4 +1,4 @@
-public struct DRCCorpusQualificationFailure: Sendable, Hashable, Codable {
+public struct DRCCorpusAssessmentFinding: Sendable, Hashable, Codable {
     public let code: String
     public let message: String
     public let observedDouble: Double?

@@ -5,7 +5,7 @@ public extension DRCCorpusReport {
     ///
     /// `validate()` intentionally keeps the structural contract used by
     /// coverage-audit tooling. This stricter entry point is used before a
-    /// persisted report can drive a qualification or evidence decision.
+    /// persisted report can drive a corpus assessment or evidence decision.
     func validateEvidence() throws {
         try validate()
 
@@ -16,15 +16,15 @@ public extension DRCCorpusReport {
             )
         }
 
-        let derivedQualification = qualification.policy.evaluate(
+        let derivedAssessment = assessment.criteria.evaluate(
             passed: passed,
             caseCount: caseCount,
             summary: derivedSummary,
             completed: completed
         )
-        guard qualification == derivedQualification else {
+        guard assessment == derivedAssessment else {
             throw DRCError.invalidInput(
-                "DRC corpus report qualification does not match its case results and policy."
+                "DRC corpus report assessment does not match its case results and criteria."
             )
         }
     }

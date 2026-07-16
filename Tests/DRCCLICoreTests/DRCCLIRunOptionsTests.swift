@@ -37,17 +37,16 @@ extension DRCCLIOptionsTests {
         #expect(options.emitJSON)
     }
 
-    @Test func approvedWaiverGateIsForwardedToRequest() throws {
-        let options = try DRCCLIOptions(arguments: [
-            "--layout", "/tmp/inverter.json",
-            "--top-cell", "inv",
-            "--waivers", "/tmp/drc-waivers.json",
-            "--out", "/tmp/drc",
-            "--require-approved-waivers",
-        ])
-
-        #expect(options.requireApprovedWaivers)
-        #expect(options.makeRequest().options.requireApprovedWaivers)
+    @Test func flowAuthorityOptionIsRejected() throws {
+        #expect(throws: DRCCLIError.self) {
+            _ = try DRCCLIOptions(arguments: [
+                "--layout", "/tmp/inverter.json",
+                "--top-cell", "inv",
+                "--waivers", "/tmp/drc-waivers.json",
+                "--out", "/tmp/drc",
+                "--require-approved-waivers",
+            ])
+        }
     }
 
     @Test func signedArtifactTrustGateIsForwardedToRequest() throws {

@@ -91,7 +91,7 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
         public let committedSpecPath: String
         public let reportArtifact: String
         public let evidenceExportFlag: String
-        public let qualificationPolicy: String
+        public let acceptanceCriteria: String
         public let requiredCoverageTags: [String]
 
         public init(
@@ -100,7 +100,7 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
             committedSpecPath: String,
             reportArtifact: String,
             evidenceExportFlag: String,
-            qualificationPolicy: String,
+            acceptanceCriteria: String,
             requiredCoverageTags: [String]
         ) {
             self.runner = runner
@@ -108,7 +108,7 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
             self.committedSpecPath = committedSpecPath
             self.reportArtifact = reportArtifact
             self.evidenceExportFlag = evidenceExportFlag
-            self.qualificationPolicy = qualificationPolicy
+            self.acceptanceCriteria = acceptanceCriteria
             self.requiredCoverageTags = requiredCoverageTags
         }
     }

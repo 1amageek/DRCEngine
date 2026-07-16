@@ -28,10 +28,11 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
     private let parser: MagicDRCReportParser
 
     public let backendID = "magic"
+    public let identity: DRCBackendIdentity
 
-    public var identity: DRCBackendIdentity {
+    private static func makeIdentity(toolchain: MagicDRCToolchain) -> DRCBackendIdentity {
         DRCBackendIdentity(
-            backendID: backendID,
+            backendID: "magic",
             implementationFamily: .magic,
             executableDigest: Self.fileDigest(at: toolchain.magicExecutableURL),
             ruleProgramDigest: Self.combinedFileDigest([
@@ -55,6 +56,7 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
     ) {
         self.toolchain = toolchain
         self.parser = parser
+        self.identity = Self.makeIdentity(toolchain: toolchain)
     }
 
     private static func fileDigest(at url: URL) -> String? {

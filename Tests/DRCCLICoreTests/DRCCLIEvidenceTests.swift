@@ -8,21 +8,21 @@ import LayoutTech
 
 
 extension DRCCLIOptionsTests {
-    @Test func corpusEvidenceOptionsParseCheckedAtAndEvidenceID() throws {
-        let options = try DRCCorpusEvidenceCLIOptions(arguments: [
-            "--evidence-from-corpus-report", "/tmp/drc-corpus-report.json",
-            "--evidence-id", "drc-release-corpus",
+    @Test func corpusObservationOptionsParseCheckedAtAndObservationID() throws {
+        let options = try DRCCorpusObservationCLIOptions(arguments: [
+            "--observations-from-corpus-report", "/tmp/drc-corpus-report.json",
+            "--observation-id", "drc-corpus-observation",
             "--checked-at", "2026-06-18T00:00:00Z",
             "--json",
         ])
 
         #expect(options.reportURL.path(percentEncoded: false) == "/tmp/drc-corpus-report.json")
-        #expect(options.evidenceID == "drc-release-corpus")
+        #expect(options.observationID == "drc-corpus-observation")
         #expect(options.checkedAt.timeIntervalSince1970 == 1_781_740_800)
         #expect(options.emitJSON)
     }
 
-    @Test func signedCorpusEvidenceCLIWritesVerifiableArtifact() async throws {
+    @Test func signedCorpusObservationCLIWritesVerifiableArtifact() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let outputDirectory = root.appending(path: "corpus-output")
@@ -41,7 +41,7 @@ extension DRCCLIOptionsTests {
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
 
         let evidenceExitCode = await DRCCLI.run(arguments: [
-            "--evidence-from-corpus-report", reportURL.path(percentEncoded: false),
+            "--observations-from-corpus-report", reportURL.path(percentEncoded: false),
             "--out", evidenceURL.path(percentEncoded: false),
             "--checked-at", "2026-06-18T00:00:00Z",
             "--require-signed-artifacts",
@@ -50,8 +50,8 @@ extension DRCCLIOptionsTests {
             "--json",
         ])
 
-        #expect(evidenceExitCode == 2)
-        #expect(try DRCCorpusToolEvidenceVerifier().verify(
+        #expect(evidenceExitCode == 0)
+        #expect(try DRCCorpusObservationVerifier().verify(
             evidenceURL: evidenceURL,
             reportURL: reportURL,
             requireSignature: true,
@@ -342,7 +342,7 @@ extension DRCCLIOptionsTests {
             totalDurationSeconds: sourceReport.totalDurationSeconds,
             runOptions: sourceReport.runOptions,
             summary: sourceReport.summary,
-            qualification: sourceReport.qualification,
+            assessment: sourceReport.assessment,
             caseResults: sourceReport.caseResults
         )
         let policy = DRCCorpusCoverageAuditPolicy(
@@ -429,7 +429,7 @@ extension DRCCLIOptionsTests {
             checkedAt: try date("2026-06-18T00:00:00Z")
         )
 
-        #expect(report.qualification.qualified)
+        #expect(report.assessment.meetsCriteria)
         #expect(audit.status == .incomplete)
         #expect(audit.summary.oracleReadinessBlockedCaseCount == 1)
         #expect(audit.missingRequirements.contains {
@@ -493,7 +493,7 @@ extension DRCCLIOptionsTests {
             summary: DRCCorpusCoverageAudit.Summary(
                 caseCount: 1,
                 matchedCaseCount: 2,
-                qualified: true,
+                meetsCriteria: true,
                 durationBudgetPassedCaseCount: 3,
                 durationBudgetPassRate: .infinity,
                 oracleCaseCount: 1,
@@ -619,7 +619,7 @@ extension DRCCLIOptionsTests {
         #expect(audit.summary.durationBudgetPassRate == 1)
     }
 
-    @Test func corpusToolEvidenceExportMatchesRuntimeEvidenceShape() throws {
+    @Test func corpusObservationExportMatchesRuntimeObservationShape() throws {
         let report = DRCCorpusReport(
             passed: true,
             caseCount: 2,
@@ -641,32 +641,33 @@ extension DRCCLIOptionsTests {
             caseResults: []
         )
 
-        let export = DRCCorpusToolEvidenceExport(
-            reportPath: "/tmp/drc-corpus-report.json",
-            reportSHA256: "abc123",
+        let reportSHA256 = String(repeating: "a", count: 64)
+        let reportByteCount: UInt64 = 123
+        let export = try DRCCorpusObservationExport(
+            reportPath: "drc-corpus-report.json",
+            reportSHA256: reportSHA256,
+            reportByteCount: reportByteCount,
             report: report,
-            evidenceID: "drc-release-corpus",
-            checkedAt: Date(timeIntervalSince1970: 1_781_740_800)
+            recordID: "drc-release-corpus",
+            observedAt: Date(timeIntervalSince1970: 1_781_740_800)
         )
 
-        #expect(export.status == "passed")
-        #expect(export.toolEvidence.evidenceID == "drc-release-corpus")
-        #expect(export.toolEvidence.kind == "corpus")
-        #expect(export.toolEvidence.checkedAt == "2026-06-18T00:00:00Z")
-        #expect(export.toolEvidence.artifact.kind == "report")
-        #expect(export.toolEvidence.artifact.format == "JSON")
-        #expect(export.toolEvidence.artifact.sha256 == "abc123")
-        #expect(export.toolEvidence.qualification.qualified)
-        #expect(export.toolEvidence.qualification.policyID == "strict")
-        #expect(export.toolEvidence.qualification.observedMetrics["passRate"] == 1)
-        #expect(export.toolEvidence.qualification.observedMetrics["durationBudgetPassRate"] == 1)
-        #expect(export.toolEvidence.qualification.observedMetrics["oracleAgreementRate"] == 1)
-        #expect(export.toolEvidence.qualification.observedCounts["caseCount"] == 2)
-        #expect(export.toolEvidence.qualification.observedCounts["coverageTagCount"] == 0)
-        #expect(export.toolEvidence.qualification.observedCounts["oracleReadinessBlockedCaseCount"] == 0)
-        #expect(export.toolEvidence.qualification.observedCounts["requiredCoverageTagCount"] == 0)
-        #expect(export.toolEvidence.qualification.observedCounts["coveredRequiredCoverageTagCount"] == 0)
-        #expect(export.toolEvidence.qualification.failureCodes.isEmpty)
+        #expect(export.observationRecord.recordID == "drc-release-corpus")
+        #expect(export.observationRecord.observedAt == "2026-06-18T00:00:00Z")
+        #expect(export.observationRecord.artifact.kind == .report)
+        #expect(export.observationRecord.artifact.format == .json)
+        #expect(export.observationRecord.artifact.sha256 == reportSHA256)
+        #expect(export.observationRecord.artifact.byteCount == reportByteCount)
+        #expect(export.observationRecord.observations.acceptanceCriteriaID == "strict")
+        #expect(export.observationRecord.observations.observedMetrics["passRate"] == 1)
+        #expect(export.observationRecord.observations.observedMetrics["durationBudgetPassRate"] == 1)
+        #expect(export.observationRecord.observations.observedMetrics["oracleAgreementRate"] == 1)
+        #expect(export.observationRecord.observations.observedCounts["caseCount"] == 2)
+        #expect(export.observationRecord.observations.observedCounts["coverageTagCount"] == 0)
+        #expect(export.observationRecord.observations.observedCounts["oracleReadinessBlockedCaseCount"] == 0)
+        #expect(export.observationRecord.observations.observedCounts["requiredCoverageTagCount"] == 0)
+        #expect(export.observationRecord.observations.observedCounts["coveredRequiredCoverageTagCount"] == 0)
+        #expect(export.observationRecord.observations.findingCodes.isEmpty)
     }
 
     @Test func corpusEvidencePacketBuildsAgentDecisionMaterial() throws {
@@ -921,7 +922,7 @@ extension DRCCLIOptionsTests {
         #expect(packet.validateIntegrity().isEmpty)
     }
 
-    @Test func corpusEvidenceCLIUsesQualificationForExitStatus() async throws {
+    @Test func corpusObservationCLIExportsFailedCorpusForReview() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let outputDirectory = root.appending(path: "corpus-output")
@@ -936,12 +937,12 @@ extension DRCCLIOptionsTests {
 
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
         let evidenceExitCode = await DRCCLI.run(arguments: [
-            "--evidence-from-corpus-report", reportURL.path(percentEncoded: false),
+            "--observations-from-corpus-report", reportURL.path(percentEncoded: false),
             "--checked-at", "2026-06-18T00:00:00Z",
             "--json",
         ])
 
-        #expect(evidenceExitCode == 2)
+        #expect(evidenceExitCode == 0)
     }
 
     private func date(_ string: String) throws -> Date {

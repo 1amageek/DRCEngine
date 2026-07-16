@@ -356,25 +356,25 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         )
         let nativeRules = try NativeDRCAntennaRuleFactory.makeRules(from: imported.report)
 
-        let blocked = NativeDRCAntennaQualification(
+        let blocked = NativeDRCAntennaAssessment(
             sourceReport: imported.report,
             nativeRules: nativeRules,
             oracleEvidence: nil
         )
-        #expect(blocked.qualified == false)
+        #expect(blocked.satisfied == false)
         #expect(blocked.failureCodes == ["oracle_evidence_missing", "independent_oracle_unverified"])
 
         let oracleEvidence = try makeOracleEvidence(
             report: imported.report,
             nativeRules: nativeRules
         )
-        let qualified = NativeDRCAntennaQualification(
+        let assessment = NativeDRCAntennaAssessment(
             sourceReport: imported.report,
             nativeRules: nativeRules,
             oracleEvidence: oracleEvidence
         )
-        #expect(qualified.qualified)
-        #expect(qualified.failureCodes.isEmpty)
+        #expect(assessment.satisfied)
+        #expect(assessment.failureCodes.isEmpty)
 
         let artifact = NativeDRCAntennaArtifact(
             sourceReport: imported.report,
@@ -382,11 +382,11 @@ struct Sky130MagicDRCLayoutTechImporterTests {
             oracleEvidence: nil
         )
         try artifact.validate()
-        #expect(artifact.qualification.qualified == false)
+        #expect(artifact.assessment.satisfied == false)
         #expect(artifact.nativeRules == nativeRules)
-        let requalifiedArtifact = artifact.applying(oracleEvidence: oracleEvidence)
-        try requalifiedArtifact.validate()
-        #expect(requalifiedArtifact.qualification.qualified)
+        let reassessedArtifact = artifact.applying(oracleEvidence: oracleEvidence)
+        try reassessedArtifact.validate()
+        #expect(reassessedArtifact.assessment.satisfied)
     }
 
     @Test func antennaModelDefaultMeasurementSupportsOmittedCalcType() {
@@ -516,7 +516,7 @@ struct Sky130MagicDRCLayoutTechImporterTests {
             NativeDRCAntennaArtifact.self,
             from: JSONSerialization.data(withJSONObject: object)
         )
-        #expect(throws: NativeDRCAntennaArtifact.ValidationError.qualificationInconsistent) {
+        #expect(throws: NativeDRCAntennaArtifact.ValidationError.assessmentInconsistent) {
             try missingThicknessArtifact.validate()
         }
     }
@@ -545,14 +545,14 @@ struct Sky130MagicDRCLayoutTechImporterTests {
             profile: profile
         )
         let rules = try NativeDRCAntennaRuleFactory.makeRules(from: imported.report)
-        let qualification = NativeDRCAntennaQualification(
+        let assessment = NativeDRCAntennaAssessment(
             sourceReport: imported.report,
             nativeRules: rules,
             oracleEvidence: nil
         )
 
-        #expect(qualification.qualified == false)
-        #expect(qualification.failureCodes.contains("source_antenna_diagnostic:magic_drc_antenna_thickness_conflict"))
+        #expect(assessment.satisfied == false)
+        #expect(assessment.failureCodes.contains("source_antenna_diagnostic:magic_drc_antenna_thickness_conflict"))
     }
 
     @Test func antennaOracleEvidenceRejectsNativeSelfQualification() {
@@ -1840,7 +1840,7 @@ struct Sky130MagicDRCLayoutTechImporterTests {
             technologyDigest: String(repeating: "c", count: 64),
             sourceDigest: try #require(report.sourceDigest),
             profileDigest: try #require(report.profileDigest),
-            nativeRuleDigest: try #require(NativeDRCAntennaQualification.nativeRuleDigest(nativeRules)),
+            nativeRuleDigest: try #require(NativeDRCAntennaAssessment.nativeRuleDigest(nativeRules)),
             layoutCorpusDigest: String(repeating: "d", count: 64),
             comparisonArtifactDigest: String(repeating: "e", count: 64),
             evaluatedCaseCount: 1,

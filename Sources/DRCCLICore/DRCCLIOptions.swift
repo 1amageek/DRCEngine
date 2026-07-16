@@ -11,7 +11,6 @@ public struct DRCCLIOptions: Sendable, Hashable {
     public let backendID: String?
     public let outputDirectory: URL
     public let timeoutSeconds: Double
-    public let requireApprovedWaivers: Bool
     public let requireSignedArtifacts: Bool
     public let requireAntennaRules: Bool
     public let trustedArtifactPublicKey: String?
@@ -28,7 +27,6 @@ public struct DRCCLIOptions: Sendable, Hashable {
         self.backendID = parsed.backendID
         self.outputDirectory = try parsed.requireOutputDirectory()
         self.timeoutSeconds = parsed.timeoutSeconds
-        self.requireApprovedWaivers = parsed.requireApprovedWaivers
         self.requireSignedArtifacts = parsed.requireSignedArtifacts
         self.requireAntennaRules = parsed.requireAntennaRules
         self.trustedArtifactPublicKey = parsed.trustedArtifactPublicKey
@@ -64,7 +62,6 @@ public struct DRCCLIOptions: Sendable, Hashable {
             backendSelection: DRCBackendSelection(backendID: resolvedBackendID),
             options: DRCOptions(
                 timeoutSeconds: timeoutSeconds,
-                requireApprovedWaivers: requireApprovedWaivers,
                 requireSignedArtifacts: requireSignedArtifacts,
                 trustedArtifactPublicKey: trustedArtifactPublicKey,
                 requireAntennaRules: requireAntennaRules
@@ -90,7 +87,6 @@ public struct DRCCLIOptions: Sendable, Hashable {
         var backendID: String?
         var outputDirectory: URL?
         var timeoutSeconds = 300.0
-        var requireApprovedWaivers = false
         var requireSignedArtifacts = false
         var requireAntennaRules = false
         var trustedArtifactPublicKey: String?
@@ -115,8 +111,6 @@ public struct DRCCLIOptions: Sendable, Hashable {
                 backendID = try cursor.requireNonEmptyValue(for: argument, expected: "non-empty backend identifier")
             case "--timeout":
                 timeoutSeconds = try Self.parseTimeout(try cursor.requireValue(for: argument), argument: argument)
-            case "--require-approved-waivers":
-                requireApprovedWaivers = true
             case "--require-signed-artifacts":
                 requireSignedArtifacts = true
             case "--require-antenna-rules":
@@ -313,23 +307,23 @@ public struct DRCCorpusCLIOptions: Sendable, Hashable {
     }
 }
 
-public struct DRCCorpusQualificationCLIOptions: Sendable, Hashable {
+public struct DRCCorpusAssessmentCLIOptions: Sendable, Hashable {
     public let reportURL: URL
-    public let qualificationPolicyURL: URL?
+    public let acceptanceCriteriaURL: URL?
     public let emitJSON: Bool
 
     public init(arguments: [String]) throws {
         var reportURL: URL?
-        var qualificationPolicyURL: URL?
+        var acceptanceCriteriaURL: URL?
         var emitJSON = false
         var index = 0
         while index < arguments.count {
             let argument = arguments[index]
             switch argument {
-            case "--qualify-corpus-report":
+            case "--assess-corpus-report":
                 reportURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
-            case "--qualification-policy":
-                qualificationPolicyURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
+            case "--acceptance-criteria":
+                acceptanceCriteriaURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
             case "--json":
                 emitJSON = true
             default:
@@ -337,9 +331,9 @@ public struct DRCCorpusQualificationCLIOptions: Sendable, Hashable {
             }
             index += 1
         }
-        guard let reportURL else { throw DRCCLIError.missingRequired("--qualify-corpus-report") }
+        guard let reportURL else { throw DRCCLIError.missingRequired("--assess-corpus-report") }
         self.reportURL = reportURL
-        self.qualificationPolicyURL = qualificationPolicyURL
+        self.acceptanceCriteriaURL = acceptanceCriteriaURL
         self.emitJSON = emitJSON
     }
 
@@ -458,10 +452,10 @@ public struct DRCCorpusCoverageAuditCLIOptions: Sendable, Hashable {
     }
 }
 
-public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
+public struct DRCCorpusObservationCLIOptions: Sendable, Hashable {
     public let reportURL: URL
     public let outputURL: URL?
-    public let evidenceID: String?
+    public let observationID: String?
     public let checkedAt: Date
     public let requireSignedArtifacts: Bool
     public let trustedArtifactPublicKey: String?
@@ -471,7 +465,7 @@ public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
     public init(arguments: [String], now: Date = Date()) throws {
         var reportURL: URL?
         var outputURL: URL?
-        var evidenceID: String?
+        var observationID: String?
         var checkedAt = now
         var requireSignedArtifacts = false
         var trustedArtifactPublicKey: String?
@@ -481,12 +475,12 @@ public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
         while index < arguments.count {
             let argument = arguments[index]
             switch argument {
-            case "--evidence-from-corpus-report":
+            case "--observations-from-corpus-report":
                 reportURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
             case "--out":
                 outputURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
-            case "--evidence-id":
-                evidenceID = try Self.value(after: argument, in: arguments, index: &index)
+            case "--observation-id":
+                observationID = try Self.value(after: argument, in: arguments, index: &index)
             case "--checked-at":
                 let value = try Self.value(after: argument, in: arguments, index: &index)
                 checkedAt = try Self.iso8601Date(argument: argument, value: value)
@@ -503,7 +497,7 @@ public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
             }
             index += 1
         }
-        guard let reportURL else { throw DRCCLIError.missingRequired("--evidence-from-corpus-report") }
+        guard let reportURL else { throw DRCCLIError.missingRequired("--observations-from-corpus-report") }
         if requireSignedArtifacts && artifactSigningPrivateKeyURL == nil {
             throw DRCCLIError.invalidValue(
                 argument: "--require-signed-artifacts",
@@ -520,7 +514,7 @@ public struct DRCCorpusEvidenceCLIOptions: Sendable, Hashable {
         }
         self.reportURL = reportURL
         self.outputURL = outputURL
-        self.evidenceID = evidenceID
+        self.observationID = observationID
         self.checkedAt = checkedAt
         self.requireSignedArtifacts = requireSignedArtifacts
         self.trustedArtifactPublicKey = trustedArtifactPublicKey
@@ -805,8 +799,8 @@ public struct DRCFoundryRuleImportCLIOptions: Sendable, Hashable {
     }
 }
 
-public struct DRCNativeAntennaQualificationCLIOptions: Sendable, Hashable {
-    public static let qualificationFlag = "--qualify-native-antenna"
+public struct DRCNativeAntennaAssessmentCLIOptions: Sendable, Hashable {
+    public static let assessmentFlag = "--assess-native-antenna"
 
     public let artifactURL: URL
     public let oracleEvidenceURL: URL
@@ -815,8 +809,8 @@ public struct DRCNativeAntennaQualificationCLIOptions: Sendable, Hashable {
 
     public init(arguments: [String]) throws {
         let parsed = try Self.parseArguments(arguments)
-        guard parsed.sawQualification else {
-            throw DRCCLIError.missingRequired(Self.qualificationFlag)
+        guard parsed.sawAssessment else {
+            throw DRCCLIError.missingRequired(Self.assessmentFlag)
         }
         guard let artifactURL = parsed.artifactURL else {
             throw DRCCLIError.missingRequired("--native-antenna-artifact")
@@ -834,7 +828,7 @@ public struct DRCNativeAntennaQualificationCLIOptions: Sendable, Hashable {
     }
 
     private struct ParsedArguments {
-        var sawQualification = false
+        var sawAssessment = false
         var artifactURL: URL?
         var oracleEvidenceURL: URL?
         var outputURL: URL?
@@ -842,8 +836,8 @@ public struct DRCNativeAntennaQualificationCLIOptions: Sendable, Hashable {
 
         mutating func apply(_ argument: String, cursor: inout DRCCLIArgumentCursor) throws {
             switch argument {
-            case DRCNativeAntennaQualificationCLIOptions.qualificationFlag:
-                sawQualification = true
+            case DRCNativeAntennaAssessmentCLIOptions.assessmentFlag:
+                sawAssessment = true
             case "--native-antenna-artifact":
                 artifactURL = URL(filePath: try cursor.requireNonEmptyValue(for: argument, expected: "non-empty path"))
             case "--oracle-evidence":

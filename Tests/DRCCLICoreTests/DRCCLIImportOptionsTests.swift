@@ -55,9 +55,9 @@ extension DRCCLIOptionsTests {
         #expect(options.environment(overriding: [:])["PDK_ROOT"] == "/tmp/pdks")
     }
 
-    @Test func nativeAntennaQualificationOptionsParseInputs() throws {
-        let options = try DRCNativeAntennaQualificationCLIOptions(arguments: [
-            "--qualify-native-antenna",
+    @Test func nativeAntennaAssessmentOptionsParseInputs() throws {
+        let options = try DRCNativeAntennaAssessmentCLIOptions(arguments: [
+            "--assess-native-antenna",
             "--native-antenna-artifact", "/tmp/native-antenna-artifact.json",
             "--oracle-evidence", "/tmp/magic-oracle-evidence.json",
             "--out", "/tmp/native-antenna-qualified.json",
@@ -421,9 +421,9 @@ extension DRCCLIOptionsTests {
         let operationIDs = Set(snapshot.operations.map(\.operationID))
         #expect(operationIDs.contains("drc.run-native"))
         #expect(operationIDs.contains("drc.export-repair-hints"))
-        #expect(operationIDs.contains("drc.qualify-corpus"))
+        #expect(operationIDs.contains("drc.assess-corpus"))
         #expect(operationIDs.contains("drc.import-foundry-rule-seed"))
-        #expect(operationIDs.contains("drc.qualify-native-antenna"))
+        #expect(operationIDs.contains("drc.assess-native-antenna"))
         #expect(snapshot.operations.allSatisfy { !$0.inputRefs.isEmpty && !$0.producedArtifacts.isEmpty })
 
         let nativeRun = try #require(snapshot.operations.first { $0.operationID == "drc.run-native" })
@@ -1007,11 +1007,11 @@ extension DRCCLIOptionsTests {
         #expect(artifact.profileID == profile.profileID)
         #expect(artifact.sourceAntennaRules.count == 1)
         #expect(artifact.nativeRules.count == 1)
-        #expect(artifact.qualification.qualified == false)
-        #expect(artifact.qualification.failureCodes == ["oracle_evidence_missing", "independent_oracle_unverified"])
+        #expect(artifact.assessment.satisfied == false)
+        #expect(artifact.assessment.failureCodes == ["oracle_evidence_missing", "independent_oracle_unverified"])
     }
 
-    @Test func nativeAntennaQualificationCLIRebindsOracleEvidence() async throws {
+    @Test func nativeAntennaAssessmentCLIRebindsOracleEvidence() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let artifactURL = root.appending(path: "native-antenna-artifact.json")
@@ -1064,7 +1064,7 @@ extension DRCCLIOptionsTests {
             technologyDigest: String(repeating: "e", count: 64),
             sourceDigest: try #require(artifact.sourceDigest),
             profileDigest: try #require(artifact.profileDigest),
-            nativeRuleDigest: try #require(artifact.qualification.nativeRuleDigest),
+            nativeRuleDigest: try #require(artifact.assessment.nativeRuleDigest),
             layoutCorpusDigest: String(repeating: "f", count: 64),
             comparisonArtifactDigest: String(repeating: "0", count: 64),
             evaluatedCaseCount: 1,
@@ -1075,7 +1075,7 @@ extension DRCCLIOptionsTests {
         try writeJSON(evidence, to: evidenceURL)
 
         let invocation = await DRCCLI.invoke(arguments: [
-            "--qualify-native-antenna",
+            "--assess-native-antenna",
             "--native-antenna-artifact", artifactURL.path(percentEncoded: false),
             "--oracle-evidence", evidenceURL.path(percentEncoded: false),
             "--out", outputURL.path(percentEncoded: false),
@@ -1084,17 +1084,17 @@ extension DRCCLIOptionsTests {
 
         #expect(invocation.exitCode == 0)
         let output = try JSONDecoder().decode(
-            DRCNativeAntennaQualificationCLIOutput.self,
+            DRCNativeAntennaAssessmentCLIOutput.self,
             from: Data(invocation.standardOutput.utf8)
         )
-        let qualifiedArtifact = try JSONDecoder().decode(
+        let reassessedArtifact = try JSONDecoder().decode(
             NativeDRCAntennaArtifact.self,
             from: Data(contentsOf: outputURL)
         )
-        try qualifiedArtifact.validate()
-        #expect(output.status == "qualified")
-        #expect(output.qualification.qualified)
-        #expect(qualifiedArtifact.qualification.oracleEvidence?.oracleID == "magic")
+        try reassessedArtifact.validate()
+        #expect(output.status == "satisfied")
+        #expect(output.assessment.satisfied)
+        #expect(reassessedArtifact.assessment.oracleEvidence?.oracleID == "magic")
     }
 
     @Test func magicRuleImportCLIWritesLayoutTechFromCatalogEntry() async throws {
@@ -1206,11 +1206,11 @@ extension DRCCLIOptionsTests {
         #expect(operationIDs.contains("drc.run-native"))
         #expect(operationIDs.contains("drc.inspect-foundry-deck-semantics"))
         #expect(operationIDs.contains("drc.import-foundry-rule-seed"))
-        #expect(operationIDs.contains("drc.qualify-native-antenna"))
+        #expect(operationIDs.contains("drc.assess-native-antenna"))
         #expect(operationIDs.contains("drc.export-repair-hints"))
-        #expect(operationIDs.contains("drc.qualify-corpus"))
+        #expect(operationIDs.contains("drc.assess-corpus"))
         #expect(operationIDs.contains("drc.audit-corpus-coverage"))
-        #expect(operationIDs.contains("drc.export-tool-evidence"))
+        #expect(operationIDs.contains("drc.export-corpus-observations"))
         #expect(operationIDs.contains("drc.export-evidence-packet"))
         #expect(operationIDs.contains("drc.waiver-review"))
         #expect(!operationIDs.contains("drc.diagnostic-to-repair-objective"))

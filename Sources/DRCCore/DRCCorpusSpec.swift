@@ -2,20 +2,20 @@ public struct DRCCorpusSpec: Sendable, Hashable, Codable {
     public let schemaVersion: Int
     public let defaultMaxDurationSeconds: Double?
     public let evidenceKind: DRCCorpusEvidenceKind
-    public let qualificationPolicy: DRCCorpusQualificationPolicy
+    public let acceptanceCriteria: DRCCorpusAcceptanceCriteria
     public let cases: [DRCCorpusCase]
 
     public init(
         schemaVersion: Int = 1,
         defaultMaxDurationSeconds: Double? = nil,
         evidenceKind: DRCCorpusEvidenceKind = .regression,
-        qualificationPolicy: DRCCorpusQualificationPolicy = .strict,
+        acceptanceCriteria: DRCCorpusAcceptanceCriteria = .strict,
         cases: [DRCCorpusCase]
     ) {
         self.schemaVersion = schemaVersion
         self.defaultMaxDurationSeconds = defaultMaxDurationSeconds
         self.evidenceKind = evidenceKind
-        self.qualificationPolicy = qualificationPolicy
+        self.acceptanceCriteria = acceptanceCriteria
         self.cases = cases
     }
 
@@ -23,7 +23,7 @@ public struct DRCCorpusSpec: Sendable, Hashable, Codable {
         case schemaVersion
         case defaultMaxDurationSeconds
         case evidenceKind
-        case qualificationPolicy
+        case acceptanceCriteria
         case cases
     }
 
@@ -32,17 +32,17 @@ public struct DRCCorpusSpec: Sendable, Hashable, Codable {
         schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         defaultMaxDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .defaultMaxDurationSeconds)
         evidenceKind = try container.decodeIfPresent(DRCCorpusEvidenceKind.self, forKey: .evidenceKind) ?? .regression
-        qualificationPolicy = try container.decodeIfPresent(
-            DRCCorpusQualificationPolicy.self,
-            forKey: .qualificationPolicy
+        acceptanceCriteria = try container.decodeIfPresent(
+            DRCCorpusAcceptanceCriteria.self,
+            forKey: .acceptanceCriteria
         ) ?? .strict
         cases = try container.decode([DRCCorpusCase].self, forKey: .cases)
     }
 
-    public var effectiveQualificationPolicy: DRCCorpusQualificationPolicy {
-        guard evidenceKind == .independentCorrelation, !qualificationPolicy.requireIndependentOracle else {
-            return qualificationPolicy
+    public var effectiveAcceptanceCriteria: DRCCorpusAcceptanceCriteria {
+        guard evidenceKind == .independentCorrelation, !acceptanceCriteria.requireIndependentOracle else {
+            return acceptanceCriteria
         }
-        return qualificationPolicy.with(requireIndependentOracle: true)
+        return acceptanceCriteria.with(requireIndependentOracle: true)
     }
 }

@@ -11,7 +11,7 @@ public extension DRCCorpusSpec {
             )
         }
         try validateDuration(defaultMaxDurationSeconds, field: "defaultMaxDurationSeconds")
-        try qualificationPolicy.validate()
+        try acceptanceCriteria.validate()
 
         var caseIDs: Set<String> = []
         var namespaceIDs: [String: String] = [:]

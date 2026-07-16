@@ -401,7 +401,7 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
         artifactRefs: [DRCEvidenceArtifactRef]
     ) -> [DRCEvidenceDiagnostic] {
         var values: [DRCEvidenceDiagnostic] = []
-        for failure in report.qualification.failures {
+        for failure in report.assessment.findings {
             values.append(DRCEvidenceDiagnostic(
                 diagnosticID: "qualification:\(failure.code)",
                 severity: .error,
@@ -563,7 +563,7 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
                 limitationCount: diagnostics.count
             )
         }
-        if report.qualification.qualified {
+        if report.assessment.meetsCriteria {
             return DRCEvidenceConfidence(
                 level: .high,
                 reason: "The DRC corpus is qualified under its policy.",
@@ -633,7 +633,7 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
             "oracleExecutionFailedCaseCount": report.summary.oracleExecutionFailedCaseCount,
             "oracleReadinessBlockedCaseCount": report.summary.oracleReadinessBlockedCaseCount,
             "coverageTagCount": report.summary.coverageTagCounts.count,
-            "qualificationFailureCount": report.qualification.failures.count,
+            "qualificationFailureCount": report.assessment.findings.count,
         ]
     }
 
@@ -710,7 +710,7 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
         case "oracle_agreement", "coverage_gap", "expectation_mismatch", "rule_set_mismatch", "corpus_gate":
             return .medium
         default:
-            return report.qualification.qualified ? .low : .medium
+            return report.assessment.meetsCriteria ? .low : .medium
         }
     }
 

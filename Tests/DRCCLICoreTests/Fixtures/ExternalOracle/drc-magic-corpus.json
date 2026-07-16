@@ -1,7 +1,7 @@
 {
   "schemaVersion" : 1,
   "defaultMaxDurationSeconds" : 30,
-  "qualificationPolicy" : {
+  "acceptanceCriteria" : {
     "requireIndependentOracle" : true,
     "requiredCoverageTags" : ["external.magic", "layout.gds", "sky130"]
   },

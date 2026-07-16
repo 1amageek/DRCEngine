@@ -14,18 +14,18 @@ public struct DRCCorpusReportCombiner: Sendable {
         let evidenceKind: DRCCorpusEvidenceKind = evidenceKinds.count == 1
             ? (evidenceKinds.first ?? .regression)
             : .regression
-        let qualificationPolicy = DRCCorpusQualificationPolicy.strict.with(
+        let acceptanceCriteria = DRCCorpusAcceptanceCriteria.strict.with(
             requireIndependentOracle: evidenceKind == .independentCorrelation
         )
-        let baseQualification = qualificationPolicy.evaluate(
+        let baseAssessment = acceptanceCriteria.evaluate(
             passed: passed,
             caseCount: caseResults.count,
             summary: summary,
             completed: completed
         )
-        let sourceFailures = reports.enumerated().flatMap { index, report in
-            report.qualification.qualified ? [] : [
-                DRCCorpusQualificationFailure(
+        let sourceFindings = reports.enumerated().flatMap { index, report in
+            report.assessment.meetsCriteria ? [] : [
+                DRCCorpusAssessmentFinding(
                     code: "included_report_not_qualified",
                     message: "One or more source corpus reports did not qualify.",
                     observedCount: index,
@@ -37,9 +37,9 @@ public struct DRCCorpusReportCombiner: Sendable {
             .filter { $0.value.count > 1 }
             .keys
             .sorted()
-        var combinationFailures = sourceFailures
+        var combinationFindings = sourceFindings
         if evidenceKinds.count > 1 {
-            combinationFailures.append(DRCCorpusQualificationFailure(
+            combinationFindings.append(DRCCorpusAssessmentFinding(
                 code: "mixed_evidence_kinds",
                 message: "Corpus reports with different evidence kinds cannot be combined into one qualification lane.",
                 observedCount: evidenceKinds.count,
@@ -49,7 +49,7 @@ public struct DRCCorpusReportCombiner: Sendable {
             ))
         }
         if !duplicateCaseIDs.isEmpty {
-            combinationFailures.append(DRCCorpusQualificationFailure(
+            combinationFindings.append(DRCCorpusAssessmentFinding(
                 code: "duplicate_case_ids",
                 message: "Combined corpus reports contain duplicate case IDs.",
                 observedCount: duplicateCaseIDs.count,
@@ -71,10 +71,10 @@ public struct DRCCorpusReportCombiner: Sendable {
             evidenceKind: evidenceKind,
             runOptions: primaryReport.runOptions,
             summary: summary,
-            qualificationPolicy: qualificationPolicy,
-            qualification: DRCCorpusQualificationResult(
-                policy: qualificationPolicy,
-                failures: baseQualification.failures + combinationFailures
+            acceptanceCriteria: acceptanceCriteria,
+            assessment: DRCCorpusAssessment(
+                criteria: acceptanceCriteria,
+                findings: baseAssessment.findings + combinationFindings
             ),
             caseResults: caseResults
         )

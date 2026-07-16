@@ -132,8 +132,8 @@ public enum DRCCLI {
         if arguments.contains("--inspect-magic-rule-import-catalog") {
             return try runMagicRuleImportCatalogInventory(arguments: arguments, writer: writer)
         }
-        if arguments.contains(DRCNativeAntennaQualificationCLIOptions.qualificationFlag) {
-            return try runNativeAntennaQualification(arguments: arguments, writer: writer)
+        if arguments.contains(DRCNativeAntennaAssessmentCLIOptions.assessmentFlag) {
+            return try runNativeAntennaAssessment(arguments: arguments, writer: writer)
         }
         if arguments.contains("--import-magic-rules") {
             return try runMagicRuleImport(arguments: arguments, writer: writer)
@@ -162,11 +162,11 @@ public enum DRCCLI {
         if arguments.contains("--evidence-packet-from-corpus-report") {
             return try runEvidencePacket(arguments: arguments, writer: writer)
         }
-        if arguments.contains("--evidence-from-corpus-report") {
-            return try runCorpusEvidence(arguments: arguments, writer: writer)
+        if arguments.contains("--observations-from-corpus-report") {
+            return try runCorpusObservation(arguments: arguments, writer: writer)
         }
-        if arguments.contains("--qualify-corpus-report") {
-            return try runCorpusQualification(arguments: arguments, writer: writer)
+        if arguments.contains("--assess-corpus-report") {
+            return try runCorpusAssessment(arguments: arguments, writer: writer)
         }
         if arguments.contains("--corpus") {
             return try await runCorpus(arguments: arguments, writer: writer)
@@ -197,11 +197,11 @@ public enum DRCCLI {
         return writer.result(exitCode: options.requirePassed && inventory.status != .passed ? 2 : 0)
     }
 
-    private static func runNativeAntennaQualification(
+    private static func runNativeAntennaAssessment(
         arguments: [String],
         writer: DRCCLIOutputWriter
     ) throws -> DRCCLIInvocationResult {
-        let options = try DRCNativeAntennaQualificationCLIOptions(arguments: arguments)
+        let options = try DRCNativeAntennaAssessmentCLIOptions(arguments: arguments)
         let decoder = JSONDecoder()
         let artifact = try decoder.decode(
             NativeDRCAntennaArtifact.self,
@@ -213,13 +213,13 @@ public enum DRCCLI {
             from: Data(contentsOf: options.oracleEvidenceURL)
         )
         try oracleEvidence.validate()
-        let qualifiedArtifact = artifact.applying(oracleEvidence: oracleEvidence)
-        try qualifiedArtifact.validate()
-        try writeJSON(qualifiedArtifact, to: options.outputURL)
-        let output = DRCNativeAntennaQualificationCLIOutput(
+        let assessedArtifact = artifact.applying(oracleEvidence: oracleEvidence)
+        try assessedArtifact.validate()
+        try writeJSON(assessedArtifact, to: options.outputURL)
+        let output = DRCNativeAntennaAssessmentCLIOutput(
             artifactPath: options.artifactURL.path(percentEncoded: false),
             outputPath: options.outputURL.path(percentEncoded: false),
-            qualification: qualifiedArtifact.qualification
+            assessment: assessedArtifact.assessment
         )
         if options.emitJSON {
             try emit(output: output, json: true, writer: writer)
@@ -228,7 +228,7 @@ public enum DRCCLI {
             writer.writeStandardOutputLine("artifact=\(output.artifactPath)")
             writer.writeStandardOutputLine("output=\(output.outputPath)")
         }
-        return writer.result(exitCode: qualifiedArtifact.qualification.qualified ? 0 : 2)
+        return writer.result(exitCode: assessedArtifact.assessment.satisfied ? 0 : 2)
     }
 
     private static func runMagicRuleImport(
@@ -244,7 +244,7 @@ public enum DRCCLI {
             profileDigest: sha256(data: profileData)
         )
         let nativeAntennaArtifact: NativeDRCAntennaArtifact?
-        let nativeAntennaQualification: NativeDRCAntennaQualification?
+        let nativeAntennaAssessment: NativeDRCAntennaAssessment?
         if options.nativeAntennaOutputURL != nil {
             let rules = try NativeDRCAntennaRuleFactory.makeRules(from: importResult.report)
             let artifact = NativeDRCAntennaArtifact(
@@ -254,10 +254,10 @@ public enum DRCCLI {
             )
             try artifact.validate()
             nativeAntennaArtifact = artifact
-            nativeAntennaQualification = artifact.qualification
+            nativeAntennaAssessment = artifact.assessment
         } else {
             nativeAntennaArtifact = nil
-            nativeAntennaQualification = nil
+            nativeAntennaAssessment = nil
         }
         try writeMagicRuleImportArtifacts(
             importResult,
@@ -267,7 +267,7 @@ public enum DRCCLI {
         let output = magicRuleImportOutput(
             options: options,
             importResult: importResult,
-            nativeAntennaQualification: nativeAntennaQualification
+            nativeAntennaAssessment: nativeAntennaAssessment
         )
         try emitMagicRuleImportOutput(output, json: options.emitJSON, writer: writer)
         return writer.result(exitCode: magicRuleImportExitCode(importResult, allowPartial: options.allowPartial))
@@ -393,7 +393,7 @@ public enum DRCCLI {
         let loadedReport = try loadCorpusReport(from: options.reportURL)
         let packet = DRCCorpusEvidencePacketBuilder().build(
             report: loadedReport.report,
-            reportPath: options.reportURL.path(percentEncoded: false),
+            reportPath: options.reportURL.lastPathComponent,
             reportSHA256: sha256(data: loadedReport.data),
             packetID: options.packetID,
             allowedArtifactRootPath: options.reportURL.deletingLastPathComponent().path(percentEncoded: false)
@@ -406,26 +406,27 @@ public enum DRCCLI {
         return writer.result(exitCode: 0)
     }
 
-    private static func runCorpusEvidence(
+    private static func runCorpusObservation(
         arguments: [String],
         writer: DRCCLIOutputWriter
     ) throws -> DRCCLIInvocationResult {
-        let options = try DRCCorpusEvidenceCLIOptions(arguments: arguments)
+        let options = try DRCCorpusObservationCLIOptions(arguments: arguments)
         let loadedReport = try loadCorpusReport(from: options.reportURL)
-        let unsignedOutput = DRCCorpusToolEvidenceExport(
-            reportPath: options.reportURL.path(percentEncoded: false),
+        let unsignedOutput = try DRCCorpusObservationExport(
+            reportPath: options.reportURL.lastPathComponent,
             reportSHA256: sha256(data: loadedReport.data),
+            reportByteCount: UInt64(loadedReport.data.count),
             report: loadedReport.report,
-            evidenceID: options.evidenceID,
-            checkedAt: options.checkedAt
+            recordID: options.observationID,
+            observedAt: options.checkedAt
         )
-        let output: DRCCorpusToolEvidenceExport
+        let output: DRCCorpusObservationExport
         if let signer = try options.makeSigner() {
             output = try unsignedOutput.signed(using: signer)
         } else {
             output = unsignedOutput
         }
-        let integrityIssues = try DRCCorpusToolEvidenceVerifier().verify(
+        let integrityIssues = try DRCCorpusObservationVerifier().verify(
             output,
             reportURL: options.reportURL,
             requireSignature: options.requireSignedArtifacts,
@@ -440,18 +441,18 @@ public enum DRCCLI {
             try writeJSON(output, to: outputURL)
         }
         try emitCorpusEvidence(output, json: options.emitJSON, writer: writer)
-        return writer.result(exitCode: output.toolEvidence.qualification.qualified ? 0 : 2)
+        return writer.result(exitCode: 0)
     }
 
-    private static func runCorpusQualification(
+    private static func runCorpusAssessment(
         arguments: [String],
         writer: DRCCLIOutputWriter
     ) throws -> DRCCLIInvocationResult {
-        let options = try DRCCorpusQualificationCLIOptions(arguments: arguments)
+        let options = try DRCCorpusAssessmentCLIOptions(arguments: arguments)
         let report = try loadCorpusReport(from: options.reportURL).report
-        let qualification = try corpusQualification(report: report, options: options)
-        try emitCorpusQualification(report: report, qualification: qualification, options: options, writer: writer)
-        return writer.result(exitCode: qualification.qualified ? 0 : 2)
+        let assessment = try corpusAssessment(report: report, options: options)
+        try emitCorpusAssessment(report: report, assessment: assessment, options: options, writer: writer)
+        return writer.result(exitCode: assessment.meetsCriteria ? 0 : 2)
     }
 
     private static func runCorpus(
@@ -468,7 +469,7 @@ public enum DRCCLI {
             options: options.runOptions
         )
         try emitCorpus(report, options: options, writer: writer)
-        return writer.result(exitCode: report.qualification.qualified ? 0 : 2)
+        return writer.result(exitCode: report.assessment.meetsCriteria ? 0 : 2)
     }
 
     private static func runDefaultDRC(
@@ -508,13 +509,13 @@ public enum DRCCLI {
     private static func magicRuleImportOutput(
         options: DRCMagicRuleImportCLIOptions,
         importResult: MagicDRCLayoutTechImport,
-        nativeAntennaQualification: NativeDRCAntennaQualification? = nil
+        nativeAntennaAssessment: NativeDRCAntennaAssessment? = nil
     ) -> DRCMagicRuleImportCLIOutput {
         DRCMagicRuleImportCLIOutput(
             technologyPath: options.technologyOutputURL.path(percentEncoded: false),
             reportPath: options.reportOutputURL?.path(percentEncoded: false),
             nativeAntennaPath: options.nativeAntennaOutputURL?.path(percentEncoded: false),
-            nativeAntennaQualification: nativeAntennaQualification,
+            nativeAntennaAssessment: nativeAntennaAssessment,
             sourcePath: options.magicTechURL.path(percentEncoded: false),
             profilePath: options.profileURL.path(percentEncoded: false),
             profileResourceName: options.profileResourceName,
@@ -640,7 +641,7 @@ public enum DRCCLI {
             technologyPath: options.technologyOutputURL.path(percentEncoded: false),
             reportPath: options.reportOutputURL?.path(percentEncoded: false),
             nativeAntennaPath: options.nativeAntennaOutputURL?.path(percentEncoded: false),
-            nativeAntennaQualification: nativeAntennaArtifact?.qualification,
+            nativeAntennaAssessment: nativeAntennaArtifact?.assessment,
             semanticReport: semanticReport,
             importReport: importResult.report
         )
@@ -692,20 +693,20 @@ public enum DRCCLI {
         return LoadedCorpusReport(data: reportData, report: report)
     }
 
-    private static func corpusQualification(
+    private static func corpusAssessment(
         report: DRCCorpusReport,
-        options: DRCCorpusQualificationCLIOptions
-    ) throws -> DRCCorpusQualificationResult {
+        options: DRCCorpusAssessmentCLIOptions
+    ) throws -> DRCCorpusAssessment {
         let derivedSummary = DRCCorpusSummary(caseResults: report.caseResults)
-        guard let qualificationPolicyURL = options.qualificationPolicyURL else {
-            return report.qualification.policy.evaluate(
+        guard let acceptanceCriteriaURL = options.acceptanceCriteriaURL else {
+            return report.assessment.criteria.evaluate(
                 passed: report.passed,
                 caseCount: report.caseCount,
                 summary: derivedSummary
             )
         }
-        let policyData = try Data(contentsOf: qualificationPolicyURL)
-        let policy = try JSONDecoder().decode(DRCCorpusQualificationPolicy.self, from: policyData)
+        let policyData = try Data(contentsOf: acceptanceCriteriaURL)
+        let policy = try JSONDecoder().decode(DRCCorpusAcceptanceCriteria.self, from: policyData)
         return policy.evaluate(passed: report.passed, caseCount: report.caseCount, summary: derivedSummary)
     }
 
@@ -844,7 +845,7 @@ public enum DRCCLI {
     }
 
     private static func emitCorpusEvidence(
-        _ output: DRCCorpusToolEvidenceExport,
+        _ output: DRCCorpusObservationExport,
         json: Bool,
         writer: DRCCLIOutputWriter
     ) throws {
@@ -852,30 +853,30 @@ public enum DRCCLI {
             try emit(output: output, json: true, writer: writer)
             return
         }
-        writer.writeStandardOutputLine("status=\(output.status)")
-        writer.writeStandardOutputLine("evidence_id=\(output.toolEvidence.evidenceID)")
+        writer.writeStandardOutputLine("status=observed")
+        writer.writeStandardOutputLine("record_id=\(output.observationRecord.recordID)")
         writer.writeStandardOutputLine("report=\(output.reportPath)")
     }
 
-    private static func emitCorpusQualification(
+    private static func emitCorpusAssessment(
         report: DRCCorpusReport,
-        qualification: DRCCorpusQualificationResult,
-        options: DRCCorpusQualificationCLIOptions,
+        assessment: DRCCorpusAssessment,
+        options: DRCCorpusAssessmentCLIOptions,
         writer: DRCCLIOutputWriter
     ) throws {
         if options.emitJSON {
-            let output = DRCCorpusQualificationCLIOutput(
+            let output = DRCCorpusAssessmentCLIOutput(
                 reportPath: options.reportURL.path(percentEncoded: false),
                 report: report,
-                qualification: qualification
+                assessment: assessment
             )
             try emit(output: output, json: true, writer: writer)
             return
         }
-        writer.writeStandardOutputLine("status=\(qualification.qualified ? "passed" : "failed")")
+        writer.writeStandardOutputLine("status=\(assessment.meetsCriteria ? "passed" : "failed")")
         writer.writeStandardOutputLine("report=\(options.reportURL.path(percentEncoded: false))")
-        if !qualification.failures.isEmpty {
-            writer.writeStandardOutputLine("failures=\(qualification.failures.map(\.code).joined(separator: ","))")
+        if !assessment.findings.isEmpty {
+            writer.writeStandardOutputLine("findings=\(assessment.findings.map(\.code).joined(separator: ","))")
         }
     }
 
@@ -890,7 +891,7 @@ public enum DRCCLI {
             try emit(output: output, json: true, writer: writer)
             return
         }
-        writer.writeStandardOutputLine("status=\(report.qualification.qualified ? "passed" : "failed")")
+        writer.writeStandardOutputLine("status=\(report.assessment.meetsCriteria ? "passed" : "failed")")
         writer.writeStandardOutputLine("report=\(reportURL.path(percentEncoded: false))")
     }
 

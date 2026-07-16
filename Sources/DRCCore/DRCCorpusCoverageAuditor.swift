@@ -26,7 +26,7 @@ public struct DRCCorpusCoverageAuditor: Sendable {
             missingRequirements.append(missingRequirement)
         }
 
-        if policy.requireQualifiedCorpus, !report.qualification.qualified {
+        if policy.requireQualifiedCorpus, !report.assessment.meetsCriteria {
             missingRequirements.append(DRCCorpusCoverageAudit.MissingRequirement(
                 requirementID: "qualified-corpus",
                 title: "Qualified corpus",
@@ -174,7 +174,7 @@ public struct DRCCorpusCoverageAuditor: Sendable {
             summary: DRCCorpusCoverageAudit.Summary(
                 caseCount: report.caseCount,
                 matchedCaseCount: report.matchedCaseCount,
-                qualified: report.qualification.qualified,
+                meetsCriteria: report.assessment.meetsCriteria,
                 durationBudgetPassedCaseCount: report.summary.durationBudgetPassedCaseCount,
                 durationBudgetPassRate: durationBudgetPassRate,
                 oracleCaseCount: report.summary.oracleCaseCount,

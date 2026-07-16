@@ -541,7 +541,7 @@ struct DefaultDRCEngineTests {
         #expect(result.oracleResult?.agreementPassed == false)
         #expect(result.oracleComparison?.markerSetMatched == false)
         #expect(result.oracleComparison?.mismatchReasons.contains("marker_set_mismatch") == true)
-        #expect(report.qualification.qualified == false)
+        #expect(report.assessment.meetsCriteria == false)
     }
 
     @Test func corpusRunnerWritesCaseFailureWhenPrimaryBackendIsUnavailable() async throws {

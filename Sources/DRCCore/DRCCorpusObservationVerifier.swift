@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-public struct DRCCorpusToolEvidenceVerifier: Sendable {
+public struct DRCCorpusObservationVerifier: Sendable {
     public init() {}
 
     public func verify(
@@ -18,9 +18,9 @@ public struct DRCCorpusToolEvidenceVerifier: Sendable {
                 "Could not read DRC corpus evidence '\(evidenceURL.path(percentEncoded: false))': \(error.localizedDescription)"
             )
         }
-        let evidence: DRCCorpusToolEvidenceExport
+        let evidence: DRCCorpusObservationExport
         do {
-            evidence = try JSONDecoder().decode(DRCCorpusToolEvidenceExport.self, from: evidenceData)
+            evidence = try JSONDecoder().decode(DRCCorpusObservationExport.self, from: evidenceData)
         } catch {
             throw DRCError.invalidInput(
                 "Could not decode DRC corpus evidence '\(evidenceURL.path(percentEncoded: false))': \(error.localizedDescription)"
@@ -35,7 +35,7 @@ public struct DRCCorpusToolEvidenceVerifier: Sendable {
     }
 
     public func verify(
-        _ evidence: DRCCorpusToolEvidenceExport,
+        _ evidence: DRCCorpusObservationExport,
         reportURL: URL,
         requireSignature: Bool = false,
         trustedPublicKey: String? = nil
@@ -50,11 +50,8 @@ public struct DRCCorpusToolEvidenceVerifier: Sendable {
         if evidence.reportPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             issues.append(.init(code: "empty-report-path", message: "DRC corpus evidence reportPath must not be empty."))
         }
-        if evidence.toolEvidence.evidenceID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            issues.append(.init(code: "empty-evidence-id", message: "DRC corpus evidenceID must not be empty."))
-        }
-        if evidence.toolEvidence.kind != "corpus" {
-            issues.append(.init(code: "invalid-evidence-kind", message: "DRC corpus tool evidence kind must be 'corpus'."))
+        if evidence.observationRecord.recordID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            issues.append(.init(code: "empty-record-id", message: "DRC corpus observation recordID must not be empty."))
         }
 
         let reportData: Data
@@ -76,18 +73,7 @@ public struct DRCCorpusToolEvidenceVerifier: Sendable {
         try report.validateEvidence()
 
         let reportSHA256 = sha256(reportData)
-        guard let declaredReportSHA256 = evidence.reportSHA256 else {
-            issues.append(.init(
-                code: "report-sha256-missing",
-                message: "DRC corpus evidence must include the report SHA-256 digest."
-            ))
-            return verifySignature(
-                evidence,
-                requireSignature: requireSignature,
-                trustedPublicKey: trustedPublicKey,
-                issues: issues
-            )
-        }
+        let declaredReportSHA256 = evidence.reportSHA256
         if !isValidSHA256(declaredReportSHA256) {
             issues.append(.init(
                 code: "invalid-report-sha256",
@@ -99,49 +85,54 @@ public struct DRCCorpusToolEvidenceVerifier: Sendable {
                 message: "DRC corpus evidence reportSHA256 does not match the supplied report."
             ))
         }
-        if evidence.toolEvidence.artifact.path != evidence.reportPath {
+        if evidence.observationRecord.artifact.path != evidence.reportPath {
             issues.append(.init(
                 code: "report-path-mismatch",
                 message: "DRC corpus evidence report reference does not match reportPath."
             ))
         }
-        if URL(filePath: evidence.reportPath).standardizedFileURL.path(percentEncoded: false)
+        if reportURL.deletingLastPathComponent().appending(path: evidence.reportPath)
+            .standardizedFileURL.path(percentEncoded: false)
             != reportURL.standardizedFileURL.path(percentEncoded: false) {
             issues.append(.init(
                 code: "report-url-mismatch",
                 message: "DRC corpus evidence reportPath does not identify the supplied reportURL."
             ))
         }
-        if evidence.toolEvidence.artifact.sha256 != declaredReportSHA256 {
+        if evidence.observationRecord.artifact.digest.hexadecimalValue != declaredReportSHA256 {
             issues.append(.init(
                 code: "artifact-sha256-mismatch",
                 message: "DRC corpus evidence artifact digest does not match reportSHA256."
             ))
         }
 
-        let expected = DRCCorpusToolEvidenceExport(
+        let expected = try DRCCorpusObservationExport(
             reportPath: evidence.reportPath,
             reportSHA256: reportSHA256,
+            reportByteCount: UInt64(reportData.count),
             report: report,
-            evidenceID: evidence.toolEvidence.evidenceID,
-            checkedAt: Date(timeIntervalSince1970: 0)
+            recordID: evidence.observationRecord.recordID,
+            observedAt: Date(timeIntervalSince1970: 0)
         )
-        if evidence.status != expected.status {
-            issues.append(.init(code: "status-mismatch", message: "DRC corpus evidence status is stale."))
-        }
         if evidence.summary != expected.summary {
             issues.append(.init(code: "summary-mismatch", message: "DRC corpus evidence summary is stale."))
         }
-        if evidence.toolEvidence.qualification != expected.toolEvidence.qualification {
+        if evidence.observationRecord.observations != expected.observationRecord.observations {
             issues.append(.init(
-                code: "qualification-mismatch",
-                message: "DRC corpus evidence qualification is stale or tampered."
+                code: "observations-mismatch",
+                message: "DRC corpus observations are stale or tampered."
             ))
         }
-        if evidence.toolEvidence.checkedAt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            issues.append(.init(code: "checked-at-missing", message: "DRC corpus evidence checkedAt must not be empty."))
-        } else if ISO8601DateFormatter().date(from: evidence.toolEvidence.checkedAt) == nil {
-            issues.append(.init(code: "checked-at-invalid", message: "DRC corpus evidence checkedAt must be ISO-8601."))
+        if evidence.observationRecord.observedAt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            issues.append(.init(code: "observed-at-missing", message: "DRC corpus observation observedAt must not be empty."))
+        } else if ISO8601DateFormatter().date(from: evidence.observationRecord.observedAt) == nil {
+            issues.append(.init(code: "observed-at-invalid", message: "DRC corpus observation observedAt must be ISO-8601."))
+        }
+        if evidence.reportArtifact.byteCount != UInt64(reportData.count) {
+            issues.append(.init(
+                code: "report-byte-count-mismatch",
+                message: "DRC corpus observation artifact byte count does not match the supplied report."
+            ))
         }
 
         return verifySignature(
@@ -153,7 +144,7 @@ public struct DRCCorpusToolEvidenceVerifier: Sendable {
     }
 
     private func verifySignature(
-        _ evidence: DRCCorpusToolEvidenceExport,
+        _ evidence: DRCCorpusObservationExport,
         requireSignature: Bool,
         trustedPublicKey: String?,
         issues: [DRCCorpusEvidenceIntegrityIssue]

@@ -10,8 +10,8 @@ public struct DRCActionDomainExporter: Sendable {
                 exportRepairHintsOperation(),
                 inspectFoundryDeckSemanticsOperation(),
                 importFoundryRuleSeedOperation(),
-                qualifyNativeAntennaOperation(),
-                qualifyCorpusOperation(),
+                assessNativeAntennaOperation(),
+                assessCorpusOperation(),
                 auditCorpusCoverageOperation(),
                 exportEvidenceOperation(),
                 exportEvidencePacketOperation(),
@@ -77,9 +77,9 @@ public struct DRCActionDomainExporter: Sendable {
         )
     }
 
-    private func qualifyCorpusOperation() -> DRCActionDomainOperation {
+    private func assessCorpusOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
-            operationID: "drc.qualify-corpus",
+            operationID: "drc.assess-corpus",
             maturity: "preview-verified",
             inputRefs: ["drc-corpus-spec", "optional-oracle-backend"],
             preconditions: ["corpus-spec-valid", "coverage-tags-declared"],
@@ -90,9 +90,9 @@ public struct DRCActionDomainExporter: Sendable {
         )
     }
 
-    private func qualifyNativeAntennaOperation() -> DRCActionDomainOperation {
+    private func assessNativeAntennaOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
-            operationID: "drc.qualify-native-antenna",
+            operationID: "drc.assess-native-antenna",
             maturity: "available-unqualified",
             inputRefs: ["drc-native-antenna-artifact", "drc-antenna-oracle-evidence"],
             preconditions: ["native-antenna-artifact-readable", "oracle-evidence-readable", "digest-bindings-match"],
@@ -118,13 +118,13 @@ public struct DRCActionDomainExporter: Sendable {
 
     private func exportEvidenceOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
-            operationID: "drc.export-tool-evidence",
-            maturity: "available-unqualified",
+            operationID: "drc.export-corpus-observations",
+            maturity: "implemented",
             inputRefs: ["drc-corpus-report"],
-            preconditions: ["qualified-corpus-report-readable"],
-            effects: ["tool-evidence-produced"],
-            producedArtifacts: ["drc-tool-evidence-export"],
-            verificationGates: ["tool-evidence-qualification"],
+            preconditions: ["corpus-report-readable"],
+            effects: ["corpus-observation-export-produced"],
+            producedArtifacts: ["drc-corpus-observation-export"],
+            verificationGates: ["artifact-integrity", "observation-schema"],
             reversible: true
         )
     }

@@ -4,7 +4,7 @@ import DRCCore
 
 @Suite("DRC independent oracle audit")
 struct DRCIndependentOracleAuditTests {
-    @Test func qualificationPolicyPersistsAndFailsIndependentOracleGate() throws {
+    @Test func acceptanceCriteriaPersistsAndFailsIndependentOracleGate() throws {
         let summary = DRCDiagnosticSummary(infoCount: 0, warningCount: 0, errorCount: 0)
         let oracle = DRCCorpusOracleResult(
             backendID: "magic",
@@ -44,16 +44,16 @@ struct DRCIndependentOracleAuditTests {
         )
 
         #expect(report.summary.nonIndependentOracleCaseCount == 1)
-        let policy = DRCCorpusQualificationPolicy(requireIndependentOracle: true)
+        let policy = DRCCorpusAcceptanceCriteria(requireIndependentOracle: true)
         let qualification = policy.evaluate(
             passed: report.passed,
             caseCount: report.caseCount,
             summary: report.summary
         )
-        #expect(qualification.failures.contains { $0.code == "independent_oracle_failed" })
+        #expect(qualification.findings.contains { $0.code == "independent_oracle_failed" })
 
         let data = try JSONEncoder().encode(policy)
-        let decoded = try JSONDecoder().decode(DRCCorpusQualificationPolicy.self, from: data)
+        let decoded = try JSONDecoder().decode(DRCCorpusAcceptanceCriteria.self, from: data)
         #expect(decoded.requireIndependentOracle)
     }
 

@@ -59,7 +59,7 @@ public struct DRCCorpusRunner: Sendable {
         let report = makeReport(
             caseResults: caseResults,
             options: options,
-            qualificationPolicy: spec.effectiveQualificationPolicy,
+            acceptanceCriteria: spec.effectiveAcceptanceCriteria,
             evidenceKind: spec.evidenceKind,
             runID: runID,
             parentRunID: resumedReport?.runID,
@@ -433,7 +433,7 @@ public struct DRCCorpusRunner: Sendable {
     private func makeReport(
         caseResults: [DRCCorpusCaseResult],
         options: DRCCorpusRunOptions,
-        qualificationPolicy: DRCCorpusQualificationPolicy,
+        acceptanceCriteria: DRCCorpusAcceptanceCriteria,
         evidenceKind: DRCCorpusEvidenceKind,
         runID: String?,
         parentRunID: String?,
@@ -453,7 +453,7 @@ public struct DRCCorpusRunner: Sendable {
             totalDurationSeconds: caseResults.reduce(0) { $0 + $1.durationSeconds },
             evidenceKind: evidenceKind,
             runOptions: options,
-            qualificationPolicy: qualificationPolicy,
+            acceptanceCriteria: acceptanceCriteria,
             caseResults: caseResults
         )
     }
@@ -471,7 +471,7 @@ public struct DRCCorpusRunner: Sendable {
         let report = makeReport(
             caseResults: caseResults,
             options: options,
-            qualificationPolicy: spec.effectiveQualificationPolicy,
+            acceptanceCriteria: spec.effectiveAcceptanceCriteria,
             evidenceKind: spec.evidenceKind,
             runID: runID,
             parentRunID: parentRunID,

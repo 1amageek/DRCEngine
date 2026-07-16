@@ -2,21 +2,21 @@ import Foundation
 import DRCEngine
 import SignoffToolSupport
 
-public struct DRCNativeAntennaQualificationCLIOutput: Sendable, Hashable, Codable {
+public struct DRCNativeAntennaAssessmentCLIOutput: Sendable, Hashable, Codable {
     public let status: String
     public let artifactPath: String
     public let outputPath: String
-    public let qualification: NativeDRCAntennaQualification
+    public let assessment: NativeDRCAntennaAssessment
 
     public init(
         artifactPath: String,
         outputPath: String,
-        qualification: NativeDRCAntennaQualification
+        assessment: NativeDRCAntennaAssessment
     ) {
-        self.status = qualification.status.rawValue
+        self.status = assessment.status.rawValue
         self.artifactPath = artifactPath
         self.outputPath = outputPath
-        self.qualification = qualification
+        self.assessment = assessment
     }
 }
 
@@ -25,7 +25,7 @@ public struct DRCMagicRuleImportCLIOutput: Sendable, Hashable, Codable {
     public let technologyPath: String
     public let reportPath: String?
     public let nativeAntennaPath: String?
-    public let nativeAntennaQualification: NativeDRCAntennaQualification?
+    public let nativeAntennaAssessment: NativeDRCAntennaAssessment?
     public let sourcePath: String
     public let profilePath: String
     public let profileResourceName: String?
@@ -39,7 +39,7 @@ public struct DRCMagicRuleImportCLIOutput: Sendable, Hashable, Codable {
         technologyPath: String,
         reportPath: String?,
         nativeAntennaPath: String? = nil,
-        nativeAntennaQualification: NativeDRCAntennaQualification? = nil,
+        nativeAntennaAssessment: NativeDRCAntennaAssessment? = nil,
         sourcePath: String,
         profilePath: String,
         profileResourceName: String? = nil,
@@ -53,7 +53,7 @@ public struct DRCMagicRuleImportCLIOutput: Sendable, Hashable, Codable {
         self.technologyPath = technologyPath
         self.reportPath = reportPath
         self.nativeAntennaPath = nativeAntennaPath
-        self.nativeAntennaQualification = nativeAntennaQualification
+        self.nativeAntennaAssessment = nativeAntennaAssessment
         self.sourcePath = sourcePath
         self.profilePath = profilePath
         self.profileResourceName = profileResourceName
@@ -70,7 +70,7 @@ public struct DRCFoundryRuleImportCLIOutput: Sendable, Hashable, Codable {
     public let technologyPath: String?
     public let reportPath: String?
     public let nativeAntennaPath: String?
-    public let nativeAntennaQualification: NativeDRCAntennaQualification?
+    public let nativeAntennaAssessment: NativeDRCAntennaAssessment?
     public let semanticReport: SignoffDeckSemanticReport
     public let importReport: MagicDRCLayoutTechImportReport?
 
@@ -78,7 +78,7 @@ public struct DRCFoundryRuleImportCLIOutput: Sendable, Hashable, Codable {
         technologyPath: String?,
         reportPath: String?,
         nativeAntennaPath: String? = nil,
-        nativeAntennaQualification: NativeDRCAntennaQualification? = nil,
+        nativeAntennaAssessment: NativeDRCAntennaAssessment? = nil,
         semanticReport: SignoffDeckSemanticReport,
         importReport: MagicDRCLayoutTechImportReport?
     ) {
@@ -86,27 +86,27 @@ public struct DRCFoundryRuleImportCLIOutput: Sendable, Hashable, Codable {
         self.technologyPath = technologyPath
         self.reportPath = reportPath
         self.nativeAntennaPath = nativeAntennaPath
-        self.nativeAntennaQualification = nativeAntennaQualification
+        self.nativeAntennaAssessment = nativeAntennaAssessment
         self.semanticReport = semanticReport
         self.importReport = importReport
     }
 }
 
-public struct DRCCorpusQualificationCLIOutput: Sendable, Hashable, Codable {
+public struct DRCCorpusAssessmentCLIOutput: Sendable, Hashable, Codable {
     public let status: String
     public let reportPath: String
     public let summary: DRCCorpusSummary
-    public let qualification: DRCCorpusQualificationResult
+    public let assessment: DRCCorpusAssessment
 
     public init(
         reportPath: String,
         report: DRCCorpusReport,
-        qualification: DRCCorpusQualificationResult
+        assessment: DRCCorpusAssessment
     ) {
-        self.status = qualification.qualified ? "passed" : "failed"
+        self.status = assessment.meetsCriteria ? "passed" : "failed"
         self.reportPath = reportPath
         self.summary = report.summary
-        self.qualification = qualification
+        self.assessment = assessment
     }
 }
 
@@ -116,7 +116,7 @@ public struct DRCCorpusCLIOutput: Sendable, Hashable, Codable {
     public let report: DRCCorpusReport
 
     public init(reportPath: String, report: DRCCorpusReport) {
-        self.status = report.qualification.qualified ? "passed" : "failed"
+        self.status = report.assessment.meetsCriteria ? "passed" : "failed"
         self.reportPath = reportPath
         self.report = report
     }

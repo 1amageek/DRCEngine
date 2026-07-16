@@ -125,16 +125,6 @@ public extension DRCWaiver {
                 ]
             ))
         }
-        if let approval,
-           let message = approval.validationMessage() {
-            issues.append(DRCWaiverValidationIssue(
-                code: "drc_waiver_approval_invalid",
-                waiverID: normalizedID.isEmpty ? nil : normalizedID,
-                fieldPath: "\(fieldPathPrefix).approval",
-                message: message,
-                suggestedActions: ["fix_drc_waiver_approval_metadata"]
-            ))
-        }
         return issues
     }
 

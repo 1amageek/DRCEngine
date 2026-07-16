@@ -23,7 +23,7 @@ struct DRCIndependentOracleQualificationTests {
         """.write(to: layoutURL, atomically: true, encoding: .utf8)
         try writeJSON(DRCCorpusSpec(
             evidenceKind: .independentCorrelation,
-            qualificationPolicy: DRCCorpusQualificationPolicy(
+            acceptanceCriteria: DRCCorpusAcceptanceCriteria(
                 requireIndependentOracle: true,
                 requiredCoverageTags: ["drc.width"]
             ),
@@ -46,7 +46,7 @@ struct DRCIndependentOracleQualificationTests {
             IndependentReferenceBackend(),
         ])).run(specURL: specURL, outputDirectory: outputDirectory)
 
-        #expect(report.qualification.qualified)
+        #expect(report.assessment.meetsCriteria)
         #expect(report.summary.oracleCaseCount == 1)
         #expect(report.summary.oracleAgreementPassedCaseCount == 1)
         #expect(report.summary.nonIndependentOracleCaseCount == 0)

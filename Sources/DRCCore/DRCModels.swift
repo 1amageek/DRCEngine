@@ -11,7 +11,6 @@ public struct DRCBackendSelection: Sendable, Hashable, Codable {
 public struct DRCOptions: Sendable, Hashable, Codable {
     public let timeoutSeconds: Double
     public let additionalEnvironment: [String: String]
-    public let requireApprovedWaivers: Bool
     public let requireSignedArtifacts: Bool
     public let trustedArtifactPublicKey: String?
     /// Require a technology deck to contain explicit antenna rules before a
@@ -21,14 +20,12 @@ public struct DRCOptions: Sendable, Hashable, Codable {
     public init(
         timeoutSeconds: Double = 300,
         additionalEnvironment: [String: String] = [:],
-        requireApprovedWaivers: Bool = false,
         requireSignedArtifacts: Bool = false,
         trustedArtifactPublicKey: String? = nil,
         requireAntennaRules: Bool = false
     ) {
         self.timeoutSeconds = timeoutSeconds
         self.additionalEnvironment = additionalEnvironment
-        self.requireApprovedWaivers = requireApprovedWaivers
         self.requireSignedArtifacts = requireSignedArtifacts
         self.trustedArtifactPublicKey = trustedArtifactPublicKey
         self.requireAntennaRules = requireAntennaRules
@@ -37,7 +34,6 @@ public struct DRCOptions: Sendable, Hashable, Codable {
     private enum CodingKeys: String, CodingKey {
         case timeoutSeconds
         case additionalEnvironment
-        case requireApprovedWaivers
         case requireSignedArtifacts
         case trustedArtifactPublicKey
         case requireAntennaRules
@@ -47,7 +43,6 @@ public struct DRCOptions: Sendable, Hashable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.timeoutSeconds = try container.decodeIfPresent(Double.self, forKey: .timeoutSeconds) ?? 300
         self.additionalEnvironment = try container.decodeIfPresent([String: String].self, forKey: .additionalEnvironment) ?? [:]
-        self.requireApprovedWaivers = try container.decodeIfPresent(Bool.self, forKey: .requireApprovedWaivers) ?? false
         self.requireSignedArtifacts = try container.decodeIfPresent(Bool.self, forKey: .requireSignedArtifacts) ?? false
         self.trustedArtifactPublicKey = try container.decodeIfPresent(String.self, forKey: .trustedArtifactPublicKey)
         self.requireAntennaRules = try container.decodeIfPresent(Bool.self, forKey: .requireAntennaRules) ?? false
@@ -504,7 +499,6 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
     public let layer: String?
     public let relatedShapeIDs: [String]
     public let messageContains: String?
-    public let approval: DRCWaiverApproval?
 
     public init(
         id: String,
@@ -513,8 +507,7 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         kind: String? = nil,
         layer: String? = nil,
         relatedShapeIDs: [String] = [],
-        messageContains: String? = nil,
-        approval: DRCWaiverApproval? = nil
+        messageContains: String? = nil
     ) {
         self.id = id
         self.reason = reason
@@ -523,7 +516,6 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         self.layer = layer
         self.relatedShapeIDs = relatedShapeIDs
         self.messageContains = messageContains
-        self.approval = approval
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -534,7 +526,6 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         case layer
         case relatedShapeIDs
         case messageContains
-        case approval
     }
 
     public init(from decoder: Decoder) throws {
@@ -546,7 +537,6 @@ public struct DRCWaiver: Sendable, Hashable, Codable {
         layer = try container.decodeIfPresent(String.self, forKey: .layer)
         relatedShapeIDs = try container.decodeIfPresent([String].self, forKey: .relatedShapeIDs) ?? []
         messageContains = try container.decodeIfPresent(String.self, forKey: .messageContains)
-        approval = try container.decodeIfPresent(DRCWaiverApproval.self, forKey: .approval)
     }
 }
 

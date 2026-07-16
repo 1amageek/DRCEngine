@@ -21,7 +21,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "Retained corpus reports can be audited through DRCCorpusCoverageAuditor and drcengine --audit-corpus-coverage to expose missing Magic oracle coverage, blocked readiness, duration-budget, and standard-input dimensions without prescribing a fixed repair flow.",
                 "Foundry deck semantic inspection is exposed through drcengine --foundry-deck-semantics and the signoff-foundry-deck-semantics artifact contract.",
                 "Generic Magic DRC LayoutTech seed import is exposed through the MagicDRCLayoutTechImporter API and drcengine --import-magic-rules with either explicit --magic-tech plus one of --profile or --profile-resource, or a catalog selector via --catalog, --catalog-id, --pdk-id, --profile-id, and optional --pdk-root; all paths emit structured JSON provenance.",
-                "Installed foundry Magic DRC import is exposed through drcengine --import-foundry-magic-rules using signoff profile readiness plus an explicit or bundled Magic LayoutTech import profile; the same route can emit the provenance-bound NativeDRCAntennaArtifact with --native-antenna-out, and a retained independent comparison can be attached through --qualify-native-antenna.",
+                "Installed foundry Magic DRC import is exposed through drcengine --import-foundry-magic-rules using signoff profile readiness plus an explicit or bundled Magic LayoutTech import profile; the same route can emit the provenance-bound NativeDRCAntennaArtifact with --native-antenna-out, and a retained independent comparison can be attached through --assess-native-antenna.",
                 "Magic rule import catalog readiness is inspectable before import through drcengine --inspect-magic-rule-import-catalog with explicit --catalog inputs or bounded --pdk-root discovery, producing a drc-magic-rule-import-catalog-inventory JSON artifact with required-file and bundled-profile-resource status.",
                 "Sky130 Magic DRC width, same-layer spacing, cross-layer spacing, area, notch, rect-only, angle, surround enclosure, same-layer widespacing, overhang extension, exact-overlap including one-of secondary layer sets, MiM derived-layer, Sky130 hole-empty cifmaxwidth rules, dependency-ordered templayer marker materialization for and/or/and-not/xor/grow/grow-min/shrink/bridge/close operations, non-hole cifmaxwidth forbidden-marker source contracts, and generic Magic-deck minimum-cut/cut-count source policies can be imported into a partial LayoutTechDatabase seed through the generic drcengine --import-magic-rules catalog/profile-resource path or drcengine --import-foundry-magic-rules with Magic types/aliases layer-expression expansion, source contact-stack connectivity, unique stack inference for cut/count source policy lines, derived via/contact definitions, derived minimum-cut seed rules, sourceCutLayerNames/sourceCutAliasCount, sourceContactStacks/sourceContactStackCount, sourceContactDefinitionIDs/sourceContactDefinitionCount, sourceExactOverlapRules/sourceExactOverlapRuleCount, sourceEnclosedHoleRules/sourceEnclosedHoleRuleCount evidence, sourceForbiddenMarkerRules/sourceForbiddenMarkerRuleCount evidence, sourceTempLayerDefinitions/sourceTempLayerOperationCounts evidence, sourceTempLayerMaterializedRuleIDs/sourceTempLayerMaterializedRuleCount evidence, sourceMinimumCutPolicies/sourceMinimumCutPolicyCount evidence, sourceAntennaRules/sourceAntennaRuleCount/sourceAntennaThicknesses evidence for Magic sidewall/surface declarations, and NativeDRCAntennaRuleFactory lowering through drcengine --native-antenna-out; LayoutSpacingRule records, LayoutDerivedLayerRule records, LayoutExactOverlapRule records, allowedAngleStepDegrees records, minEnclosedArea records, LayoutMinimumCutRule minimumCount records, and an auditable drc-foundry-rule-import-report.",
                 "Diagnostics carry rule, layer, measured/required values, region, related shape/net IDs, waiver state, and suggested fix fields.",
@@ -30,7 +30,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "DefaultDRCEngine validates top-cell, backend identity, timeout, and POSIX environment contracts before backend lookup or execution, enforces the timeout cooperatively for in-process backends, and persists the resolved backend identity into result and manifest artifacts.",
                 "Persisted DRC artifact manifests are verified against real files, path containment, byte counts, SHA-256 digests, resolved verdicts, request digests, environment digests, and artifact-root commitments before a run is returned; DRCArtifactManifestVerifier is also available for downstream artifact gates.",
                 "Artifact manifests support canonical Ed25519 signatures with an injected DRCArtifactSigner, trusted public-key verification, and CLI key-file wiring; signed-artifact requests fail closed when the trust root is absent or invalid.",
-                "Corpus tool evidence can be signed with the same DRCArtifactSigner and revalidated against the current corpus report through DRCCorpusToolEvidenceVerifier, including report digest and recomputed qualification.",
+                "Corpus tool evidence can be signed with the same DRCArtifactSigner and revalidated against the current corpus report through DRCCorpusObservationVerifier, including report digest and recomputed qualification.",
                 "Native JSON inputs reject empty or duplicated rectangle/rule IDs, non-finite coordinates and parameters, and non-positive rectangle dimensions before physical rule evaluation; release-gated antenna runs additionally require NativeDRCAntennaMetadata completeness attestations and reject net-bearing antenna conductors without positive gate-area annotations.",
                 "Corpus report consumers validate schema, case counts, result identity, duration values, and duplicate case IDs before qualification or coverage audit; coverage audit may intentionally recompute a retained summary from case results.",
                 "Independent-correlation corpus evidence compares normalized diagnostic marker fingerprints (rule, kind, layer, region, and related IDs); regression evidence keeps the legacy rule-ID contract.",
@@ -219,13 +219,13 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 verdictFields: ["summary.status", "summary.passed", "summary.completed", "summary.diagnosticSummary"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
-                artifactID: "drc-corpus-tool-evidence",
+                artifactID: "drc-corpus-observation-export",
                 format: "json",
-                producer: "DRCCore.DRCCorpusToolEvidenceExport",
+                producer: "DRCCore.DRCCorpusObservationExport",
                 consumer: ["Agent", "Human review", "CI", "DesignFlowKernel"],
                 integrityEvidenceFields: ["reportPath", "reportSHA256", "summary", "qualification", "signature"],
-                currentnessVerifier: "DRCCorpusToolEvidenceVerifier",
-                verdictFields: ["status", "toolEvidence.qualification.qualified", "toolEvidence.qualification.failureCodes"]
+                currentnessVerifier: "DRCCorpusObservationVerifier",
+                verdictFields: ["observationRecord.observations", "summary", "reportSHA256"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "drc-repair-hints",
@@ -299,8 +299,8 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
             cliFlag: "--corpus",
             committedSpecPath: "Tests/DRCCLICoreTests/Fixtures/DRCCorpus/drc-corpus.json",
             reportArtifact: "drc-corpus-report.json",
-            evidenceExportFlag: "--evidence-from-corpus-report",
-            qualificationPolicy: "strict unless overridden by corpus spec or --qualification-policy",
+            evidenceExportFlag: "--observations-from-corpus-report",
+            acceptanceCriteria: "strict unless overridden by corpus spec or --acceptance-criteria",
             requiredCoverageTags: [
                 "drc.antenna",
                 "drc.antenna.cumulative",

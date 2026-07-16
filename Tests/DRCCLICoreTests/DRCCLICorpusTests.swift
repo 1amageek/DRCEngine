@@ -85,8 +85,8 @@ extension DRCCLIOptionsTests {
         #expect(report.summary.coverageTagCounts["drc.enclosure"] == 2)
         #expect(report.summary.coverageTagCounts["drc.enclosure.composite"] == 1)
         #expect(report.summary.coverageTagCounts["drc.waiver"] == 1)
-        #expect(!report.qualification.qualified)
-        #expect(report.qualification.policy.requiredCoverageTags == [
+        #expect(!report.assessment.meetsCriteria)
+        #expect(report.assessment.criteria.requiredCoverageTags == [
             "drc.antenna",
             "drc.antenna.cumulative",
             "drc.antenna.detailed",
@@ -138,7 +138,7 @@ extension DRCCLIOptionsTests {
             "drc.width",
             "drc.width.maximum",
         ])
-        #expect(report.qualification.failures.map(\.code).contains("corpus_not_passed"))
+        #expect(report.assessment.findings.map(\.code).contains("corpus_not_passed"))
         #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
         #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 10 })
         #expect(report.caseResults.allSatisfy {
@@ -403,10 +403,9 @@ extension DRCCLIOptionsTests {
         })
     }
 
-    // The retained Sky130 Magic corpus launches one external process per case.
-    // Keep the test timeout above the serialized six-case runtime so a busy
-    // host cannot turn a valid oracle regression into a partial corpus report.
-    @Test(.timeLimit(.minutes(2)))
+    // Each retained Sky130 case launches one bounded external process. The
+    // package test runner supplies the stricter suite-level deadline.
+    @Test(.timeLimit(.minutes(1)))
     func magicNativeViaSpacingCorpusCasesRunAgainstMagicOracle() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
@@ -475,8 +474,8 @@ extension DRCCLIOptionsTests {
         #expect(cases.count == magicNativeViaCaseExpectations.count)
 
         try writeJSON(DRCCorpusSpec(
-            defaultMaxDurationSeconds: 20,
-            qualificationPolicy: DRCCorpusQualificationPolicy(
+            defaultMaxDurationSeconds: 8,
+            acceptanceCriteria: DRCCorpusAcceptanceCriteria(
                 minimumOracleCaseCount: magicNativeViaCaseExpectations.count,
                 minimumOracleAgreementRate: 1,
                 requiredCoverageTags: magicNativeViaRequiredCoverageTags
@@ -519,7 +518,7 @@ extension DRCCLIOptionsTests {
             expectedPassed: corpusCase.expectedPassed,
             expectedActiveErrorRuleIDs: corpusCase.expectedActiveErrorRuleIDs,
             coverageTags: corpusCase.coverageTags,
-            maxDurationSeconds: 20
+            maxDurationSeconds: 8
         )
     }
 
@@ -531,7 +530,7 @@ extension DRCCLIOptionsTests {
 
     private func assertMagicNativeViaSpacingSummary(_ report: DRCCorpusReport) {
         #expect(!report.passed)
-        #expect(!report.qualification.qualified)
+        #expect(!report.assessment.meetsCriteria)
         #expect(report.caseCount == 6)
         #expect(report.matchedCaseCount == 0)
         #expect(report.summary.oracleCaseCount == 6)
@@ -540,7 +539,7 @@ extension DRCCLIOptionsTests {
         for (tag, count) in magicNativeViaExpectedCoverageCounts {
             #expect(report.summary.coverageTagCounts[tag] == count)
         }
-        #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 20 })
+        #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 8 })
         #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
         #expect(report.caseResults.allSatisfy {
             $0.failureReasons.contains("oracle_agreement_mismatch")
@@ -703,8 +702,8 @@ extension DRCCLIOptionsTests {
         #expect(report.summary.passRate == 0)
         #expect(report.summary.failureCategoryCounts["duration_exceeded"] == 1)
         #expect(report.summary.oracleCaseCount == 0)
-        #expect(!report.qualification.qualified)
-        let failureCodes = Set(report.qualification.failures.map(\.code))
+        #expect(!report.assessment.meetsCriteria)
+        let failureCodes = Set(report.assessment.findings.map(\.code))
         #expect(failureCodes.contains("corpus_not_passed"))
         #expect(failureCodes.contains("pass_rate_below_minimum"))
         #expect(failureCodes.contains("duration_budget_pass_rate_below_minimum"))
@@ -721,7 +720,7 @@ extension DRCCLIOptionsTests {
         let specURL = root.appending(path: "threshold-corpus.json")
         try writeJSON(DRCCorpusSpec(
             defaultMaxDurationSeconds: 0.000000000001,
-            qualificationPolicy: DRCCorpusQualificationPolicy(
+            acceptanceCriteria: DRCCorpusAcceptanceCriteria(
                 requireCorpusPassed: false,
                 minimumPassRate: 0,
                 minimumDurationBudgetPassRate: 0
@@ -748,9 +747,9 @@ extension DRCCLIOptionsTests {
         let report = try JSONDecoder().decode(DRCCorpusReport.self, from: Data(contentsOf: reportURL))
         #expect(!report.passed)
         #expect(report.summary.failureCategoryCounts["duration_exceeded"] == 1)
-        #expect(report.qualification.qualified)
-        #expect(!report.qualification.policy.requireCorpusPassed)
-        #expect(report.qualification.policy.minimumDurationBudgetPassRate == 0)
+        #expect(report.assessment.meetsCriteria)
+        #expect(!report.assessment.criteria.requireCorpusPassed)
+        #expect(report.assessment.criteria.minimumDurationBudgetPassRate == 0)
     }
 
     @Test func corpusCLIRequiresCoverageTagsForQualification() async throws {
@@ -759,7 +758,7 @@ extension DRCCLIOptionsTests {
         let outputDirectory = root.appending(path: "corpus-output")
         let specURL = root.appending(path: "coverage-corpus.json")
         try writeJSON(DRCCorpusSpec(
-            qualificationPolicy: DRCCorpusQualificationPolicy(
+            acceptanceCriteria: DRCCorpusAcceptanceCriteria(
                 requiredCoverageTags: ["drc.clean", "drc.spacing"]
             ),
             cases: [
@@ -785,7 +784,7 @@ extension DRCCLIOptionsTests {
         let report = try JSONDecoder().decode(DRCCorpusReport.self, from: Data(contentsOf: reportURL))
         #expect(report.passed)
         #expect(report.summary.coverageTagCounts == ["drc.clean": 1])
-        let failure = try #require(report.qualification.failures.first { $0.code == "required_coverage_missing" })
+        let failure = try #require(report.assessment.findings.first { $0.code == "required_coverage_missing" })
         #expect(failure.observedCount == 1)
         #expect(failure.requiredCount == 2)
         #expect(failure.observedText == "drc.clean")
@@ -808,20 +807,20 @@ extension DRCCLIOptionsTests {
 
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
         let embeddedExitCode = await DRCCLI.run(arguments: [
-            "--qualify-corpus-report", reportURL.path(percentEncoded: false),
+            "--assess-corpus-report", reportURL.path(percentEncoded: false),
             "--json",
         ])
         #expect(embeddedExitCode == 2)
 
-        try writeJSON(DRCCorpusQualificationPolicy(
+        try writeJSON(DRCCorpusAcceptanceCriteria(
             requireCorpusPassed: false,
             minimumPassRate: 0,
             minimumDurationBudgetPassRate: 0
         ), to: policyURL)
 
         let overriddenExitCode = await DRCCLI.run(arguments: [
-            "--qualify-corpus-report", reportURL.path(percentEncoded: false),
-            "--qualification-policy", policyURL.path(percentEncoded: false),
+            "--assess-corpus-report", reportURL.path(percentEncoded: false),
+            "--acceptance-criteria", policyURL.path(percentEncoded: false),
             "--json",
         ])
         #expect(overriddenExitCode == 0)

@@ -15,7 +15,7 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
     public let evidenceKind: DRCCorpusEvidenceKind
     public let runOptions: DRCCorpusRunOptions
     public let summary: DRCCorpusSummary
-    public let qualification: DRCCorpusQualificationResult
+    public let assessment: DRCCorpusAssessment
     public let caseResults: [DRCCorpusCaseResult]
 
     public init(
@@ -33,8 +33,8 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
         evidenceKind: DRCCorpusEvidenceKind = .regression,
         runOptions: DRCCorpusRunOptions = DRCCorpusRunOptions(),
         summary: DRCCorpusSummary? = nil,
-        qualificationPolicy: DRCCorpusQualificationPolicy = .strict,
-        qualification: DRCCorpusQualificationResult? = nil,
+        acceptanceCriteria: DRCCorpusAcceptanceCriteria = .strict,
+        assessment: DRCCorpusAssessment? = nil,
         caseResults: [DRCCorpusCaseResult]
     ) {
         self.schemaVersion = schemaVersion
@@ -52,10 +52,10 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
         self.runOptions = runOptions
         let resolvedSummary = summary ?? DRCCorpusSummary(caseResults: caseResults)
         self.summary = resolvedSummary
-        let resolvedQualificationPolicy = evidenceKind == .independentCorrelation
-            ? qualificationPolicy.with(requireIndependentOracle: true)
-            : qualificationPolicy
-        self.qualification = qualification ?? resolvedQualificationPolicy.evaluate(
+        let resolvedAcceptanceCriteria = evidenceKind == .independentCorrelation
+            ? acceptanceCriteria.with(requireIndependentOracle: true)
+            : acceptanceCriteria
+        self.assessment = assessment ?? resolvedAcceptanceCriteria.evaluate(
             passed: passed,
             caseCount: caseCount,
             summary: resolvedSummary,
@@ -79,7 +79,7 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
         case evidenceKind
         case runOptions
         case summary
-        case qualification
+        case assessment
         case caseResults
     }
 
@@ -107,6 +107,6 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
         runOptions = try container.decode(DRCCorpusRunOptions.self, forKey: .runOptions)
         caseResults = try container.decode([DRCCorpusCaseResult].self, forKey: .caseResults)
         summary = try container.decode(DRCCorpusSummary.self, forKey: .summary)
-        qualification = try container.decode(DRCCorpusQualificationResult.self, forKey: .qualification)
+        assessment = try container.decode(DRCCorpusAssessment.self, forKey: .assessment)
     }
 }

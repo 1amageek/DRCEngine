@@ -153,14 +153,6 @@ public struct DefaultDRCEngine: Sendable {
             return executionResult
         }
         let waiverFile = try loadWaiverFile(from: waiverURL)
-        if executionResult.request.options.requireApprovedWaivers {
-            let unapproved = waiverFile.waivers.filter { $0.approval?.isActive() != true }
-            guard unapproved.isEmpty else {
-                throw DRCError.waiverApplicationFailed(
-                    "Approved waiver metadata is required for: \(unapproved.map(\.id).sorted().joined(separator: ", "))"
-                )
-            }
-        }
         var usedWaiverIDs = Set<String>()
         var appliedWaivers: [DRCAppliedWaiver] = []
         let diagnostics = executionResult.result.diagnostics.map { diagnostic in

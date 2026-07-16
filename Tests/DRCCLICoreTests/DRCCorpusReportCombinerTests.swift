@@ -13,9 +13,9 @@ struct DRCCorpusReportCombinerTests {
         )
 
         #expect(combined.evidenceKind == .regression)
-        #expect(!combined.qualification.qualified)
-        #expect(combined.qualification.failures.contains { $0.code == "mixed_evidence_kinds" })
-        #expect(combined.qualification.failures.contains { $0.code == "duplicate_case_ids" })
+        #expect(!combined.assessment.meetsCriteria)
+        #expect(combined.assessment.findings.contains { $0.code == "mixed_evidence_kinds" })
+        #expect(combined.assessment.findings.contains { $0.code == "duplicate_case_ids" })
     }
 
     @Test func homogeneousIndependentEvidenceKeepsItsQualificationLane() {
@@ -28,7 +28,7 @@ struct DRCCorpusReportCombinerTests {
         )
 
         #expect(combined.evidenceKind == .independentCorrelation)
-        #expect(combined.qualification.policy.requireIndependentOracle)
+        #expect(combined.assessment.criteria.requireIndependentOracle)
     }
 
     private func report(

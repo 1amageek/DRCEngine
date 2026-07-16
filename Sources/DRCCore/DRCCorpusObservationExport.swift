@@ -1,144 +1,126 @@
 import Foundation
+import CircuiteFoundation
 
-public struct DRCCorpusToolEvidenceExport: Sendable, Hashable, Codable {
-    public struct FileReference: Sendable, Hashable, Codable {
-        public let path: String
-        public let kind: String
-        public let format: String
-        public let sha256: String?
-
-        public init(
-            path: String,
-            kind: String = "report",
-            format: String = "JSON",
-            sha256: String? = nil
-        ) {
-            self.path = path
-            self.kind = kind
-            self.format = format
-            self.sha256 = sha256
-        }
-    }
-
-    public struct QualificationSummary: Sendable, Hashable, Codable {
-        public let qualified: Bool
-        public let policyID: String?
+public struct DRCCorpusObservationExport: Sendable, Hashable, Codable {
+    public struct ObservationSet: Sendable, Hashable, Codable {
+        public let acceptanceCriteriaID: String?
         public let observedMetrics: [String: Double]
         public let observedCounts: [String: Int]
-        public let failureCodes: [String]
+        public let findingCodes: [String]
 
         public init(
-            qualified: Bool,
-            policyID: String?,
+            acceptanceCriteriaID: String?,
             observedMetrics: [String: Double],
             observedCounts: [String: Int],
-            failureCodes: [String]
+            findingCodes: [String]
         ) {
-            self.qualified = qualified
-            self.policyID = policyID
+            self.acceptanceCriteriaID = acceptanceCriteriaID
             self.observedMetrics = observedMetrics
             self.observedCounts = observedCounts
-            self.failureCodes = failureCodes
+            self.findingCodes = findingCodes
         }
     }
 
-    public struct ToolEvidence: Sendable, Hashable, Codable {
-        public let evidenceID: String
-        public let kind: String
-        public let artifact: FileReference
-        public let qualification: QualificationSummary
-        public let checkedAt: String
+    public struct ObservationRecord: Sendable, Hashable, Codable {
+        public let recordID: String
+        public let artifact: ArtifactReference
+        public let observations: ObservationSet
+        public let observedAt: String
 
         public init(
-            evidenceID: String,
-            kind: String = "corpus",
-            artifact: FileReference,
-            qualification: QualificationSummary,
-            checkedAt: String
+            recordID: String,
+            artifact: ArtifactReference,
+            observations: ObservationSet,
+            observedAt: String
         ) {
-            self.evidenceID = evidenceID
-            self.kind = kind
+            self.recordID = recordID
             self.artifact = artifact
-            self.qualification = qualification
-            self.checkedAt = checkedAt
+            self.observations = observations
+            self.observedAt = observedAt
         }
     }
 
     public let schemaVersion: Int
-    public let status: String
-    public let reportPath: String
-    public let reportSHA256: String?
+    public let reportArtifact: ArtifactReference
     public let summary: DRCCorpusSummary
-    public let toolEvidence: ToolEvidence
+    public let observationRecord: ObservationRecord
     public let signature: DRCArtifactSignature?
 
     private init(
         schemaVersion: Int,
-        status: String,
-        reportPath: String,
-        reportSHA256: String?,
+        reportArtifact: ArtifactReference,
         summary: DRCCorpusSummary,
-        toolEvidence: ToolEvidence,
+        observationRecord: ObservationRecord,
         signature: DRCArtifactSignature?
     ) {
         self.schemaVersion = schemaVersion
-        self.status = status
-        self.reportPath = reportPath
-        self.reportSHA256 = reportSHA256
+        self.reportArtifact = reportArtifact
         self.summary = summary
-        self.toolEvidence = toolEvidence
+        self.observationRecord = observationRecord
         self.signature = signature
     }
 
     public init(
         schemaVersion: Int = 1,
         reportPath: String,
-        reportSHA256: String? = nil,
+        reportSHA256: String,
+        reportByteCount: UInt64,
         report: DRCCorpusReport,
-        evidenceID: String? = nil,
-        checkedAt: Date = Date(),
+        recordID: String? = nil,
+        observedAt: Date = Date(),
         signature: DRCArtifactSignature? = nil
-    ) {
+    ) throws {
         self.schemaVersion = schemaVersion
-        self.status = report.qualification.qualified ? "passed" : "failed"
-        self.reportPath = reportPath
-        self.reportSHA256 = reportSHA256
+        self.reportArtifact = ArtifactReference(
+            id: try ArtifactID(rawValue: "drc-corpus-report"),
+            locator: ArtifactLocator(
+                location: try ArtifactLocation(workspaceRelativePath: reportPath),
+                role: .input,
+                kind: .report,
+                format: .json
+            ),
+            digest: try ContentDigest(
+                algorithm: .sha256,
+                hexadecimalValue: reportSHA256
+            ),
+            byteCount: reportByteCount
+        )
         self.summary = report.summary
         self.signature = signature
-        self.toolEvidence = ToolEvidence(
-            evidenceID: evidenceID ?? Self.defaultEvidenceID(reportPath: reportPath),
-            artifact: FileReference(path: reportPath, sha256: reportSHA256),
-            qualification: QualificationSummary(
-                qualified: report.qualification.qualified,
-                policyID: report.qualification.policy == .strict ? "strict" : "custom",
+        self.observationRecord = ObservationRecord(
+            recordID: recordID ?? Self.defaultRecordID(reportPath: reportPath),
+            artifact: reportArtifact,
+            observations: ObservationSet(
+                acceptanceCriteriaID: report.assessment.criteria == .strict ? "strict" : "custom",
                 observedMetrics: Self.observedMetrics(report),
                 observedCounts: Self.observedCounts(report),
-                failureCodes: report.qualification.failures.map(\.code)
+                findingCodes: report.assessment.findings.map(\.code)
             ),
-            checkedAt: Self.iso8601String(from: checkedAt)
+            observedAt: Self.iso8601String(from: observedAt)
         )
     }
 
-    public func withSignature(_ signature: DRCArtifactSignature?) -> DRCCorpusToolEvidenceExport {
-        DRCCorpusToolEvidenceExport(
+    public func withSignature(_ signature: DRCArtifactSignature?) -> DRCCorpusObservationExport {
+        DRCCorpusObservationExport(
             schemaVersion: schemaVersion,
-            status: status,
-            reportPath: reportPath,
-            reportSHA256: reportSHA256,
+            reportArtifact: reportArtifact,
             summary: summary,
-            toolEvidence: toolEvidence,
+            observationRecord: observationRecord,
             signature: signature
         )
     }
 
-    public func signed(using signer: any DRCArtifactSigner) throws -> DRCCorpusToolEvidenceExport {
+    public var reportPath: String { reportArtifact.path }
+    public var reportSHA256: String { reportArtifact.digest.hexadecimalValue }
+
+    public func signed(using signer: any DRCArtifactSigner) throws -> DRCCorpusObservationExport {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let payload = try encoder.encode(withSignature(nil))
         return withSignature(try signer.sign(payload))
     }
 
-    private static func defaultEvidenceID(reportPath: String) -> String {
+    private static func defaultRecordID(reportPath: String) -> String {
         let filename = URL(filePath: reportPath).deletingPathExtension().lastPathComponent
         return filename.isEmpty ? "drc-corpus" : "drc-corpus:\(filename)"
     }
@@ -169,13 +151,13 @@ public struct DRCCorpusToolEvidenceExport: Sendable, Hashable, Codable {
             "oracleExecutionFailedCaseCount": report.summary.oracleExecutionFailedCaseCount,
             "oracleReadinessBlockedCaseCount": report.summary.oracleReadinessBlockedCaseCount,
             "coverageTagCount": report.summary.coverageTagCounts.count,
-            "requiredCoverageTagCount": report.qualification.policy.requiredCoverageTags.count,
+            "requiredCoverageTagCount": report.assessment.criteria.requiredCoverageTags.count,
             "coveredRequiredCoverageTagCount": coveredRequiredCoverageTagCount(report),
         ]
     }
 
     private static func coveredRequiredCoverageTagCount(_ report: DRCCorpusReport) -> Int {
-        report.qualification.policy.requiredCoverageTags.filter { report.summary.coverageTagCounts[$0] != nil }.count
+        report.assessment.criteria.requiredCoverageTags.filter { report.summary.coverageTagCounts[$0] != nil }.count
     }
 
     private static func iso8601String(from date: Date) -> String {

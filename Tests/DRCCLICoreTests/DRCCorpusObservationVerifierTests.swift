@@ -3,8 +3,8 @@ import CryptoKit
 import Testing
 import DRCCore
 
-@Suite("DRC corpus tool evidence verifier")
-struct DRCCorpusToolEvidenceVerifierTests {
+@Suite("DRC corpus observation verifier")
+struct DRCCorpusObservationVerifierTests {
     @Test func verifiesSignedEvidenceAgainstCurrentReport() throws {
         let directory = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(directory) }
@@ -39,16 +39,17 @@ struct DRCCorpusToolEvidenceVerifierTests {
         try reportData.write(to: reportURL, options: [.atomic])
         let reportSHA256 = sha256(reportData)
         let signer = DRCEd25519ArtifactSigner()
-        let evidence = DRCCorpusToolEvidenceExport(
-            reportPath: reportURL.path(percentEncoded: false),
+        let evidence = try DRCCorpusObservationExport(
+            reportPath: reportURL.lastPathComponent,
             reportSHA256: reportSHA256,
+            reportByteCount: UInt64(reportData.count),
             report: report,
-            evidenceID: "signed-corpus",
-            checkedAt: Date(timeIntervalSince1970: 1_783_000_000)
+            recordID: "signed-corpus",
+            observedAt: Date(timeIntervalSince1970: 1_783_000_000)
         )
         try encoder.encode(evidence.signed(using: signer)).write(to: evidenceURL, options: [.atomic])
 
-        let verifier = DRCCorpusToolEvidenceVerifier()
+        let verifier = DRCCorpusObservationVerifier()
         #expect(try verifier.verify(
             evidenceURL: evidenceURL,
             reportURL: reportURL,
@@ -69,7 +70,7 @@ struct DRCCorpusToolEvidenceVerifierTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appending(path: "DRCCorpusToolEvidenceVerifierTests-\(UUID().uuidString)")
+            .appending(path: "DRCCorpusObservationVerifierTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }

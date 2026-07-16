@@ -87,7 +87,7 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
     public struct Summary: Sendable, Hashable, Codable {
         public let caseCount: Int
         public let matchedCaseCount: Int
-        public let qualified: Bool
+        public let meetsCriteria: Bool
         public let durationBudgetPassedCaseCount: Int
         public let durationBudgetPassRate: Double
         public let oracleCaseCount: Int
@@ -107,7 +107,7 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
         public init(
             caseCount: Int,
             matchedCaseCount: Int,
-            qualified: Bool,
+            meetsCriteria: Bool,
             durationBudgetPassedCaseCount: Int,
             durationBudgetPassRate: Double,
             oracleCaseCount: Int,
@@ -126,7 +126,7 @@ public struct DRCCorpusCoverageAudit: Sendable, Hashable, Codable {
         ) {
             self.caseCount = caseCount
             self.matchedCaseCount = matchedCaseCount
-            self.qualified = qualified
+            self.meetsCriteria = meetsCriteria
             self.durationBudgetPassedCaseCount = durationBudgetPassedCaseCount
             self.durationBudgetPassRate = durationBudgetPassRate
             self.oracleCaseCount = oracleCaseCount
