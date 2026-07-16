@@ -4,7 +4,7 @@ import DRCNative
 import DRCAdapters
 import DRCPersistence
 
-public struct DefaultDRCEngine: Sendable {
+public struct DefaultDRCEngine: DRCExecuting, Sendable {
     private let backends: [String: any DRCBackend]
     private let backendIdentities: [String: DRCBackendIdentity]
     private let store: DRCArtifactStore
