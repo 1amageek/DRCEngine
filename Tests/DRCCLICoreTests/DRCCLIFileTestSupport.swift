@@ -62,18 +62,24 @@ extension DRCCLIOptionsTests {
     }
 
     func fixtureCorpusSpecURL(_ name: String) -> URL {
-        URL(filePath: #filePath)
-            .deletingLastPathComponent()
-            .appending(path: "Fixtures")
-            .appending(path: "DRCCorpus")
-            .appending(path: name)
+        guard let url = Bundle.module.url(
+            forResource: name,
+            withExtension: nil,
+            subdirectory: "Fixtures/DRCCorpus"
+        ) else {
+            preconditionFailure("Packaged DRC corpus fixture '\(name)' is unavailable.")
+        }
+        return url
     }
 
     func fixtureExternalOracleSpecURL(_ name: String) -> URL {
-        URL(filePath: #filePath)
-            .deletingLastPathComponent()
-            .appending(path: "Fixtures")
-            .appending(path: "ExternalOracle")
-            .appending(path: name)
+        guard let url = Bundle.module.url(
+            forResource: name,
+            withExtension: nil,
+            subdirectory: "Fixtures/ExternalOracle"
+        ) else {
+            preconditionFailure("Packaged DRC external-oracle fixture '\(name)' is unavailable.")
+        }
+        return url
     }
 }

@@ -713,6 +713,9 @@ external tools leave a reviewable report instead of aborting the corpus run.
 
 Corpus paths are resolved relative to the corpus spec file, which makes committed
 fixtures portable across machines and CI runners.
+`DRCCLICoreTests` packages both corpus directories through `Bundle.module`;
+the external-oracle GDS inputs are owned by this package and do not reach into a
+sibling checkout.
 
 The committed CLI golden corpus lives under
 `Tests/DRCCLICoreTests/Fixtures/DRCCorpus`. It covers a clean layout, an active

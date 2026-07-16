@@ -12,7 +12,7 @@
       "coverageTags" : ["external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "layoutFormat" : "gds",
-      "layoutPath" : "../../../../../PEXEngine/Tests/PEXAdaptersTests/Fixtures/inv1.gds",
+      "layoutPath" : "inv1.gds",
       "oracleBackendID" : "magic",
       "topCell" : "sky130_fd_sc_hd__inv_1"
     },
@@ -22,7 +22,7 @@
       "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "drc.cut.minimum.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "layoutFormat" : "gds",
-      "layoutPath" : "../../../../../PEXEngine/Tests/PEXAdaptersTests/Fixtures/inv1.gds",
+      "layoutPath" : "inv1.gds",
       "oracleBackendID" : "magic",
       "topCell" : "sky130_fd_sc_hd__inv_1"
     },
@@ -32,7 +32,7 @@
       "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "drc.cut.minimum.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "layoutFormat" : "gds",
-      "layoutPath" : "../../../../../PEXEngine/Tests/PEXRuntimeTests/Fixtures/pex_plate.gds",
+      "layoutPath" : "pex_plate.gds",
       "oracleBackendID" : "magic",
       "topCell" : "pex_plate"
     },
