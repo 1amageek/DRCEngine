@@ -3,8 +3,8 @@
 | Goal | Status |
 |---|---|
 | CircuiteFoundation dependency | Complete |
-| Foundation engine protocol | Complete (`DRCEngineProtocol`) |
-| Foundation evidence boundary | Complete (`DRCFoundationEvidence`) |
+| Foundation engine protocol | Complete (`DRCExecuting`) |
+| Projection and adapter removal | Complete; engine conforms directly |
 | Typed design-object addressing | Complete (`DRCRequest.designObjectReference`) |
 | ARC kernel | Existing implementation retained |
 | Foundry-rule qualification | Explicitly gated; not implied by native ARC |

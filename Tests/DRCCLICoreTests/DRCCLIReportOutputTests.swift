@@ -129,6 +129,8 @@ extension DRCCLIOptionsTests {
             },
             "options" : {
               "timeoutSeconds" : 300,
+              "requireSignedArtifacts" : false,
+              "requireAntennaRules" : false,
               "additionalEnvironment" : {}
             }
           },

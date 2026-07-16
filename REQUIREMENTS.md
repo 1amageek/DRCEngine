@@ -4,12 +4,10 @@
 
 - Depend on `CircuiteFoundation` for engine, evidence, artifact, provenance,
   diagnostics, and design-object contracts.
-- Expose `DRCEngineProtocol` and `DefaultDRCEngine.execute`.
+- Expose `DRCExecuting` and make `DefaultDRCEngine` conform directly.
 - Keep DRC-specific result, waiver, ARC, and qualification models intact.
-- Convert DRC diagnostics to typed `DesignDiagnostic` values without
-  discarding conversion errors.
-- Accept only caller-supplied, digest-bearing `ArtifactReference` values in
-  Foundation evidence.
+- Retain domain diagnostics and digest-bearing artifact records without a
+  projection wrapper.
 - Preserve fail-closed behavior for missing antenna rules and unqualified
   foundry references.
 

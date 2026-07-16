@@ -13,22 +13,20 @@ flowchart TD
     Validate --> Backend["Native / external backend"]
     Backend --> Domain["DRCResult + ARC diagnostics"]
     Domain --> Persist["DRC artifact manifest"]
-    Domain --> Boundary["DRCFoundationEvidence"]
-    Boundary --> Flow["Flow coordinator / Agent"]
+    Domain --> Flow["Flow coordinator / Agent"]
     Persist --> Gate["Independent oracle + foundry PDK gate"]
 ```
 
 ## Foundation integration
 
-`DRCEngineProtocol` refines `CircuiteFoundation.Engine` with
+`DRCExecuting` refines `CircuiteFoundation.Engine` with
 `DRCRequest`/`DRCExecutionResult`. `DefaultDRCEngine.execute` is the canonical
 protocol entry point; `run` remains available for DRC cancellation and
 timeout-specific controls.
 
-`DRCFoundationEvidence` implements `EvidenceProviding` and
-`DiagnosticReporting`. The caller supplies the verified `ArtifactReference`
-values and `ExecutionProvenance`; the package never invents a digest or
-pretends that a report URL is an artifact proof.
+DRC retains its typed artifact manifest and diagnostics directly. A report URL
+is not promoted to `ArtifactReference` without digest and byte-count
+attestation, and no Foundation projection type manufactures missing evidence.
 
 `DRCRequest.designObjectReference()` maps the top cell to a Foundation cell
 identity while preserving DRC's existing request model.

@@ -9,17 +9,16 @@ evaluation, while `CircuiteFoundation` owns only the cross-engine vocabulary:
 
 ```mermaid
 flowchart LR
-    Request["DRCRequest"] --> Engine["DRCEngineProtocol"]
+    Request["DRCRequest"] --> Engine["DRCExecuting"]
     Engine --> Result["DRCExecutionResult"]
     Result --> Domain["DRC manifest / waivers / ARC"]
-    Result --> Boundary["DRCFoundationEvidence"]
-    Boundary --> Foundation["EvidenceManifest + DesignDiagnostic"]
+    Domain --> Foundation["ArtifactReference + ExecutionProvenance"]
 ```
 
-`DRCFoundationEvidence` is an explicit boundary view. It does not replace
-the DRC-specific manifest or claim that a native ARC kernel has been
-validated against a foundry deck. Foundry-rule qualification remains the
-responsibility of DRC's independent-oracle and PDK evidence gates.
+`DefaultDRCEngine` conforms directly to `DRCExecuting`; no projection,
+adapter, or result envelope sits between the domain engine and the shared
+`Engine` contract. Foundry-rule qualification remains the responsibility of
+DRC's independent-oracle and PDK evidence gates.
 
 Protocol-composed design-rule checking for local, scriptable semiconductor
 layout flows. DRCEngine provides native Swift DRC, standard mask-data checking,
