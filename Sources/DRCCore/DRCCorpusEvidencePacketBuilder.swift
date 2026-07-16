@@ -566,7 +566,7 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
         if report.assessment.meetsCriteria {
             return DRCEvidenceConfidence(
                 level: .high,
-                reason: "The DRC corpus is qualified under its policy.",
+                reason: "The DRC corpus satisfies the engine-owned evidence criteria; trust remains an external decision.",
                 evidenceCount: evidenceCount,
                 limitationCount: diagnostics.count
             )
@@ -586,10 +586,10 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
         if diagnostics.isEmpty {
             return [
                 DRCEvidenceDecisionHint(
-                    hintID: "drc-corpus-qualified",
+                    hintID: "drc-corpus-evidence-ready",
                     priority: .low,
-                    summary: "Use the qualified DRC corpus as a trusted native signoff evidence source.",
-                    suggestedActions: ["use_drc_evidence_for_repair_gate"]
+                    summary: "Submit the complete DRC corpus evidence to the external trust gate.",
+                    suggestedActions: ["evaluate_drc_evidence_trust"]
                 )
             ]
         }

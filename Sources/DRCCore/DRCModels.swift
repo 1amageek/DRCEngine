@@ -31,22 +31,6 @@ public struct DRCOptions: Sendable, Hashable, Codable {
         self.requireAntennaRules = requireAntennaRules
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case timeoutSeconds
-        case additionalEnvironment
-        case requireSignedArtifacts
-        case trustedArtifactPublicKey
-        case requireAntennaRules
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.timeoutSeconds = try container.decodeIfPresent(Double.self, forKey: .timeoutSeconds) ?? 300
-        self.additionalEnvironment = try container.decodeIfPresent([String: String].self, forKey: .additionalEnvironment) ?? [:]
-        self.requireSignedArtifacts = try container.decodeIfPresent(Bool.self, forKey: .requireSignedArtifacts) ?? false
-        self.trustedArtifactPublicKey = try container.decodeIfPresent(String.self, forKey: .trustedArtifactPublicKey)
-        self.requireAntennaRules = try container.decodeIfPresent(Bool.self, forKey: .requireAntennaRules) ?? false
-    }
 }
 
 public enum DRCLayoutFormat: String, Sendable, Hashable, Codable {

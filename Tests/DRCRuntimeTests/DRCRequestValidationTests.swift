@@ -96,14 +96,12 @@ struct DRCRequestValidationTests {
         }
     }
 
-    @Test func decodesLegacyOptionsWithoutNewTrustFields() throws {
+    @Test func rejectsIncompletePersistedOptions() throws {
         let data = Data("""
         {"timeoutSeconds":12,"additionalEnvironment":{"MODE":"test"}}
         """.utf8)
-        let options = try JSONDecoder().decode(DRCOptions.self, from: data)
-        #expect(options.timeoutSeconds == 12)
-        #expect(options.additionalEnvironment["MODE"] == "test")
-        #expect(!options.requireSignedArtifacts)
-        #expect(options.trustedArtifactPublicKey == nil)
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(DRCOptions.self, from: data)
+        }
     }
 }
