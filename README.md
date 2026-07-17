@@ -69,10 +69,10 @@ flowchart LR
 - SwiftPM
 - Optional: Magic and an installed PDK for external reference runs
 
-The current `Package.swift` intentionally uses sibling workspace dependencies
-for `SignoffToolSupport` and `semiconductor-layout`; this repository is therefore
-published as a **workspace-first engineering package**, not as a standalone
-single-directory distribution yet. A complete local checkout has this shape:
+`Package.swift` resolves dependencies in two modes. Inside the LSI workspace it
+uses sibling checkouts so local engine changes can be tested together. Outside
+that workspace it falls back to pinned GitHub revisions for public dependencies.
+For cross-engine development, keep the checkout in this shape:
 
 ```text
 LSI/
@@ -82,12 +82,13 @@ LSI/
 └── swift-mask-data/     # required transitively by semiconductor-layout
 ```
 
-[`semiconductor-layout`](https://github.com/1amageek/semiconductor-layout) and
-[`swift-mask-data`](https://github.com/1amageek/swift-mask-data) are public repositories. The
-`SignoffToolSupport` checkout is currently supplied by the surrounding LSI
-workspace. Until that package is published or the dependency is replaced with
-a versioned URL, a fresh clone must be placed into the workspace layout above
-before `swift build` or `swift test` can run.
+[`CircuiteFoundation`](https://github.com/1amageek/CircuiteFoundation),
+[`SignoffToolSupport`](https://github.com/1amageek/SignoffToolSupport),
+[`semiconductor-layout`](https://github.com/1amageek/semiconductor-layout), and
+[`swift-mask-data`](https://github.com/1amageek/swift-mask-data) are public repositories. A fresh
+single-package clone can therefore build through the pinned remote dependencies,
+while the LSI workspace keeps local path dependencies for coordinated
+development.
 
 ## Modules
 
