@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import DRCCore
 import DRCCLICore
+import DRCFoundryImport
 import DRCNative
 import LayoutCore
 import LayoutTech

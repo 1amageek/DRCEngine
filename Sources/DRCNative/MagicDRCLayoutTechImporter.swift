@@ -2,7 +2,7 @@ import Foundation
 import CryptoKit
 import LayoutCore
 import LayoutTech
-@_exported import DRCFoundryImport
+import DRCFoundryImport
 public enum MagicDRCLayoutTechImporter {
     public static func importTechnology(
         from magicTechURL: URL,

@@ -1,7 +1,7 @@
 import Foundation
 import LayoutCore
 import LayoutTech
-@_exported import DRCFoundryImport
+import DRCFoundryImport
 
 extension MagicDRCLayoutTechImporter {
     static let sourceTempLayerOperationCommands: Set<String> = [

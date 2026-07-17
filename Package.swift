@@ -130,6 +130,7 @@ let package = Package(
             name: "DRCCLICoreTests",
             dependencies: [
                 "DRCCLICore",
+                "DRCFoundryImport",
                 "DRCNative",
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
