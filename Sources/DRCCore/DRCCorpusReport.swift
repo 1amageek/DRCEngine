@@ -1,5 +1,5 @@
 public struct DRCCorpusReport: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 1
+    public static let currentSchemaVersion = 2
 
     public let schemaVersion: Int
     public let generatedAt: String?

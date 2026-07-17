@@ -66,6 +66,32 @@ struct DefaultDRCEngineTests {
         #expect(report.byteCount == data.count)
     }
 
+    @Test func artifactManifestUsesRelativePathsAcrossFilesystemAliases() async throws {
+        let directory = URL(filePath: "/tmp")
+            .appending(path: "DRCArtifactAliasTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { removeTemporaryDirectory(directory) }
+        let layoutURL = directory.appending(path: "inverter.gds")
+        try Data([0x00, 0x01, 0x02]).write(to: layoutURL)
+        let request = DRCRequest(
+            layoutURL: layoutURL,
+            topCell: "inv",
+            workingDirectory: directory,
+            backendSelection: DRCBackendSelection(backendID: "stub")
+        )
+
+        let result = try await DefaultDRCEngine(backend: StubDRCBackend()).run(request)
+
+        let manifestURL = try #require(result.artifactManifestURL)
+        let manifest = try JSONDecoder().decode(
+            DRCArtifactManifest.self,
+            from: Data(contentsOf: manifestURL)
+        )
+        let manifestRecord = try artifact("manifest", in: manifest.outputs)
+        #expect(!manifestRecord.path.hasPrefix("/"))
+        #expect(try DRCArtifactManifestVerifier().verify(manifestURL: manifestURL).isEmpty)
+    }
+
     @Test func signedArtifactStoreProducesTrustedManifest() async throws {
         let directory = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(directory) }

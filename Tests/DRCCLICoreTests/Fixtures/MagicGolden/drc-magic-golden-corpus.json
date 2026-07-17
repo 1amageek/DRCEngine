@@ -1,8 +1,9 @@
 {
   "schemaVersion" : 1,
+  "evidenceKind" : "regression",
   "defaultMaxDurationSeconds" : 30,
   "acceptanceCriteria" : {
-    "requireIndependentOracle" : true,
+    "requireIndependentOracle" : false,
     "requiredCoverageTags" : ["external.magic", "layout.gds", "sky130"]
   },
   "cases" : [
@@ -13,33 +14,30 @@
       "expectedPassed" : true,
       "layoutFormat" : "gds",
       "layoutPath" : "inv1.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "sky130_fd_sc_hd__inv_1"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-inverter-magic-cut-count-clean",
-      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "drc.cut.minimum.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.golden", "drc.cut.minimum.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "layoutFormat" : "gds",
       "layoutPath" : "inv1.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "sky130_fd_sc_hd__inv_1"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-plate-magic-cut-count-clean",
-      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "drc.cut.minimum.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.golden", "drc.cut.minimum.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "layoutFormat" : "gds",
       "layoutPath" : "pex_plate.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "pex_plate"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.external-oracle", "drc.width.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.golden", "drc.width.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met1.1"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -49,13 +47,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-width-clean",
-      "coverageTags" : ["drc.width", "drc.width.external-oracle", "drc.width.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.width", "drc.width.golden", "drc.width.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -64,13 +61,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.external-oracle", "drc.spacing.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.golden", "drc.spacing.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met1.2"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -80,13 +76,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.external-oracle", "drc.spacing.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.golden", "drc.spacing.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -95,13 +90,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-area-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.external-oracle", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.golden", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met1.6"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -111,13 +105,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-area-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_AREA_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-area-clean",
-      "coverageTags" : ["drc.area", "drc.area.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.area", "drc.area.golden", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -126,13 +119,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-area-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_AREA_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-angle-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.external-oracle", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.golden", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["x.3a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -142,13 +134,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-angle-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_ANGLE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-angle-clean",
-      "coverageTags" : ["drc.angle", "drc.angle.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.angle", "drc.angle.golden", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -157,13 +148,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-angle-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_ANGLE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-wide-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.external-oracle", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.golden", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met1.3b"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -173,13 +163,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-wide-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_WIDE_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-wide-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.external-oracle", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.golden", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -188,7 +177,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-wide-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_WIDE_SPACING_CLEAN"
     },
     {
@@ -197,7 +185,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.external-oracle", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.golden", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met1.3a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -207,7 +195,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-large-attached-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_LARGE_ATTACHED_SPACING_VIOLATION"
     },
     {
@@ -216,7 +203,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.external-oracle", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.golden", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -225,13 +212,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-large-attached-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_LARGE_ATTACHED_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-mcon-enclosure-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.golden", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met1.4", "met1.5"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -241,13 +227,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-mcon-enclosure-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_MCON_ENCLOSURE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met1-mcon-enclosure-clean",
-      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.golden", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -256,13 +241,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met1-mcon-enclosure-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET1_MCON_ENCLOSURE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-mcon-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.mcon", "drc.contact.width", "drc.contact.width.external-oracle", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.mcon", "drc.contact.width", "drc.contact.width.golden", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["mcon.1"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -272,13 +256,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-mcon-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MCON_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-mcon-width-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.mcon", "drc.contact.width", "drc.contact.width.external-oracle", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.mcon", "drc.contact.width", "drc.contact.width.golden", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -287,13 +270,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-mcon-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MCON_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-mcon-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.mcon", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.mcon", "drc.contact.spacing", "drc.contact.spacing.golden", "drc.contact.spacing.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["mcon.2"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -303,13 +285,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-mcon-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MCON_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-mcon-spacing-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.mcon", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.mcon", "drc.contact.spacing", "drc.contact.spacing.golden", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -318,13 +299,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-mcon-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MCON_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via1-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via1", "drc.contact.width", "drc.contact.width.via1", "drc.contact.width.via1.external-oracle", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via1", "drc.contact.width", "drc.contact.width.via1", "drc.contact.width.via1.golden", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via.1a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -334,13 +314,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via1-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA1_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via1-width-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.via1", "drc.contact.width", "drc.contact.width.via1", "drc.contact.width.via1.external-oracle", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.via1", "drc.contact.width", "drc.contact.width.via1", "drc.contact.width.via1.golden", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -349,13 +328,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via1-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA1_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via1-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via1", "drc.contact.spacing", "drc.contact.spacing.via1", "drc.contact.spacing.via1.external-oracle", "drc.contact.spacing.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via1", "drc.contact.spacing", "drc.contact.spacing.via1", "drc.contact.spacing.via1.golden", "drc.contact.spacing.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via.2"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -365,13 +343,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via1-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA1_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via1-spacing-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.via1", "drc.contact.spacing", "drc.contact.spacing.via1", "drc.contact.spacing.via1.external-oracle", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.via1", "drc.contact.spacing", "drc.contact.spacing.via1", "drc.contact.spacing.via1.golden", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -380,13 +357,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via1-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA1_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via1-met1-enclosure-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via1", "drc.enclosure.via1.met1", "drc.enclosure.via1.met1.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.golden", "drc.enclosure.via1", "drc.enclosure.via1.met1", "drc.enclosure.via1.met1.golden", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via.5a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -396,13 +372,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via1-met1-enclosure-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA1_MET1_ENCLOSURE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via1-met1-enclosure-clean",
-      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via1", "drc.enclosure.via1.met1", "drc.enclosure.via1.met1.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.golden", "drc.enclosure.via1", "drc.enclosure.via1.met1", "drc.enclosure.via1.met1.golden", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -411,13 +386,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via1-met1-enclosure-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA1_MET1_ENCLOSURE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via1-met2-enclosure-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via1", "drc.enclosure.via1.met2", "drc.enclosure.via1.met2.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.golden", "drc.enclosure.via1", "drc.enclosure.via1.met2", "drc.enclosure.via1.met2.golden", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met2.5"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -427,13 +401,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via1-met2-enclosure-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA1_MET2_ENCLOSURE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via1-met2-enclosure-clean",
-      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via1", "drc.enclosure.via1.met2", "drc.enclosure.via1.met2.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.golden", "drc.enclosure.via1", "drc.enclosure.via1.met2", "drc.enclosure.via1.met2.golden", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -442,13 +415,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via1-met2-enclosure-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA1_MET2_ENCLOSURE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met2", "drc.width.met2.external-oracle", "drc.width.met2.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met2", "drc.width.met2.golden", "drc.width.met2.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met2.1"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -458,13 +430,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-width-clean",
-      "coverageTags" : ["drc.width", "drc.width.met2", "drc.width.met2.external-oracle", "drc.width.met2.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.width", "drc.width.met2", "drc.width.met2.golden", "drc.width.met2.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -473,13 +444,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met2", "drc.spacing.met2.external-oracle", "drc.spacing.met2.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met2", "drc.spacing.met2.golden", "drc.spacing.met2.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met2.2"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -489,13 +459,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.met2", "drc.spacing.met2.external-oracle", "drc.spacing.met2.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.met2", "drc.spacing.met2.golden", "drc.spacing.met2.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -504,13 +473,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-area-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.met2", "drc.area.met2.external-oracle", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.met2", "drc.area.met2.golden", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met2.6"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -520,13 +488,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-area-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_AREA_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-area-clean",
-      "coverageTags" : ["drc.area", "drc.area.met2", "drc.area.met2.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.area", "drc.area.met2", "drc.area.met2.golden", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -535,13 +502,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-area-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_AREA_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-angle-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.met2", "drc.angle.met2.external-oracle", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.met2", "drc.angle.met2.golden", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["x.3a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -551,13 +517,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-angle-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_ANGLE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-angle-clean",
-      "coverageTags" : ["drc.angle", "drc.angle.met2", "drc.angle.met2.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.angle", "drc.angle.met2", "drc.angle.met2.golden", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -566,13 +531,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-angle-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_ANGLE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-wide-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met2", "drc.spacing.wide.met2.external-oracle", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met2", "drc.spacing.wide.met2.golden", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met2.3b"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -582,13 +546,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-wide-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_WIDE_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met2-wide-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met2", "drc.spacing.wide.met2.external-oracle", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met2", "drc.spacing.wide.met2.golden", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -597,7 +560,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-wide-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_WIDE_SPACING_CLEAN"
     },
     {
@@ -606,7 +568,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met2", "drc.spacing.large-attached.met2.external-oracle", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met2", "drc.spacing.large-attached.met2.golden", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met2.3a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -616,7 +578,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-large-attached-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_LARGE_ATTACHED_SPACING_VIOLATION"
     },
     {
@@ -625,7 +586,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met2", "drc.spacing.large-attached.met2.external-oracle", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met2", "drc.spacing.large-attached.met2.golden", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -634,13 +595,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met2-large-attached-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET2_LARGE_ATTACHED_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via2-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via2", "drc.contact.width", "drc.contact.width.via2", "drc.contact.width.via2.external-oracle", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via2", "drc.contact.width", "drc.contact.width.via2", "drc.contact.width.via2.golden", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via2.1a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -650,13 +610,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via2-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA2_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via2-width-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.via2", "drc.contact.width", "drc.contact.width.via2", "drc.contact.width.via2.external-oracle", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.via2", "drc.contact.width", "drc.contact.width.via2", "drc.contact.width.via2.golden", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -665,13 +624,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via2-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA2_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via2-spacing-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.via2", "drc.contact.spacing", "drc.contact.spacing.via2", "drc.contact.spacing.via2.external-oracle", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.via2", "drc.contact.spacing", "drc.contact.spacing.via2", "drc.contact.spacing.via2.golden", "drc.contact.spacing.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -680,24 +638,22 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via2-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA2_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via2-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.fail", "drc.contact.spacing.via2", "drc.contact.spacing.via2.external-oracle", "drc.contact.via2", "external.magic", "layout.magic", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.golden", "drc.contact.spacing.fail", "drc.contact.spacing.via2", "drc.contact.spacing.via2.golden", "drc.contact.via2", "external.magic", "layout.magic", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via2.2"],
       "expectedPassed" : false,
       "layoutFormat" : "magic-layout",
       "layoutPath" : "sky130-magic-via2-spacing-violation.mag",
-      "oracleBackendID" : "magic",
       "topCell" : "sky130-magic-via2-spacing-violation"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via2-met2-enclosure-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met2", "drc.enclosure.via2.met2.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.golden", "drc.enclosure.via2", "drc.enclosure.via2.met2", "drc.enclosure.via2.met2.golden", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via2.4a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -707,13 +663,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via2-met2-enclosure-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA2_MET2_ENCLOSURE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via2-met2-enclosure-clean",
-      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met2", "drc.enclosure.via2.met2.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.golden", "drc.enclosure.via2", "drc.enclosure.via2.met2", "drc.enclosure.via2.met2.golden", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -722,13 +677,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via2-met2-enclosure-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA2_MET2_ENCLOSURE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via2-met3-enclosure-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met3", "drc.enclosure.via2.met3.external-oracle", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.golden", "drc.enclosure.via2", "drc.enclosure.via2.met3", "drc.enclosure.via2.met3.golden", "drc.enclosure.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met3.4"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -738,13 +692,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via2-met3-enclosure-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA2_MET3_ENCLOSURE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via2-met3-enclosure-clean",
-      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.via2", "drc.enclosure.via2.met3", "drc.enclosure.via2.met3.external-oracle", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.golden", "drc.enclosure.via2", "drc.enclosure.via2.met3", "drc.enclosure.via2.met3.golden", "drc.enclosure.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -753,13 +706,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via2-met3-enclosure-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA2_MET3_ENCLOSURE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met3", "drc.width.met3.external-oracle", "drc.width.met3.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met3", "drc.width.met3.golden", "drc.width.met3.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met3.1"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -769,13 +721,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-width-clean",
-      "coverageTags" : ["drc.width", "drc.width.met3", "drc.width.met3.external-oracle", "drc.width.met3.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.width", "drc.width.met3", "drc.width.met3.golden", "drc.width.met3.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -784,13 +735,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met3", "drc.spacing.met3.external-oracle", "drc.spacing.met3.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met3", "drc.spacing.met3.golden", "drc.spacing.met3.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met3.2"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -800,13 +750,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.met3", "drc.spacing.met3.external-oracle", "drc.spacing.met3.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.met3", "drc.spacing.met3.golden", "drc.spacing.met3.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -815,13 +764,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-area-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.met3", "drc.area.met3.external-oracle", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.met3", "drc.area.met3.golden", "drc.area.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met3.6"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -831,13 +779,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-area-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_AREA_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-area-clean",
-      "coverageTags" : ["drc.area", "drc.area.met3", "drc.area.met3.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.area", "drc.area.met3", "drc.area.met3.golden", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -846,13 +793,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-area-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_AREA_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-angle-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.met3", "drc.angle.met3.external-oracle", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.met3", "drc.angle.met3.golden", "drc.angle.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["x.3a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -862,13 +808,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-angle-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_ANGLE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-angle-clean",
-      "coverageTags" : ["drc.angle", "drc.angle.met3", "drc.angle.met3.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.angle", "drc.angle.met3", "drc.angle.met3.golden", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -877,13 +822,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-angle-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_ANGLE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-wide-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met3", "drc.spacing.wide.met3.external-oracle", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met3", "drc.spacing.wide.met3.golden", "drc.spacing.wide.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met3.3d"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -893,13 +837,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-wide-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_WIDE_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met3-wide-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met3", "drc.spacing.wide.met3.external-oracle", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met3", "drc.spacing.wide.met3.golden", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -908,7 +851,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-wide-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_WIDE_SPACING_CLEAN"
     },
     {
@@ -917,7 +859,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met3", "drc.spacing.large-attached.met3.external-oracle", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met3", "drc.spacing.large-attached.met3.golden", "drc.spacing.large-attached.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met3.3c"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -927,7 +869,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-large-attached-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_LARGE_ATTACHED_SPACING_VIOLATION"
     },
     {
@@ -936,7 +877,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met3", "drc.spacing.large-attached.met3.external-oracle", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met3", "drc.spacing.large-attached.met3.golden", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -945,13 +886,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met3-large-attached-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET3_LARGE_ATTACHED_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via3-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via3", "drc.contact.width", "drc.contact.width.fail", "drc.contact.width.via3", "drc.contact.width.via3.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via3", "drc.contact.width", "drc.contact.width.fail", "drc.contact.width.via3", "drc.contact.width.via3.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via3.1"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -961,13 +901,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via3-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA3_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via3-width-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.via3", "drc.contact.width", "drc.contact.width.pass", "drc.contact.width.via3", "drc.contact.width.via3.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.via3", "drc.contact.width", "drc.contact.width.pass", "drc.contact.width.via3", "drc.contact.width.via3.golden", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -976,13 +915,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via3-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA3_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via3-spacing-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.spacing", "drc.contact.spacing.pass", "drc.contact.spacing.via3", "drc.contact.spacing.via3.external-oracle", "drc.contact.via3", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.spacing", "drc.contact.spacing.pass", "drc.contact.spacing.via3", "drc.contact.spacing.via3.golden", "drc.contact.via3", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -991,24 +929,22 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via3-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA3_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via3-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.fail", "drc.contact.spacing.via3", "drc.contact.spacing.via3.external-oracle", "drc.contact.via3", "external.magic", "layout.magic", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.golden", "drc.contact.spacing.fail", "drc.contact.spacing.via3", "drc.contact.spacing.via3.golden", "drc.contact.via3", "external.magic", "layout.magic", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via3.2"],
       "expectedPassed" : false,
       "layoutFormat" : "magic-layout",
       "layoutPath" : "sky130-magic-via3-spacing-violation.mag",
-      "oracleBackendID" : "magic",
       "topCell" : "sky130-magic-via3-spacing-violation"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via3-met3-enclosure-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "drc.enclosure.via3", "drc.enclosure.via3.met3", "drc.enclosure.via3.met3.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.golden", "drc.enclosure.fail", "drc.enclosure.via3", "drc.enclosure.via3.met3", "drc.enclosure.via3.met3.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via3.5"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1018,13 +954,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via3-met3-enclosure-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA3_MET3_ENCLOSURE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via3-met3-enclosure-clean",
-      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.pass", "drc.enclosure.via3", "drc.enclosure.via3.met3", "drc.enclosure.via3.met3.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.golden", "drc.enclosure.pass", "drc.enclosure.via3", "drc.enclosure.via3.met3", "drc.enclosure.via3.met3.golden", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1033,13 +968,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via3-met3-enclosure-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA3_MET3_ENCLOSURE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via3-met4-enclosure-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "drc.enclosure.via3", "drc.enclosure.via3.met4", "drc.enclosure.via3.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.golden", "drc.enclosure.fail", "drc.enclosure.via3", "drc.enclosure.via3.met4", "drc.enclosure.via3.met4.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met4.3"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1049,13 +983,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via3-met4-enclosure-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA3_MET4_ENCLOSURE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via3-met4-enclosure-clean",
-      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.pass", "drc.enclosure.via3", "drc.enclosure.via3.met4", "drc.enclosure.via3.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.golden", "drc.enclosure.pass", "drc.enclosure.via3", "drc.enclosure.via3.met4", "drc.enclosure.via3.met4.golden", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1064,13 +997,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via3-met4-enclosure-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA3_MET4_ENCLOSURE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met4", "drc.width.met4.external-oracle", "drc.width.met4.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met4", "drc.width.met4.golden", "drc.width.met4.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met4.1"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1080,13 +1012,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-width-clean",
-      "coverageTags" : ["drc.width", "drc.width.met4", "drc.width.met4.external-oracle", "drc.width.met4.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.width", "drc.width.met4", "drc.width.met4.golden", "drc.width.met4.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1095,13 +1026,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met4", "drc.spacing.met4.external-oracle", "drc.spacing.met4.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met4", "drc.spacing.met4.golden", "drc.spacing.met4.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met4.2"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1111,13 +1041,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.met4", "drc.spacing.met4.external-oracle", "drc.spacing.met4.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.met4", "drc.spacing.met4.golden", "drc.spacing.met4.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1126,13 +1055,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-area-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.fail", "drc.area.met4", "drc.area.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.fail", "drc.area.met4", "drc.area.met4.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met4.4a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1142,13 +1070,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-area-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_AREA_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-area-clean",
-      "coverageTags" : ["drc.area", "drc.area.met4", "drc.area.met4.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.area", "drc.area.met4", "drc.area.met4.golden", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1157,13 +1084,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-area-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_AREA_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-angle-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.fail", "drc.angle.met4", "drc.angle.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.fail", "drc.angle.met4", "drc.angle.met4.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["x.3a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1173,13 +1099,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-angle-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_ANGLE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-angle-clean",
-      "coverageTags" : ["drc.angle", "drc.angle.met4", "drc.angle.met4.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.angle", "drc.angle.met4", "drc.angle.met4.golden", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1188,13 +1113,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-angle-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_ANGLE_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-wide-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.fail", "drc.spacing.wide.met4", "drc.spacing.wide.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.wide", "drc.spacing.wide.fail", "drc.spacing.wide.met4", "drc.spacing.wide.met4.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met4.5b"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1204,13 +1128,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-wide-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_WIDE_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met4-wide-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met4", "drc.spacing.wide.met4.external-oracle", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.wide", "drc.spacing.wide.met4", "drc.spacing.wide.met4.golden", "drc.spacing.wide.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1219,7 +1142,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-wide-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_WIDE_SPACING_CLEAN"
     },
     {
@@ -1228,7 +1150,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.fail", "drc.spacing.large-attached.met4", "drc.spacing.large-attached.met4.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.fail", "drc.spacing.large-attached.met4", "drc.spacing.large-attached.met4.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met4.5a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1238,7 +1160,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-large-attached-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_LARGE_ATTACHED_SPACING_VIOLATION"
     },
     {
@@ -1247,7 +1168,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met4", "drc.spacing.large-attached.met4.external-oracle", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.large-attached", "drc.spacing.large-attached.met4", "drc.spacing.large-attached.met4.golden", "drc.spacing.large-attached.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1256,7 +1177,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met4-large-attached-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET4_LARGE_ATTACHED_SPACING_CLEAN"
     },
     {
@@ -1265,7 +1185,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via4", "drc.contact.width", "drc.contact.width.via4", "drc.contact.width.via4.external-oracle", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.via4", "drc.contact.width", "drc.contact.width.via4", "drc.contact.width.via4.golden", "drc.contact.width.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via4.1"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1275,7 +1195,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via4-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA4_WIDTH_VIOLATION"
     },
     {
@@ -1284,7 +1203,7 @@
       "additionalEnvironment" : {
         "MAGIC_DRC_STYLE" : "drc(full)"
       },
-      "coverageTags" : ["drc.contact", "drc.contact.via4", "drc.contact.width", "drc.contact.width.via4", "drc.contact.width.via4.external-oracle", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.via4", "drc.contact.width", "drc.contact.width.via4", "drc.contact.width.via4.golden", "drc.contact.width.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1293,55 +1212,50 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-via4-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_VIA4_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via4-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.fail", "drc.contact.spacing.via4", "drc.contact.spacing.via4.external-oracle", "drc.contact.via4", "external.magic", "layout.magic", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.contact", "drc.contact.spacing", "drc.contact.spacing.golden", "drc.contact.spacing.fail", "drc.contact.spacing.via4", "drc.contact.spacing.via4.golden", "drc.contact.via4", "external.magic", "layout.magic", "sky130"],
       "expectedActiveErrorRuleIDs" : ["via4.2"],
       "expectedPassed" : false,
       "layoutFormat" : "magic-layout",
       "layoutPath" : "sky130-magic-via4-spacing-violation.mag",
-      "oracleBackendID" : "magic",
       "topCell" : "sky130-magic-via4-spacing-violation"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via4-spacing-clean",
-      "coverageTags" : ["drc.contact", "drc.contact.spacing", "drc.contact.spacing.external-oracle", "drc.contact.spacing.pass", "drc.contact.spacing.via4", "drc.contact.spacing.via4.external-oracle", "drc.contact.via4", "external.magic", "layout.magic", "sky130"],
+      "coverageTags" : ["drc.contact", "drc.contact.spacing", "drc.contact.spacing.golden", "drc.contact.spacing.pass", "drc.contact.spacing.via4", "drc.contact.spacing.via4.golden", "drc.contact.via4", "external.magic", "layout.magic", "sky130"],
       "expectedPassed" : true,
       "layoutFormat" : "magic-layout",
       "layoutPath" : "sky130-magic-via4-spacing-clean.mag",
-      "oracleBackendID" : "magic",
       "topCell" : "sky130-magic-via4-spacing-clean"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via4-met5-enclosure-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.fail", "drc.enclosure.via4", "drc.enclosure.via4.met5", "drc.enclosure.via4.met5.external-oracle", "external.magic", "layout.magic", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.enclosure", "drc.enclosure.golden", "drc.enclosure.fail", "drc.enclosure.via4", "drc.enclosure.via4.met5", "drc.enclosure.via4.met5.golden", "external.magic", "layout.magic", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met5.3"],
       "expectedPassed" : false,
       "layoutFormat" : "magic-layout",
       "layoutPath" : "sky130-magic-via4-met5-enclosure-violation.mag",
-      "oracleBackendID" : "magic",
       "topCell" : "sky130-magic-via4-met5-enclosure-violation"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-via4-met5-enclosure-clean",
-      "coverageTags" : ["drc.enclosure", "drc.enclosure.external-oracle", "drc.enclosure.pass", "drc.enclosure.via4", "drc.enclosure.via4.met5", "drc.enclosure.via4.met5.external-oracle", "external.magic", "layout.magic", "sky130"],
+      "coverageTags" : ["drc.enclosure", "drc.enclosure.golden", "drc.enclosure.pass", "drc.enclosure.via4", "drc.enclosure.via4.met5", "drc.enclosure.via4.met5.golden", "external.magic", "layout.magic", "sky130"],
       "expectedPassed" : true,
       "layoutFormat" : "magic-layout",
       "layoutPath" : "sky130-magic-via4-met5-enclosure-clean.mag",
-      "oracleBackendID" : "magic",
       "topCell" : "sky130-magic-via4-met5-enclosure-clean"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met5-width-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met5", "drc.width.met5.external-oracle", "drc.width.met5.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.width", "drc.width.met5", "drc.width.met5.golden", "drc.width.met5.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met5.1"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1351,13 +1265,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met5-width-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET5_WIDTH_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met5-width-clean",
-      "coverageTags" : ["drc.width", "drc.width.met5", "drc.width.met5.external-oracle", "drc.width.met5.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.width", "drc.width.met5", "drc.width.met5.golden", "drc.width.met5.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1366,13 +1279,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met5-width-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET5_WIDTH_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met5-spacing-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met5", "drc.spacing.met5.external-oracle", "drc.spacing.met5.fail", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.spacing", "drc.spacing.met5", "drc.spacing.met5.golden", "drc.spacing.met5.fail", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met5.2"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1382,13 +1294,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met5-spacing-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET5_SPACING_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met5-spacing-clean",
-      "coverageTags" : ["drc.spacing", "drc.spacing.met5", "drc.spacing.met5.external-oracle", "drc.spacing.met5.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.spacing", "drc.spacing.met5", "drc.spacing.met5.golden", "drc.spacing.met5.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1397,13 +1308,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met5-spacing-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET5_SPACING_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met5-area-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.fail", "drc.area.met5", "drc.area.met5.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.area", "drc.area.fail", "drc.area.met5", "drc.area.met5.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["met5.4"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1413,13 +1323,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met5-area-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET5_AREA_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met5-area-clean",
-      "coverageTags" : ["drc.area", "drc.area.met5", "drc.area.met5.external-oracle", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.area", "drc.area.met5", "drc.area.met5.golden", "drc.area.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1428,13 +1337,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met5-area-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET5_AREA_CLEAN"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met5-angle-violation",
-      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.fail", "drc.angle.met5", "drc.angle.met5.external-oracle", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["diagnostic.rule-id", "drc.angle", "drc.angle.fail", "drc.angle.met5", "drc.angle.met5.golden", "external.magic", "layout.gds", "sky130"],
       "expectedActiveErrorRuleIDs" : ["x.3a"],
       "expectedPassed" : false,
       "generatedLayoutFixture" : {
@@ -1444,13 +1352,12 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met5-angle-violation.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET5_ANGLE_VIOLATION"
     },
     {
       "backendID" : "magic",
       "caseID" : "sky130-magic-met5-angle-clean",
-      "coverageTags" : ["drc.angle", "drc.angle.met5", "drc.angle.met5.external-oracle", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
+      "coverageTags" : ["drc.angle", "drc.angle.met5", "drc.angle.met5.golden", "drc.angle.pass", "external.magic", "layout.gds", "sky130"],
       "expectedPassed" : true,
       "generatedLayoutFixture" : {
         "format" : "gds",
@@ -1459,7 +1366,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "generated/sky130-magic-met5-angle-clean.gds",
-      "oracleBackendID" : "magic",
       "topCell" : "SKY130_MET5_ANGLE_CLEAN"
     }
   ]

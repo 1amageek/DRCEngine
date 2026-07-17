@@ -8,6 +8,22 @@ import LayoutTech
 
 
 extension DRCCLIOptionsTests {
+    @Test func currentCorpusReportFixtureDecodesAndValidatesEvidence() throws {
+        let fixtureURL = try #require(Bundle.module.url(
+            forResource: "drc-corpus-report-v2",
+            withExtension: "json",
+            subdirectory: "Fixtures/Contracts"
+        ))
+        let report = try JSONDecoder().decode(
+            DRCCorpusReport.self,
+            from: Data(contentsOf: fixtureURL)
+        )
+
+        #expect(report.schemaVersion == DRCCorpusReport.currentSchemaVersion)
+        #expect(report.assessment.meetsCriteria)
+        try report.validateEvidence()
+    }
+
     @Test func corpusReportRejectsMissingEvidenceProjections() {
         let data = Data("""
         {

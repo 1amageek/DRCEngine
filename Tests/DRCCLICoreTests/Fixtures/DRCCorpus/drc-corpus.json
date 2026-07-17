@@ -1,8 +1,9 @@
 {
   "schemaVersion" : 1,
+  "evidenceKind" : "regression",
   "defaultMaxDurationSeconds" : 10,
   "acceptanceCriteria" : {
-    "requireIndependentOracle" : true,
+    "requireIndependentOracle" : false,
     "requiredCoverageTags" : ["drc.antenna", "drc.antenna.multi-layer", "drc.antenna.process-step", "drc.antenna.via-aware", "drc.antenna.via-topology", "drc.antenna.detailed", "drc.antenna.cumulative", "drc.antenna.sidewall", "drc.area", "drc.clean", "drc.cut", "drc.cut.minimum", "drc.cut.minimum.fail", "drc.cut.minimum.multi-stack", "drc.cut.minimum.pass", "drc.cut.minimum.standard-input", "drc.density", "drc.density.minimum", "drc.enclosed-area", "drc.enclosure", "drc.enclosure.composite", "drc.extension", "drc.extension.minimum", "drc.grid", "drc.grid.manufacturing", "drc.input.cif", "drc.input.dxf", "drc.input.gds", "drc.input.oasis", "drc.marker", "drc.marker.forbidden-layer", "drc.notch", "drc.overlap", "drc.overlap.different-net", "drc.overlap.exact", "drc.overlap.forbidden", "drc.short", "drc.spacing", "drc.spacing.different-net", "drc.spacing.directional", "drc.spacing.end-of-line", "drc.spacing.layer-pair", "drc.spacing.net-scope", "drc.spacing.parallel-run-length", "drc.spacing.same-net", "drc.spacing.wide", "drc.tech.layer-map", "drc.waiver", "drc.width", "drc.width.maximum"]
   },
   "cases" : [
@@ -12,7 +13,6 @@
       "coverageTags" : ["drc.clean", "layout.json"],
       "expectedPassed" : true,
       "layoutPath" : "clean.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -27,7 +27,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "standard-gds-clean.gds",
-      "oracleBackendID" : "native-gds",
       "topCell" : "STD_DRC"
     },
     {
@@ -42,7 +41,6 @@
       },
       "layoutFormat" : "oasis",
       "layoutPath" : "standard-oasis-clean.oas",
-      "oracleBackendID" : "native-gds",
       "topCell" : "STD_DRC"
     },
     {
@@ -57,7 +55,6 @@
       },
       "layoutFormat" : "cif",
       "layoutPath" : "standard-cif-clean.cif",
-      "oracleBackendID" : "native-gds",
       "topCell" : "STD_DRC"
     },
     {
@@ -72,7 +69,6 @@
       },
       "layoutFormat" : "dxf",
       "layoutPath" : "standard-dxf-clean.dxf",
-      "oracleBackendID" : "native-gds",
       "topCell" : "STD_DRC"
     },
     {
@@ -82,7 +78,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.grid"],
       "expectedPassed" : false,
       "layoutPath" : "manufacturing-grid-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -92,7 +87,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.width"],
       "expectedPassed" : false,
       "layoutPath" : "width-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -102,7 +96,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.maxWidth"],
       "expectedPassed" : false,
       "layoutPath" : "maximum-width-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -112,7 +105,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.area"],
       "expectedPassed" : false,
       "layoutPath" : "area-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -122,7 +114,6 @@
       "expectedActiveErrorRuleIDs" : ["met2.antenna"],
       "expectedPassed" : false,
       "layoutPath" : "antenna-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -132,7 +123,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.antenna.processStep"],
       "expectedPassed" : false,
       "layoutPath" : "antenna-process-step-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -142,7 +132,6 @@
       "expectedActiveErrorRuleIDs" : ["met2.antenna.viaAware"],
       "expectedPassed" : false,
       "layoutPath" : "antenna-via-aware-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -151,7 +140,6 @@
       "coverageTags" : ["drc.antenna", "drc.antenna.via-aware", "drc.antenna.via-topology", "layout.json"],
       "expectedPassed" : true,
       "layoutPath" : "antenna-via-aware-disconnected.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -161,7 +149,6 @@
       "expectedActiveErrorRuleIDs" : ["met2.antenna.cumulative"],
       "expectedPassed" : false,
       "layoutPath" : "antenna-detailed-cumulative-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -171,7 +158,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.antenna.sidewall"],
       "expectedPassed" : false,
       "layoutPath" : "antenna-detailed-sidewall-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -181,7 +167,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.density"],
       "expectedPassed" : false,
       "layoutPath" : "density-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -191,7 +176,6 @@
       "expectedActiveErrorRuleIDs" : ["via1.minimumCut"],
       "expectedPassed" : false,
       "layoutPath" : "minimum-cut-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -200,7 +184,6 @@
       "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.pass", "layout.json"],
       "expectedPassed" : true,
       "layoutPath" : "minimum-cut-clean.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -210,7 +193,6 @@
       "expectedActiveErrorRuleIDs" : ["via1.minimumCut"],
       "expectedPassed" : false,
       "layoutPath" : "minimum-cut-multistack-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -219,7 +201,6 @@
       "coverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.multi-stack", "drc.cut.minimum.pass", "layout.json"],
       "expectedPassed" : true,
       "layoutPath" : "minimum-cut-multistack-clean.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -235,7 +216,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "standard-gds-minimum-cut-violation.gds",
-      "oracleBackendID" : "native-gds",
       "topCell" : "STD_DRC"
     },
     {
@@ -250,7 +230,6 @@
       },
       "layoutFormat" : "gds",
       "layoutPath" : "standard-gds-minimum-cut-clean.gds",
-      "oracleBackendID" : "native-gds",
       "topCell" : "STD_DRC"
     },
     {
@@ -260,7 +239,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.minimumDensity"],
       "expectedPassed" : false,
       "layoutPath" : "minimum-density-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -270,7 +248,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.notch"],
       "expectedPassed" : false,
       "layoutPath" : "notch-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -280,7 +257,6 @@
       "expectedActiveErrorRuleIDs" : ["m1_not_m2_marker.forbidden"],
       "expectedPassed" : false,
       "layoutPath" : "forbidden-layer-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -290,7 +266,6 @@
       "expectedActiveErrorRuleIDs" : ["active.nwell.forbiddenOverlap"],
       "expectedPassed" : false,
       "layoutPath" : "forbidden-overlap-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -300,7 +275,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.short"],
       "expectedPassed" : false,
       "layoutPath" : "different-net-overlap-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -310,7 +284,6 @@
       "expectedActiveErrorRuleIDs" : ["via1.marker.exactOverlap"],
       "expectedPassed" : false,
       "layoutPath" : "exact-overlap-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -320,7 +293,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.spacing"],
       "expectedPassed" : false,
       "layoutPath" : "spacing-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -330,7 +302,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.spacingDifferentNet"],
       "expectedPassed" : false,
       "layoutPath" : "spacing-different-net-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -340,7 +311,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.spacingSameNet"],
       "expectedPassed" : false,
       "layoutPath" : "spacing-same-net-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -350,7 +320,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.via1.spacing"],
       "expectedPassed" : false,
       "layoutPath" : "spacing-layer-pair-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -360,7 +329,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.eol"],
       "expectedPassed" : false,
       "layoutPath" : "spacing-end-of-line-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -370,7 +338,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.spacing.prl"],
       "expectedPassed" : false,
       "layoutPath" : "spacing-prl-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -380,7 +347,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.wideSpacing"],
       "expectedPassed" : false,
       "layoutPath" : "spacing-wide-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -390,7 +356,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.via1.enclosure"],
       "expectedPassed" : false,
       "layoutPath" : "enclosure-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -399,7 +364,6 @@
       "coverageTags" : ["drc.enclosure", "drc.enclosure.composite", "layout.json"],
       "expectedPassed" : true,
       "layoutPath" : "enclosure-composite-clean.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -409,7 +373,6 @@
       "expectedActiveErrorRuleIDs" : ["poly.active.extension"],
       "expectedPassed" : false,
       "layoutPath" : "minimum-extension-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -419,7 +382,6 @@
       "expectedActiveErrorRuleIDs" : ["met1.enclosedArea"],
       "expectedPassed" : false,
       "layoutPath" : "enclosed-area-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv"
     },
     {
@@ -428,7 +390,6 @@
       "coverageTags" : ["drc.waiver", "drc.width"],
       "expectedPassed" : true,
       "layoutPath" : "width-violation.json",
-      "oracleBackendID" : "native",
       "topCell" : "inv",
       "waiverPath" : "width-waiver.json"
     }

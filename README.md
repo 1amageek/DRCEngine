@@ -626,7 +626,7 @@ its normal DRC report and artifact manifest under the corpus output directory. I
 an oracle backend is specified, its report and manifest are written under the
 case directory as separate artifacts.
 The top-level `drc-corpus-report.json` includes per-case results, an aggregate
-`summary`, and a durable `qualification` result for Agent / CI consumers. Each
+`summary`, and a durable `assessment` result for Agent / CI consumers. Each
 run also records a `runID`, the canonical corpus-spec SHA-256, `completed`, and
 an optional `parentRunID` when resumed. A checkpoint named
 `drc-corpus-checkpoint.json` is written after every completed case. Only cases
@@ -715,11 +715,12 @@ external tools leave a reviewable report instead of aborting the corpus run.
 Corpus paths are resolved relative to the corpus spec file, which makes committed
 fixtures portable across machines and CI runners.
 `DRCCLICoreTests` packages both corpus directories through `Bundle.module`;
-the external-oracle GDS inputs are owned by this package and do not reach into a
-sibling checkout.
+the retained GDS and Magic-layout inputs are owned by this package and do not
+reach into a sibling checkout.
 
-The committed CLI golden corpus lives under
-`Tests/DRCCLICoreTests/Fixtures/DRCCorpus`. It covers a clean layout, an active
+The committed Native and Magic golden corpora live under
+`Tests/DRCCLICoreTests/Fixtures/DRCCorpus` and
+`Tests/DRCCLICoreTests/Fixtures/MagicGolden`. They cover a clean layout, an active
 standard-layout clean fixture for each GDSII/OASIS/CIF/DXF input format, active
 standard-layout GDSII minimum-cut pass and fail fixtures,
 manufacturing-grid failure, active minimum-width and maximum-width failures, an active minimum-area failure, active maximum-density and
@@ -743,11 +744,13 @@ correctness-clean run still fails the corpus gate when it exceeds its declared
 benchmark budget. CLI tests additionally prove that a correctness-clean corpus
 fails when `requiredCoverageTags` are missing. Runtime tests additionally inject
 disagreeing backends to prove oracle mismatch fails the corpus gate. This
-committed corpus intentionally uses same-backend regression references and must
-remain unqualified under the independent-oracle policy. A positive independently
+committed corpora intentionally omit oracle references and are regression
+evidence only. They must remain unqualified under the independent-oracle policy.
+A positive independently
 attested reference lane is exercised by
 `DRCIndependentOracleQualificationTests`; real foundry release qualification
-still requires the external Magic/PDK corpus and its digests.
+still requires a distinct Native-versus-Magic correlation corpus, pinned PDK
+inputs, and retained digests for both backend identities.
 
 ## Result convention
 
@@ -783,6 +786,7 @@ For the full developer boundary check, run it from this package directory:
 ../scripts/check-developer-cli.sh
 ```
 
-The committed regression corpus demonstrates kernel behavior and CLI
-reproducibility. It is deliberately not independent foundry qualification;
-release claims require retained external-oracle artifacts and their digests.
+The committed regression corpora demonstrate Native and Magic backend behavior
+and CLI reproducibility. They are deliberately not independent foundry
+qualification; release claims require a distinct correlation corpus with
+retained artifacts and digests for both independently identified backends.

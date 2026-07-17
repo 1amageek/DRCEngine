@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-18T00:00:00Z",
+  "runID": "drc-corpus-contract-v2",
+  "specSHA256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "completed": true,
+  "passed": true,
+  "caseCount": 1,
+  "matchedCaseCount": 1,
+  "budgetExceededCaseCount": 0,
+  "totalDurationSeconds": 0.1,
+  "evidenceKind": "independent-correlation",
+  "runOptions": {},
+  "summary": {
+    "expectationMatchedCaseCount": 1,
+    "durationBudgetPassedCaseCount": 1,
+    "primaryExecutionFailedCaseCount": 0,
+    "oracleCaseCount": 1,
+    "oracleAgreementPassedCaseCount": 1,
+    "oracleExecutionFailedCaseCount": 0,
+    "oracleReadinessBlockedCaseCount": 0,
+    "nonIndependentOracleCaseCount": 0,
+    "failureCategoryCounts": {},
+    "coverageTagCounts": {
+      "drc.width": 1
+    },
+    "passRate": 1,
+    "oracleAgreementRate": 1
+  },
+  "assessment": {
+    "criteria": {
+      "requireCorpusPassed": true,
+      "minimumPassRate": 1,
+      "minimumDurationBudgetPassRate": 1,
+      "minimumOracleCaseCount": 1,
+      "minimumOracleAgreementRate": 1,
+      "requireIndependentOracle": true,
+      "allowPrimaryExecutionFailures": false,
+      "allowOracleExecutionFailures": false,
+      "requiredCoverageTags": [
+        "drc.width"
+      ]
+    },
+    "findings": []
+  },
+  "caseResults": [
+    {
+      "caseID": "minimum-width-clean",
+      "matched": true,
+      "expectedPassed": true,
+      "actualPassed": true,
+      "expectedActiveErrorRuleIDs": [],
+      "actualActiveErrorRuleIDs": [],
+      "coverageTags": [
+        "drc.width"
+      ],
+      "expectationMatched": true,
+      "durationSeconds": 0.1,
+      "expectedMaxDurationSeconds": 1,
+      "durationBudgetPassed": true,
+      "failureReasons": [],
+      "diagnosticSummary": {
+        "infoCount": 0,
+        "warningCount": 0,
+        "errorCount": 0,
+        "waivedErrorCount": 0
+      },
+      "reportPath": "cases/minimum-width-clean/drc-report.json",
+      "manifestPath": "cases/minimum-width-clean/drc-artifact-manifest.json",
+      "primaryProvenance": {
+        "backendID": "native",
+        "backendIdentity": {
+          "backendID": "native",
+          "implementationFamily": "layout-verify"
+        },
+        "inputArtifacts": [],
+        "outputArtifacts": [],
+        "reportPath": "cases/minimum-width-clean/drc-report.json",
+        "manifestPath": "cases/minimum-width-clean/drc-artifact-manifest.json"
+      },
+      "oracleResult": {
+        "backendID": "magic",
+        "backendIdentity": {
+          "backendID": "magic",
+          "implementationFamily": "magic",
+          "executableDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "ruleProgramDigest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "technologyDigest": "4444444444444444444444444444444444444444444444444444444444444444"
+        },
+        "passed": true,
+        "activeErrorRuleIDs": [],
+        "diagnosticSummary": {
+          "infoCount": 0,
+          "warningCount": 0,
+          "errorCount": 0,
+          "waivedErrorCount": 0
+        },
+        "durationSeconds": 0.1,
+        "agreementPassed": true,
+        "readinessStatus": "ready",
+        "readinessDiagnostics": [],
+        "failureReasons": [],
+        "markerFingerprints": [],
+        "reportPath": "cases/minimum-width-clean/oracle-magic/drc-report.json",
+        "manifestPath": "cases/minimum-width-clean/oracle-magic/drc-artifact-manifest.json",
+        "provenance": {
+          "backendID": "magic",
+          "backendIdentity": {
+            "backendID": "magic",
+            "implementationFamily": "magic",
+            "executableDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "ruleProgramDigest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "technologyDigest": "4444444444444444444444444444444444444444444444444444444444444444"
+          },
+          "inputArtifacts": [],
+          "outputArtifacts": [],
+          "reportPath": "cases/minimum-width-clean/oracle-magic/drc-report.json",
+          "manifestPath": "cases/minimum-width-clean/oracle-magic/drc-artifact-manifest.json"
+        }
+      },
+      "oracleComparison": {
+        "primaryBackendID": "native",
+        "oracleBackendID": "magic",
+        "passedMatched": true,
+        "activeErrorRuleIDsMatched": true,
+        "diagnosticSummaryMatched": true,
+        "primaryPassed": true,
+        "oraclePassed": true,
+        "primaryActiveErrorRuleIDs": [],
+        "oracleActiveErrorRuleIDs": [],
+        "primaryDiagnosticSummary": {
+          "infoCount": 0,
+          "warningCount": 0,
+          "errorCount": 0,
+          "waivedErrorCount": 0
+        },
+        "oracleDiagnosticSummary": {
+          "infoCount": 0,
+          "warningCount": 0,
+          "errorCount": 0,
+          "waivedErrorCount": 0
+        },
+        "mismatchReasons": [],
+        "agreementPassed": true,
+        "primaryMarkerFingerprints": [],
+        "oracleMarkerFingerprints": [],
+        "markerSetMatched": true,
+        "markerCorrelationRequired": false
+      }
+    }
+  ]
+}

@@ -20,23 +20,22 @@ extension DRCCLIOptionsTests {
             "--json",
         ])
 
-        #expect(exitCode == 2)
+        #expect(exitCode == 0)
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
         let report = try JSONDecoder().decode(DRCCorpusReport.self, from: Data(contentsOf: reportURL))
-        #expect(!report.passed)
+        #expect(report.passed)
         #expect(report.caseCount == 40)
-        #expect(report.matchedCaseCount == 0)
+        #expect(report.matchedCaseCount == 40)
         #expect(report.budgetExceededCaseCount == 0)
         #expect(report.totalDurationSeconds >= 0)
-        #expect(report.summary.passRate == 0)
-        #expect(report.summary.oracleCaseCount == 40)
+        #expect(report.summary.passRate == 1)
+        #expect(report.summary.oracleCaseCount == 0)
         #expect(report.summary.oracleAgreementPassedCaseCount == 0)
-        #expect(report.summary.oracleAgreementRate == 0)
+        #expect(report.summary.oracleAgreementRate == nil)
         #expect(report.summary.primaryExecutionFailedCaseCount == 0)
         #expect(report.summary.oracleExecutionFailedCaseCount == 0)
-        #expect(report.summary.oracleReadinessBlockedCaseCount == 40)
-        #expect(report.summary.failureCategoryCounts["oracle_agreement_mismatch"] == 40)
-        #expect(report.summary.failureCategoryCounts["same_backend_reference"] == 40)
+        #expect(report.summary.oracleReadinessBlockedCaseCount == 0)
+        #expect(report.summary.nonIndependentOracleCaseCount == 0)
         #expect(report.summary.coverageTagCounts["drc.antenna"] == 6)
         #expect(report.summary.coverageTagCounts["drc.antenna.multi-layer"] == 1)
         #expect(report.summary.coverageTagCounts["drc.antenna.process-step"] == 1)
@@ -85,7 +84,7 @@ extension DRCCLIOptionsTests {
         #expect(report.summary.coverageTagCounts["drc.enclosure"] == 2)
         #expect(report.summary.coverageTagCounts["drc.enclosure.composite"] == 1)
         #expect(report.summary.coverageTagCounts["drc.waiver"] == 1)
-        #expect(!report.assessment.meetsCriteria)
+        #expect(report.assessment.meetsCriteria)
         #expect(report.assessment.criteria.requiredCoverageTags == [
             "drc.antenna",
             "drc.antenna.cumulative",
@@ -138,22 +137,12 @@ extension DRCCLIOptionsTests {
             "drc.width",
             "drc.width.maximum",
         ])
-        #expect(report.assessment.findings.map(\.code).contains("corpus_not_passed"))
+        #expect(report.assessment.findings.isEmpty)
         #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
         #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 10 })
-        #expect(report.caseResults.allSatisfy {
-            $0.failureReasons.contains("oracle_agreement_mismatch")
-                && $0.failureReasons.contains("same_backend_reference")
-        })
+        #expect(report.caseResults.allSatisfy { $0.failureReasons.isEmpty })
         #expect(report.caseResults.allSatisfy { !$0.coverageTags.isEmpty })
-        #expect(Set(report.caseResults.compactMap { $0.oracleResult?.backendID }) == ["native", "native-gds"])
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.agreementPassed == false })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessStatus == .blocked })
-        #expect(report.caseResults.allSatisfy {
-            $0.oracleResult?.readinessDiagnostics.contains { $0.contains("same_backend_reference") } == true
-        })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.reportPath == nil })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.manifestPath == nil })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult == nil })
         #expect(report.caseResults.allSatisfy { $0.primaryProvenance != nil })
         #expect(report.caseResults.allSatisfy {
             $0.primaryProvenance?.inputArtifacts.contains { $0.id == "input-layout" && $0.kind == .layout } == true
@@ -164,12 +153,7 @@ extension DRCCLIOptionsTests {
         #expect(report.caseResults.allSatisfy {
             $0.primaryProvenance?.outputArtifacts.contains { $0.id == "manifest" && $0.kind == .manifest } == true
         })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.provenance == nil })
-        #expect(report.caseResults.allSatisfy { $0.oracleComparison != nil })
-        #expect(report.caseResults.allSatisfy { $0.oracleComparison?.agreementPassed == false })
-        #expect(report.caseResults.allSatisfy {
-            $0.oracleComparison?.mismatchReasons.contains("same_backend_reference") == true
-        })
+        #expect(report.caseResults.allSatisfy { $0.oracleComparison == nil })
         #expect(report.caseResults.contains {
             $0.caseID == "manufacturing-grid-violation"
                 && $0.actualActiveErrorRuleIDs == ["met1.grid"]
@@ -355,7 +339,8 @@ extension DRCCLIOptionsTests {
         let specURL = fixtureExternalOracleSpecURL("drc-cut-count-magic-readiness-corpus.json")
         let spec = try JSONDecoder().decode(DRCCorpusSpec.self, from: Data(contentsOf: specURL))
         #expect(spec.cases.count == 2)
-        #expect(Set(spec.cases.compactMap(\.oracleBackendID)) == ["magic"])
+        #expect(spec.evidenceKind == .regression)
+        #expect(spec.cases.allSatisfy { $0.oracleBackendID == "magic" })
 
         let exitCode = await DRCCLI.run(arguments: [
             "--corpus", specURL.path(percentEncoded: false),
@@ -406,7 +391,7 @@ extension DRCCLIOptionsTests {
     // Each retained Sky130 case launches one bounded external process. The
     // package test runner supplies the stricter suite-level deadline.
     @Test(.timeLimit(.minutes(1)))
-    func magicNativeViaSpacingCorpusCasesRunAgainstMagicOracle() async throws {
+    func magicLayoutViaContactCorpusRetainsExpectedRulesAndArtifacts() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
 
@@ -420,7 +405,7 @@ extension DRCCLIOptionsTests {
             "--json",
         ])
 
-        #expect(exitCode == 2)
+        #expect(exitCode == 0)
         let reportURL = outputDirectory.appending(path: "drc-corpus-report.json")
         let report = try JSONDecoder().decode(DRCCorpusReport.self, from: Data(contentsOf: reportURL))
         try assertMagicNativeViaSpacingCorpusReport(report)
@@ -468,7 +453,7 @@ extension DRCCLIOptionsTests {
     }
 
     private func writeMagicNativeViaSpacingCorpusSpec(to subsetSpecURL: URL) throws {
-        let sourceSpecURL = fixtureExternalOracleSpecURL("drc-magic-corpus.json")
+        let sourceSpecURL = fixtureMagicGoldenURL("drc-magic-golden-corpus.json")
         let sourceSpec = try JSONDecoder().decode(DRCCorpusSpec.self, from: Data(contentsOf: sourceSpecURL))
         let cases = magicNativeViaSpacingCases(from: sourceSpec)
         #expect(cases.count == magicNativeViaCaseExpectations.count)
@@ -476,8 +461,6 @@ extension DRCCLIOptionsTests {
         try writeJSON(DRCCorpusSpec(
             defaultMaxDurationSeconds: 8,
             acceptanceCriteria: DRCCorpusAcceptanceCriteria(
-                minimumOracleCaseCount: magicNativeViaCaseExpectations.count,
-                minimumOracleAgreementRate: 1,
                 requiredCoverageTags: magicNativeViaRequiredCoverageTags
             ),
             cases: cases
@@ -486,10 +469,10 @@ extension DRCCLIOptionsTests {
 
     private var magicNativeViaRequiredCoverageTags: [String] {
         [
-            "drc.contact.spacing.via2.external-oracle",
-            "drc.contact.spacing.via3.external-oracle",
-            "drc.contact.spacing.via4.external-oracle",
-            "drc.enclosure.via4.met5.external-oracle",
+            "drc.contact.spacing.via2.golden",
+            "drc.contact.spacing.via3.golden",
+            "drc.contact.spacing.via4.golden",
+            "drc.enclosure.via4.met5.golden",
             "external.magic",
             "layout.magic",
             "sky130",
@@ -506,7 +489,7 @@ extension DRCCLIOptionsTests {
     private func magicNativeViaSpacingCase(from corpusCase: DRCCorpusCase) -> DRCCorpusCase {
         DRCCorpusCase(
             caseID: corpusCase.caseID,
-            layoutPath: fixtureExternalOracleSpecURL(corpusCase.layoutPath).path(percentEncoded: false),
+            layoutPath: fixtureMagicGoldenURL(corpusCase.layoutPath).path(percentEncoded: false),
             topCell: corpusCase.topCell,
             layoutFormat: corpusCase.layoutFormat,
             technologyPath: nil,
@@ -529,37 +512,30 @@ extension DRCCLIOptionsTests {
     }
 
     private func assertMagicNativeViaSpacingSummary(_ report: DRCCorpusReport) {
-        #expect(!report.passed)
-        #expect(!report.assessment.meetsCriteria)
+        #expect(report.passed)
+        #expect(report.assessment.meetsCriteria)
         #expect(report.caseCount == 6)
-        #expect(report.matchedCaseCount == 0)
-        #expect(report.summary.oracleCaseCount == 6)
+        #expect(report.matchedCaseCount == 6)
+        #expect(report.summary.oracleCaseCount == 0)
         #expect(report.summary.oracleAgreementPassedCaseCount == 0)
-        #expect(report.summary.oracleAgreementRate == 0)
+        #expect(report.summary.oracleAgreementRate == nil)
         for (tag, count) in magicNativeViaExpectedCoverageCounts {
             #expect(report.summary.coverageTagCounts[tag] == count)
         }
         #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 8 })
         #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
-        #expect(report.caseResults.allSatisfy {
-            $0.failureReasons.contains("oracle_agreement_mismatch")
-                && $0.failureReasons.contains("same_backend_reference")
-        })
-        #expect(report.caseResults.allSatisfy { $0.oracleResult?.readinessStatus == .blocked })
-        #expect(report.caseResults.allSatisfy { $0.oracleComparison != nil })
-        #expect(report.caseResults.allSatisfy { $0.oracleComparison?.agreementPassed == false })
-        #expect(report.caseResults.allSatisfy {
-            $0.oracleComparison?.mismatchReasons.contains("same_backend_reference") == true
-        })
+        #expect(report.caseResults.allSatisfy { $0.failureReasons.isEmpty })
+        #expect(report.caseResults.allSatisfy { $0.oracleResult == nil })
+        #expect(report.caseResults.allSatisfy { $0.oracleComparison == nil })
     }
 
     private var magicNativeViaExpectedCoverageCounts: [String: Int] {
         [
             "layout.magic": 6,
-            "drc.contact.spacing.via2.external-oracle": 1,
-            "drc.contact.spacing.via3.external-oracle": 1,
-            "drc.contact.spacing.via4.external-oracle": 2,
-            "drc.enclosure.via4.met5.external-oracle": 2,
+            "drc.contact.spacing.via2.golden": 1,
+            "drc.contact.spacing.via3.golden": 1,
+            "drc.contact.spacing.via4.golden": 2,
+            "drc.enclosure.via4.met5.golden": 2,
         ]
     }
 
@@ -580,9 +556,7 @@ extension DRCCLIOptionsTests {
     private func assertMagicNativeViaSpacingArtifacts(_ report: DRCCorpusReport) {
         for result in report.caseResults {
             #expect(primaryArtifactContractIsComplete(for: result))
-            #expect(!oracleArtifactContractIsComplete(for: result))
-            #expect(result.oracleResult?.reportPath == nil)
-            #expect(result.oracleResult?.manifestPath == nil)
+            #expect(result.oracleResult == nil)
         }
     }
 
@@ -595,26 +569,6 @@ extension DRCCLIOptionsTests {
             return false
         }
         return FileManager.default.fileExists(atPath: reportPath)
-            && FileManager.default.fileExists(atPath: manifestPath)
-            && provenance.backendID == "magic"
-            && provenance.reportPath == reportPath
-            && provenance.manifestPath == manifestPath
-            && provenanceContainsMagicLayoutInput(provenance)
-            && provenanceContainsMagicOutputs(provenance)
-    }
-
-    private func oracleArtifactContractIsComplete(for result: DRCCorpusCaseResult) -> Bool {
-        guard
-            let oracleResult = result.oracleResult,
-            let reportPath = oracleResult.reportPath,
-            let manifestPath = oracleResult.manifestPath,
-            let provenance = oracleResult.provenance
-        else {
-            return false
-        }
-        return oracleResult.backendID == "magic"
-            && oracleResult.failureReasons.isEmpty
-            && FileManager.default.fileExists(atPath: reportPath)
             && FileManager.default.fileExists(atPath: manifestPath)
             && provenance.backendID == "magic"
             && provenance.reportPath == reportPath

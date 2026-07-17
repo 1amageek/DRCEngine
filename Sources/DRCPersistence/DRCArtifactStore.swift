@@ -276,21 +276,12 @@ public struct DRCArtifactStore: Sendable {
     }
 
     private func containmentRelativePath(for url: URL, baseDirectory: URL) -> String? {
-        let basePath = directoryPath(baseDirectory.standardizedFileURL.path(percentEncoded: false))
-        let artifactPath = url.standardizedFileURL.path(percentEncoded: false)
-        guard artifactPath.hasPrefix(basePath + "/") else {
+        let resolvedBasePath = directoryPath(normalizedPath(baseDirectory))
+        let resolvedArtifactPath = normalizedPath(url)
+        guard resolvedArtifactPath.hasPrefix(resolvedBasePath + "/") else {
             return nil
         }
-
-        if FileManager.default.fileExists(atPath: artifactPath) {
-            let resolvedBasePath = directoryPath(normalizedPath(baseDirectory))
-            let resolvedArtifactPath = normalizedPath(url)
-            guard resolvedArtifactPath.hasPrefix(resolvedBasePath + "/") else {
-                return nil
-            }
-        }
-
-        return String(artifactPath.dropFirst(basePath.count + 1))
+        return String(resolvedArtifactPath.dropFirst(resolvedBasePath.count + 1))
     }
 
     private func normalizedPath(_ url: URL) -> String {

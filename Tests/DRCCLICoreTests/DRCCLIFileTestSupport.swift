@@ -82,4 +82,15 @@ extension DRCCLIOptionsTests {
         }
         return url
     }
+
+    func fixtureMagicGoldenURL(_ name: String) -> URL {
+        guard let url = Bundle.module.url(
+            forResource: name,
+            withExtension: nil,
+            subdirectory: "Fixtures/MagicGolden"
+        ) else {
+            preconditionFailure("Packaged DRC Magic golden fixture '\(name)' is unavailable.")
+        }
+        return url
+    }
 }
