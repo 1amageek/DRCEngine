@@ -55,6 +55,7 @@ struct DRCCorpusMarkerFingerprintTests {
             oracleBackendID: "oracle",
             passedMatched: true,
             activeErrorRuleIDsMatched: true,
+            ruleAssertionsMatched: true,
             diagnosticSummaryMatched: true,
             primaryPassed: true,
             oraclePassed: true,

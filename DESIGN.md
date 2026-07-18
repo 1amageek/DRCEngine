@@ -14,7 +14,8 @@ flowchart TD
     Backend --> Domain["DRCResult + ARC diagnostics"]
     Domain --> Persist["DRC artifact manifest"]
     Domain --> Flow["Flow coordinator / Agent"]
-    Persist --> Gate["Independent oracle + foundry PDK gate"]
+    Persist --> Correlate["Native primary + external oracle correlation"]
+    Correlate --> Gate["Tool qualification + foundry PDK gate"]
 ```
 
 ## Foundation integration

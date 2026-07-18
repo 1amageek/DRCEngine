@@ -3,6 +3,7 @@ public struct DRCCorpusOracleComparison: Sendable, Hashable, Codable {
     public let oracleBackendID: String
     public let passedMatched: Bool
     public let activeErrorRuleIDsMatched: Bool
+    public let ruleAssertionsMatched: Bool
     public let diagnosticSummaryMatched: Bool
     public let primaryPassed: Bool
     public let oraclePassed: Bool
@@ -22,6 +23,7 @@ public struct DRCCorpusOracleComparison: Sendable, Hashable, Codable {
         case oracleBackendID
         case passedMatched
         case activeErrorRuleIDsMatched
+        case ruleAssertionsMatched
         case diagnosticSummaryMatched
         case primaryPassed
         case oraclePassed
@@ -42,6 +44,7 @@ public struct DRCCorpusOracleComparison: Sendable, Hashable, Codable {
         oracleBackendID: String,
         passedMatched: Bool,
         activeErrorRuleIDsMatched: Bool,
+        ruleAssertionsMatched: Bool,
         diagnosticSummaryMatched: Bool,
         primaryPassed: Bool,
         oraclePassed: Bool,
@@ -60,6 +63,7 @@ public struct DRCCorpusOracleComparison: Sendable, Hashable, Codable {
         self.oracleBackendID = oracleBackendID
         self.passedMatched = passedMatched
         self.activeErrorRuleIDsMatched = activeErrorRuleIDsMatched
+        self.ruleAssertionsMatched = ruleAssertionsMatched
         self.diagnosticSummaryMatched = diagnosticSummaryMatched
         self.primaryPassed = primaryPassed
         self.oraclePassed = oraclePassed
@@ -77,7 +81,7 @@ public struct DRCCorpusOracleComparison: Sendable, Hashable, Codable {
             self.agreementPassed = agreementPassed
         } else {
             self.agreementPassed = passedMatched
-                && activeErrorRuleIDsMatched
+                && self.ruleAssertionsMatched
                 && (!markerCorrelationRequired || self.markerSetMatched)
         }
     }
@@ -88,6 +92,7 @@ public struct DRCCorpusOracleComparison: Sendable, Hashable, Codable {
         oracleBackendID = try container.decode(String.self, forKey: .oracleBackendID)
         passedMatched = try container.decode(Bool.self, forKey: .passedMatched)
         activeErrorRuleIDsMatched = try container.decode(Bool.self, forKey: .activeErrorRuleIDsMatched)
+        ruleAssertionsMatched = try container.decode(Bool.self, forKey: .ruleAssertionsMatched)
         diagnosticSummaryMatched = try container.decode(Bool.self, forKey: .diagnosticSummaryMatched)
         primaryPassed = try container.decode(Bool.self, forKey: .primaryPassed)
         oraclePassed = try container.decode(Bool.self, forKey: .oraclePassed)
@@ -111,7 +116,7 @@ public struct DRCCorpusOracleComparison: Sendable, Hashable, Codable {
         markerSetMatched = try container.decodeIfPresent(Bool.self, forKey: .markerSetMatched)
             ?? (primaryMarkerFingerprints == oracleMarkerFingerprints)
         agreementPassed = try container.decodeIfPresent(Bool.self, forKey: .agreementPassed)
-            ?? (passedMatched && activeErrorRuleIDsMatched
+            ?? (passedMatched && ruleAssertionsMatched
                 && (!markerCorrelationRequired || markerSetMatched))
     }
 }

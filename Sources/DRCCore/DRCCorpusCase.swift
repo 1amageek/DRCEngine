@@ -15,6 +15,7 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
     public let canonicalStateDigest: String?
     public let expectedPassed: Bool
     public let expectedActiveErrorRuleIDs: [String]
+    public let expectedOracleActiveErrorRuleIDs: [String]?
     public let coverageTags: [String]
     public let maxDurationSeconds: Double?
 
@@ -33,6 +34,7 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
         canonicalStateDigest: String? = nil,
         expectedPassed: Bool,
         expectedActiveErrorRuleIDs: [String] = [],
+        expectedOracleActiveErrorRuleIDs: [String]? = nil,
         coverageTags: [String] = [],
         maxDurationSeconds: Double? = nil
     ) {
@@ -50,6 +52,7 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
         self.canonicalStateDigest = canonicalStateDigest
         self.expectedPassed = expectedPassed
         self.expectedActiveErrorRuleIDs = expectedActiveErrorRuleIDs
+        self.expectedOracleActiveErrorRuleIDs = expectedOracleActiveErrorRuleIDs?.sorted()
         self.coverageTags = Self.normalizedCoverageTags(coverageTags)
         self.maxDurationSeconds = maxDurationSeconds
     }
@@ -69,6 +72,7 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
         case canonicalStateDigest
         case expectedPassed
         case expectedActiveErrorRuleIDs
+        case expectedOracleActiveErrorRuleIDs
         case coverageTags
         case maxDurationSeconds
     }
@@ -98,6 +102,10 @@ public struct DRCCorpusCase: Sendable, Hashable, Codable {
             [String].self,
             forKey: .expectedActiveErrorRuleIDs
         ) ?? []
+        expectedOracleActiveErrorRuleIDs = try container.decodeIfPresent(
+            [String].self,
+            forKey: .expectedOracleActiveErrorRuleIDs
+        )?.sorted()
         coverageTags = Self.normalizedCoverageTags(try container.decodeIfPresent(
             [String].self,
             forKey: .coverageTags

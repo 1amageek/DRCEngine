@@ -149,7 +149,7 @@ struct DRCCorpusGeneratedTechnologyFactory: Sendable {
                     layerID: metal1,
                     minWidth: 0.14,
                     minSpacing: 0.14,
-                    minArea: 0.0,
+                    minArea: 0.083,
                     minDensity: 0.0,
                     maxDensity: 1.0,
                     wideWidthThreshold: 3.005,

@@ -615,7 +615,12 @@ raw domain evidence while the flow policy evaluates who approved it and when.
 multiple DRC cases and compare each result against expected pass/fail, active
 error rule IDs, optional independent-reference agreement (`oracleBackendID`), and
 optional duration budgets (`defaultMaxDurationSeconds` or per-case
-`maxDurationSeconds`). Cases may also declare `coverageTags`, and a corpus
+`maxDurationSeconds`). When independent tools use different rule namespaces, a
+case declares `expectedActiveErrorRuleIDs` for the primary backend and
+`expectedOracleActiveErrorRuleIDs` for the oracle. The report keeps the raw IDs
+from both tools, records direct ID equality separately, and accepts the
+correlation only when both backend-specific assertions match. Cases may also
+declare `coverageTags`, and a corpus
 policy may require `requiredCoverageTags` so a release gate can fail when the
 corpus passes but does not cover the required capability areas. A case may also
 declare a `generatedLayoutFixture` so the corpus runner writes a deterministic
@@ -743,14 +748,20 @@ waiver behavior. The tight-budget fixture proves that a
 correctness-clean run still fails the corpus gate when it exceeds its declared
 benchmark budget. CLI tests additionally prove that a correctness-clean corpus
 fails when `requiredCoverageTags` are missing. Runtime tests additionally inject
-disagreeing backends to prove oracle mismatch fails the corpus gate. This
-committed corpora intentionally omit oracle references and are regression
+disagreeing backends to prove oracle mismatch fails the corpus gate. These
+committed golden corpora intentionally omit oracle references and are regression
 evidence only. They must remain unqualified under the independent-oracle policy.
-A positive independently
-attested reference lane is exercised by
-`DRCIndependentOracleQualificationTests`; real foundry release qualification
-still requires a distinct Native-versus-Magic correlation corpus, pinned PDK
-inputs, and retained digests for both backend identities.
+
+The separate
+`Tests/DRCCLICoreTests/Fixtures/ExternalOracle/drc-native-magic-correlation-corpus.json`
+is the executable Native-versus-Magic lane. Every case uses `native-gds` as the
+primary backend, `magic` as the oracle, and the same generated Sky130 GDS input.
+It contains clean and violating width, spacing, and area pairs with explicit
+backend-specific rule assertions. A qualifying run therefore retains two real
+executions, two independently identified implementation families, the shared
+input digest, and the attested Magic executable, driver, and PDK digests. This
+is raw correlation evidence; ToolQualification and flow policy still decide
+whether that evidence is sufficient for a release scope.
 
 ## Result convention
 
@@ -771,7 +782,10 @@ set for each diagnostic. The fingerprint is derived from rule ID, diagnostic
 kind, layer, normalized region, and related shape/via/pin/net IDs; message text
 and execution order are intentionally excluded. A marker-set mismatch produces
 `marker_set_mismatch` and blocks oracle agreement in that evidence lane. The
-regression lane retains the legacy rule-ID and verdict comparison contract.
+regression lane compares verdicts and rule assertions. It uses direct raw-ID
+equality unless a case explicitly supplies `expectedOracleActiveErrorRuleIDs`.
+The Native-versus-Magic fixture uses this explicit mapping because Magic's text
+report does not expose the geometry required for marker-fingerprint equality.
 
 ## Build & test
 

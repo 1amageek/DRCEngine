@@ -50,6 +50,20 @@ public extension DRCCorpusSpec {
                     "\(casePrefix) expectedActiveErrorRuleIDs must not contain empty values."
                 )
             }
+            if let expectedOracleActiveErrorRuleIDs = corpusCase.expectedOracleActiveErrorRuleIDs {
+                guard corpusCase.oracleBackendID != nil else {
+                    throw DRCError.invalidInput(
+                        "\(casePrefix) expectedOracleActiveErrorRuleIDs requires oracleBackendID."
+                    )
+                }
+                guard expectedOracleActiveErrorRuleIDs.allSatisfy({
+                    !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                }) else {
+                    throw DRCError.invalidInput(
+                        "\(casePrefix) expectedOracleActiveErrorRuleIDs must not contain empty values."
+                    )
+                }
+            }
         }
     }
 

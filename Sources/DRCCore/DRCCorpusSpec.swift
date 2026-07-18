@@ -46,7 +46,7 @@ public struct DRCCorpusSpec: Sendable, Hashable, Codable {
     }
 
     public var effectiveAcceptanceCriteria: DRCCorpusAcceptanceCriteria {
-        guard evidenceKind == .independentCorrelation, !acceptanceCriteria.requireIndependentOracle else {
+        guard evidenceKind.requiresIndependentOracle, !acceptanceCriteria.requireIndependentOracle else {
             return acceptanceCriteria
         }
         return acceptanceCriteria.with(requireIndependentOracle: true)

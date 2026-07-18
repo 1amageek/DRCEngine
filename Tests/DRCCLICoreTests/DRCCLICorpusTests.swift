@@ -388,6 +388,19 @@ extension DRCCLIOptionsTests {
         })
     }
 
+    @Test func nativeMagicCorrelationCorpusDeclaresIndependentBackendsAndRuleAssertions() throws {
+        let specURL = fixtureExternalOracleSpecURL("drc-native-magic-correlation-corpus.json")
+        let spec = try JSONDecoder().decode(DRCCorpusSpec.self, from: Data(contentsOf: specURL))
+        try spec.validate()
+
+        #expect(spec.cases.count == 6)
+        #expect(spec.acceptanceCriteria.requireIndependentOracle)
+        #expect(spec.acceptanceCriteria.minimumOracleCaseCount == 6)
+        #expect(spec.cases.allSatisfy { $0.backendID == "native-gds" })
+        #expect(spec.cases.allSatisfy { $0.oracleBackendID == "magic" })
+        #expect(spec.cases.allSatisfy { $0.expectedOracleActiveErrorRuleIDs != nil })
+    }
+
     // Each retained Sky130 case launches one bounded external process. The
     // package test runner supplies the stricter suite-level deadline.
     @Test(.timeLimit(.minutes(1)))

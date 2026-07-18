@@ -21,6 +21,7 @@ public struct DRCCorpusRunner: Sendable {
         let (spec, specData) = try loadSpec(from: specURL)
         try spec.validate()
         try options.validate()
+        try validateOracleOverride(options.oracleBackendIDOverride, for: spec)
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         try validateBudget(spec.defaultMaxDurationSeconds, label: "defaultMaxDurationSeconds")
         let specSHA256 = sha256(specData)
@@ -86,6 +87,20 @@ public struct DRCCorpusRunner: Sendable {
             throw DRCError.invalidInput("Could not decode DRC corpus spec: \(error.localizedDescription)")
         }
         return (spec, data)
+    }
+
+    private func validateOracleOverride(
+        _ oracleBackendIDOverride: String?,
+        for spec: DRCCorpusSpec
+    ) throws {
+        guard let oracleBackendIDOverride else { return }
+        for corpusCase in spec.cases where corpusCase.expectedOracleActiveErrorRuleIDs != nil {
+            guard corpusCase.oracleBackendID == oracleBackendIDOverride else {
+                throw DRCError.invalidInput(
+                    "DRC corpus case '\(corpusCase.caseID)' declares backend-specific oracle rule assertions for '\(corpusCase.oracleBackendID ?? "none")'; --oracle-backend cannot replace that backend with '\(oracleBackendIDOverride)'."
+                )
+            }
+        }
     }
 
     private func loadResumeReport(
@@ -189,7 +204,7 @@ public struct DRCCorpusRunner: Sendable {
                 specDirectory: specDirectory,
                 outputDirectory: outputDirectory,
                 options: options,
-                requireMarkerCorrelation: spec.evidenceKind == .independentCorrelation
+                requireMarkerCorrelation: spec.evidenceKind.requiresMarkerCorrelation
             )
             caseResults.append(result)
             await emit(
@@ -349,6 +364,8 @@ public struct DRCCorpusRunner: Sendable {
             primaryPassed: executionResult.result.passed,
             primaryBackendID: executionResult.result.backendID,
             primaryActiveRuleIDs: actualRuleIDs,
+            expectedPrimaryActiveRuleIDs: expectedRuleIDs,
+            expectedOracleActiveRuleIDs: corpusCase.expectedOracleActiveErrorRuleIDs,
             primaryDiagnosticSummary: primaryDiagnosticSummary,
             primaryMarkerFingerprints: DRCCorpusMarkerFingerprint.fingerprints(
                 from: executionResult.result.diagnostics
@@ -392,6 +409,8 @@ public struct DRCCorpusRunner: Sendable {
                 primaryBackendID: executionResult.result.backendID,
                 primaryPassed: executionResult.result.passed,
                 primaryActiveRuleIDs: actualRuleIDs,
+                expectedPrimaryActiveRuleIDs: expectedRuleIDs,
+                expectedOracleActiveRuleIDs: corpusCase.expectedOracleActiveErrorRuleIDs,
                 primaryDiagnosticSummary: primaryDiagnosticSummary,
                 primaryMarkerFingerprints: DRCCorpusMarkerFingerprint.fingerprints(
                     from: executionResult.result.diagnostics
@@ -587,6 +606,8 @@ public struct DRCCorpusRunner: Sendable {
         primaryPassed: Bool,
         primaryBackendID: String,
         primaryActiveRuleIDs: [String],
+        expectedPrimaryActiveRuleIDs: [String],
+        expectedOracleActiveRuleIDs: [String]?,
         primaryDiagnosticSummary: DRCDiagnosticSummary,
         primaryMarkerFingerprints: [String],
         timeoutSeconds: Double?,
@@ -682,8 +703,11 @@ public struct DRCCorpusRunner: Sendable {
         let readinessStatus: DRCCorpusOracleReadinessStatus = readinessDiagnostics.isEmpty ? .ready : .blocked
         let executionError = readinessDiagnostics.first
         let readinessFailureReasons = executionError.map { ["oracle_execution_failed:\($0)"] } ?? []
+        let ruleAssertionsMatched = expectedOracleActiveRuleIDs.map {
+            primaryActiveRuleIDs == expectedPrimaryActiveRuleIDs && oracleRuleIDs == $0
+        } ?? (oracleRuleIDs == primaryActiveRuleIDs)
         let agreementPassed = executionResult.result.passed == primaryPassed
-            && oracleRuleIDs == primaryActiveRuleIDs
+            && ruleAssertionsMatched
             && (!requireMarkerCorrelation || oracleMarkerFingerprints == primaryMarkerFingerprints)
         let markerSetMatched = oracleMarkerFingerprints == primaryMarkerFingerprints
         let comparison = DRCCorpusOracleComparison(
@@ -691,6 +715,7 @@ public struct DRCCorpusRunner: Sendable {
             oracleBackendID: executionResult.result.backendID,
             passedMatched: executionResult.result.passed == primaryPassed,
             activeErrorRuleIDsMatched: oracleRuleIDs == primaryActiveRuleIDs,
+            ruleAssertionsMatched: ruleAssertionsMatched,
             diagnosticSummaryMatched: oracleDiagnosticSummary == primaryDiagnosticSummary,
             primaryPassed: primaryPassed,
             oraclePassed: executionResult.result.passed,
@@ -703,6 +728,7 @@ public struct DRCCorpusRunner: Sendable {
                 oraclePassed: executionResult.result.passed,
                 primaryActiveRuleIDs: primaryActiveRuleIDs,
                 oracleActiveRuleIDs: oracleRuleIDs,
+                ruleAssertionsMatched: ruleAssertionsMatched,
                 primaryDiagnosticSummary: primaryDiagnosticSummary,
                 oracleDiagnosticSummary: oracleDiagnosticSummary,
                 primaryMarkerFingerprints: primaryMarkerFingerprints,
@@ -823,17 +849,24 @@ public struct DRCCorpusRunner: Sendable {
         primaryBackendID: String,
         primaryPassed: Bool,
         primaryActiveRuleIDs: [String],
+        expectedPrimaryActiveRuleIDs: [String],
+        expectedOracleActiveRuleIDs: [String]?,
         primaryDiagnosticSummary: DRCDiagnosticSummary,
         primaryMarkerFingerprints: [String],
         oracleResult: DRCCorpusOracleResult,
         requireMarkerCorrelation: Bool
     ) -> DRCCorpusOracleComparison {
         let markerSetMatched = primaryMarkerFingerprints == oracleResult.markerFingerprints
+        let ruleAssertionsMatched = expectedOracleActiveRuleIDs.map {
+            primaryActiveRuleIDs == expectedPrimaryActiveRuleIDs
+                && oracleResult.activeErrorRuleIDs == $0
+        } ?? (primaryActiveRuleIDs == oracleResult.activeErrorRuleIDs)
         return DRCCorpusOracleComparison(
             primaryBackendID: primaryBackendID,
             oracleBackendID: oracleResult.backendID,
             passedMatched: primaryPassed == oracleResult.passed,
             activeErrorRuleIDsMatched: primaryActiveRuleIDs == oracleResult.activeErrorRuleIDs,
+            ruleAssertionsMatched: ruleAssertionsMatched,
             diagnosticSummaryMatched: primaryDiagnosticSummary == oracleResult.diagnosticSummary,
             primaryPassed: primaryPassed,
             oraclePassed: oracleResult.passed,
@@ -846,6 +879,7 @@ public struct DRCCorpusRunner: Sendable {
                 oraclePassed: oracleResult.passed,
                 primaryActiveRuleIDs: primaryActiveRuleIDs,
                 oracleActiveRuleIDs: oracleResult.activeErrorRuleIDs,
+                ruleAssertionsMatched: ruleAssertionsMatched,
                 primaryDiagnosticSummary: primaryDiagnosticSummary,
                 oracleDiagnosticSummary: oracleResult.diagnosticSummary,
                 primaryMarkerFingerprints: primaryMarkerFingerprints,
@@ -867,6 +901,7 @@ public struct DRCCorpusRunner: Sendable {
         oraclePassed: Bool,
         primaryActiveRuleIDs: [String],
         oracleActiveRuleIDs: [String],
+        ruleAssertionsMatched: Bool? = nil,
         primaryDiagnosticSummary: DRCDiagnosticSummary,
         oracleDiagnosticSummary: DRCDiagnosticSummary,
         primaryMarkerFingerprints: [String] = [],
@@ -878,7 +913,7 @@ public struct DRCCorpusRunner: Sendable {
         if primaryPassed != oraclePassed {
             reasons.append("passed_mismatch")
         }
-        if primaryActiveRuleIDs != oracleActiveRuleIDs {
+        if !(ruleAssertionsMatched ?? (primaryActiveRuleIDs == oracleActiveRuleIDs)) {
             reasons.append("active_error_rule_ids_mismatch")
         }
         if primaryDiagnosticSummary != oracleDiagnosticSummary {

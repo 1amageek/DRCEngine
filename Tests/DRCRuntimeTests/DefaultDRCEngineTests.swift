@@ -539,6 +539,41 @@ struct DefaultDRCEngineTests {
         ])
     }
 
+    @Test func corpusRunnerCorrelatesBackendSpecificRuleIdentifiers() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = directory.appending(path: "layout.json")
+        let specURL = directory.appending(path: "drc-corpus.json")
+        let outputDirectory = directory.appending(path: "corpus-output")
+        try Data([0x01]).write(to: layoutURL)
+        try writeJSON(DRCCorpusSpec(cases: [
+            DRCCorpusCase(
+                caseID: "mapped-rule-identifiers",
+                layoutPath: layoutURL.lastPathComponent,
+                topCell: "inv",
+                backendID: "waiver-stub",
+                oracleBackendID: "violation-stub",
+                expectedPassed: false,
+                expectedActiveErrorRuleIDs: ["met1.width"],
+                expectedOracleActiveErrorRuleIDs: ["oracle.width"]
+            ),
+        ]), to: specURL)
+
+        let report = try await DRCCorpusRunner(engine: DefaultDRCEngine(backends: [
+            WaiverStubDRCBackend(),
+            ViolationStubDRCBackend(),
+        ])).run(specURL: specURL, outputDirectory: outputDirectory)
+
+        let result = try #require(report.caseResults.first)
+        #expect(result.matched)
+        #expect(result.expectationMatched)
+        #expect(result.oracleResult?.agreementPassed == true)
+        #expect(result.oracleComparison?.passedMatched == true)
+        #expect(result.oracleComparison?.activeErrorRuleIDsMatched == false)
+        #expect(result.oracleComparison?.ruleAssertionsMatched == true)
+        #expect(result.oracleComparison?.agreementPassed == true)
+        #expect(result.oracleComparison?.mismatchReasons.isEmpty == true)
+    }
+
     @Test func independentCorrelationBlocksWhenMarkerSetsDiffer() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = directory.appending(path: "layout.json")

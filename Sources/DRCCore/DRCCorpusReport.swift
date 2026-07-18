@@ -52,7 +52,7 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
         self.runOptions = runOptions
         let resolvedSummary = summary ?? DRCCorpusSummary(caseResults: caseResults)
         self.summary = resolvedSummary
-        let resolvedAcceptanceCriteria = evidenceKind == .independentCorrelation
+        let resolvedAcceptanceCriteria = evidenceKind.requiresIndependentOracle
             ? acceptanceCriteria.with(requireIndependentOracle: true)
             : acceptanceCriteria
         self.assessment = assessment ?? resolvedAcceptanceCriteria.evaluate(

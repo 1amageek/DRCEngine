@@ -93,6 +93,22 @@ struct DRCCorpusEvidenceKindTests {
         }
     }
 
+    @Test func oracleRuleAssertionsRequireDeclaredOracleBackend() {
+        let spec = DRCCorpusSpec(cases: [DRCCorpusCase(
+            caseID: "missing-oracle-backend",
+            layoutPath: "layout.gds",
+            topCell: "top",
+            backendID: "native-gds",
+            expectedPassed: false,
+            expectedActiveErrorRuleIDs: ["native.width"],
+            expectedOracleActiveErrorRuleIDs: ["magic.width"]
+        )])
+
+        #expect(throws: DRCError.self) {
+            try spec.validate()
+        }
+    }
+
     @Test func independentQualificationRejectsMissingOracleCases() {
         let summary = DRCCorpusSummary(
             expectationMatchedCaseCount: 1,

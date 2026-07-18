@@ -121,9 +121,10 @@
       "oracleComparison": {
         "primaryBackendID": "native",
         "oracleBackendID": "magic",
-        "passedMatched": true,
-        "activeErrorRuleIDsMatched": true,
-        "diagnosticSummaryMatched": true,
+    "passedMatched": true,
+    "activeErrorRuleIDsMatched": true,
+    "ruleAssertionsMatched": true,
+    "diagnosticSummaryMatched": true,
         "primaryPassed": true,
         "oraclePassed": true,
         "primaryActiveErrorRuleIDs": [],
