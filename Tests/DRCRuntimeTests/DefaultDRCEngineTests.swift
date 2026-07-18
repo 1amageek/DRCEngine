@@ -67,7 +67,7 @@ struct DefaultDRCEngineTests {
     }
 
     @Test func artifactManifestUsesRelativePathsAcrossFilesystemAliases() async throws {
-        let directory = URL(filePath: "/tmp")
+        let directory = URL(filePath: "/private/tmp")
             .appending(path: "DRCArtifactAliasTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { removeTemporaryDirectory(directory) }

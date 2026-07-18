@@ -285,8 +285,18 @@ public struct DRCArtifactStore: Sendable {
     }
 
     private func normalizedPath(_ url: URL) -> String {
-        url
+        if FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) {
+            return url
+                .resolvingSymlinksInPath()
+                .standardizedFileURL
+                .path(percentEncoded: false)
+        }
+        let resolvedParent = url
+            .deletingLastPathComponent()
             .resolvingSymlinksInPath()
+            .standardizedFileURL
+        return resolvedParent
+            .appending(path: url.lastPathComponent)
             .standardizedFileURL
             .path(percentEncoded: false)
     }
