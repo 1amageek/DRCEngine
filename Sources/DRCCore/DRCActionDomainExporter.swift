@@ -33,7 +33,7 @@ public struct DRCActionDomainExporter: Sendable {
                 "drc-artifact-manifest-written",
             ],
             producedArtifacts: ["drc-report", "drc-artifact-manifest", "drc-summary"],
-            verificationGates: ["tool-trust", "qualification-envelope", "artifact-integrity", "drc-artifacts"],
+            verificationGates: ["tool-eligibility", "artifact-integrity", "drc-artifacts"],
             reversible: true
         )
     }
@@ -83,7 +83,7 @@ public struct DRCActionDomainExporter: Sendable {
             maturity: "preview-verified",
             inputRefs: ["drc-corpus-spec", "optional-oracle-backend"],
             preconditions: ["corpus-spec-valid", "coverage-tags-declared"],
-            effects: ["corpus-report-written", "qualification-result-produced"],
+            effects: ["corpus-report-written", "corpus-assessment-produced"],
             producedArtifacts: ["drc-corpus-report"],
             verificationGates: ["coverage-taxonomy", "oracle-agreement", "duration-budget"],
             reversible: true
@@ -96,7 +96,7 @@ public struct DRCActionDomainExporter: Sendable {
             maturity: "available-unqualified",
             inputRefs: ["drc-native-antenna-artifact", "drc-antenna-oracle-evidence"],
             preconditions: ["native-antenna-artifact-readable", "oracle-evidence-readable", "digest-bindings-match"],
-            effects: ["native-antenna-qualification-updated"],
+            effects: ["native-antenna-assessment-updated"],
             producedArtifacts: ["drc-native-antenna-artifact"],
             verificationGates: ["oracle-independence", "oracle-agreement", "artifact-integrity"],
             reversible: true

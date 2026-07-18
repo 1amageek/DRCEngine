@@ -97,13 +97,13 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
         runID = try container.decodeIfPresent(String.self, forKey: .runID)
         parentRunID = try container.decodeIfPresent(String.self, forKey: .parentRunID)
         specSHA256 = try container.decodeIfPresent(String.self, forKey: .specSHA256)
-        completed = try container.decodeIfPresent(Bool.self, forKey: .completed) ?? true
+        completed = try container.decode(Bool.self, forKey: .completed)
         passed = try container.decode(Bool.self, forKey: .passed)
         caseCount = try container.decode(Int.self, forKey: .caseCount)
         matchedCaseCount = try container.decode(Int.self, forKey: .matchedCaseCount)
         budgetExceededCaseCount = try container.decode(Int.self, forKey: .budgetExceededCaseCount)
         totalDurationSeconds = try container.decode(Double.self, forKey: .totalDurationSeconds)
-        evidenceKind = try container.decodeIfPresent(DRCCorpusEvidenceKind.self, forKey: .evidenceKind) ?? .regression
+        evidenceKind = try container.decode(DRCCorpusEvidenceKind.self, forKey: .evidenceKind)
         runOptions = try container.decode(DRCCorpusRunOptions.self, forKey: .runOptions)
         caseResults = try container.decode([DRCCorpusCaseResult].self, forKey: .caseResults)
         summary = try container.decode(DRCCorpusSummary.self, forKey: .summary)

@@ -37,11 +37,11 @@ public struct DRCCorpusSpec: Sendable, Hashable, Codable {
             )
         }
         defaultMaxDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .defaultMaxDurationSeconds)
-        evidenceKind = try container.decodeIfPresent(DRCCorpusEvidenceKind.self, forKey: .evidenceKind) ?? .regression
-        acceptanceCriteria = try container.decodeIfPresent(
+        evidenceKind = try container.decode(DRCCorpusEvidenceKind.self, forKey: .evidenceKind)
+        acceptanceCriteria = try container.decode(
             DRCCorpusAcceptanceCriteria.self,
             forKey: .acceptanceCriteria
-        ) ?? .strict
+        )
         cases = try container.decode([DRCCorpusCase].self, forKey: .cases)
     }
 

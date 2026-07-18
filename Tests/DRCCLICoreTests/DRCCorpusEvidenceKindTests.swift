@@ -16,6 +16,85 @@ struct DRCCorpusEvidenceKindTests {
         }
     }
 
+    @Test func corpusSpecDecodingRequiresCurrentEvidenceContract() throws {
+        let spec = DRCCorpusSpec(cases: [])
+
+        for key in ["evidenceKind", "acceptanceCriteria"] {
+            let data = try encoded(spec, removing: key)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(DRCCorpusSpec.self, from: data)
+            }
+        }
+    }
+
+    @Test func corpusReportDecodingRequiresCurrentEvidenceContract() throws {
+        let report = DRCCorpusReport(
+            passed: false,
+            caseCount: 0,
+            matchedCaseCount: 0,
+            caseResults: []
+        )
+
+        for key in ["completed", "evidenceKind"] {
+            let data = try encoded(report, removing: key)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(DRCCorpusReport.self, from: data)
+            }
+        }
+    }
+
+    @Test func oracleComparisonDecodingRequiresMarkerContract() throws {
+        let summary = DRCDiagnosticSummary(infoCount: 0, warningCount: 0, errorCount: 0)
+        let comparison = DRCCorpusOracleComparison(
+            primaryBackendID: "native-gds",
+            oracleBackendID: "magic",
+            passedMatched: true,
+            activeErrorRuleIDsMatched: true,
+            ruleAssertionsMatched: true,
+            diagnosticSummaryMatched: true,
+            primaryPassed: true,
+            oraclePassed: true,
+            primaryActiveErrorRuleIDs: [],
+            oracleActiveErrorRuleIDs: [],
+            primaryDiagnosticSummary: summary,
+            oracleDiagnosticSummary: summary,
+            mismatchReasons: []
+        )
+        let requiredKeys = [
+            "markerCorrelationRequired",
+            "primaryMarkerFingerprints",
+            "oracleMarkerFingerprints",
+            "markerSetMatched",
+            "agreementPassed",
+        ]
+
+        for key in requiredKeys {
+            let data = try encoded(comparison, removing: key)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(DRCCorpusOracleComparison.self, from: data)
+            }
+        }
+    }
+
+    @Test func oracleResultDecodingRequiresMarkerFingerprints() throws {
+        let result = DRCCorpusOracleResult(
+            backendID: "magic",
+            passed: true,
+            activeErrorRuleIDs: [],
+            diagnosticSummary: DRCDiagnosticSummary(infoCount: 0, warningCount: 0, errorCount: 0),
+            durationSeconds: 0.1,
+            agreementPassed: true,
+            failureReasons: [],
+            reportPath: nil,
+            manifestPath: nil
+        )
+        let data = try encoded(result, removing: "markerFingerprints")
+
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(DRCCorpusOracleResult.self, from: data)
+        }
+    }
+
     @Test func coveragePolicyDecodingRequiresCurrentSchemaVersion() {
         let missingSchema = Data(#"{"policyID":"strict","requirements":[]}"#.utf8)
         let unsupportedSchema = Data(
@@ -49,6 +128,15 @@ struct DRCCorpusEvidenceKindTests {
     @Test func independentCorrelationAutomaticallyRequiresIndependentOracle() {
         let spec = DRCCorpusSpec(
             evidenceKind: .independentCorrelation,
+            acceptanceCriteria: DRCCorpusAcceptanceCriteria(),
+            cases: []
+        )
+        #expect(spec.effectiveAcceptanceCriteria.requireIndependentOracle)
+    }
+
+    @Test func independentRuleCorrelationAutomaticallyRequiresIndependentOracle() {
+        let spec = DRCCorpusSpec(
+            evidenceKind: .independentRuleCorrelation,
             acceptanceCriteria: DRCCorpusAcceptanceCriteria(),
             cases: []
         )
@@ -211,5 +299,12 @@ struct DRCCorpusEvidenceKindTests {
 
         #expect(!report.assessment.meetsCriteria)
         #expect(report.assessment.findings.contains { $0.code == "independent_oracle_missing" })
+    }
+
+    private func encoded<T: Encodable>(_ value: T, removing key: String) throws -> Data {
+        let encoded = try JSONEncoder().encode(value)
+        var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object.removeValue(forKey: key)
+        return try JSONSerialization.data(withJSONObject: object)
     }
 }

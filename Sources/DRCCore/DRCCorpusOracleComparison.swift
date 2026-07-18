@@ -101,22 +101,19 @@ public struct DRCCorpusOracleComparison: Sendable, Hashable, Codable {
         primaryDiagnosticSummary = try container.decode(DRCDiagnosticSummary.self, forKey: .primaryDiagnosticSummary)
         oracleDiagnosticSummary = try container.decode(DRCDiagnosticSummary.self, forKey: .oracleDiagnosticSummary)
         mismatchReasons = try container.decode([String].self, forKey: .mismatchReasons)
-        markerCorrelationRequired = try container.decodeIfPresent(
+        markerCorrelationRequired = try container.decode(
             Bool.self,
             forKey: .markerCorrelationRequired
-        ) ?? false
-        primaryMarkerFingerprints = try container.decodeIfPresent(
+        )
+        primaryMarkerFingerprints = try container.decode(
             [String].self,
             forKey: .primaryMarkerFingerprints
-        ) ?? []
-        oracleMarkerFingerprints = try container.decodeIfPresent(
+        )
+        oracleMarkerFingerprints = try container.decode(
             [String].self,
             forKey: .oracleMarkerFingerprints
-        ) ?? []
-        markerSetMatched = try container.decodeIfPresent(Bool.self, forKey: .markerSetMatched)
-            ?? (primaryMarkerFingerprints == oracleMarkerFingerprints)
-        agreementPassed = try container.decodeIfPresent(Bool.self, forKey: .agreementPassed)
-            ?? (passedMatched && ruleAssertionsMatched
-                && (!markerCorrelationRequired || markerSetMatched))
+        )
+        markerSetMatched = try container.decode(Bool.self, forKey: .markerSetMatched)
+        agreementPassed = try container.decode(Bool.self, forKey: .agreementPassed)
     }
 }

@@ -31,6 +31,20 @@ struct DRCCorpusReportCombinerTests {
         #expect(combined.assessment.criteria.requireIndependentOracle)
     }
 
+    @Test func independentRuleCorrelationKeepsIndependentOracleRequirement() {
+        let primary = report(evidenceKind: .independentRuleCorrelation, caseID: "primary")
+        let included = report(evidenceKind: .independentRuleCorrelation, caseID: "included")
+
+        let combined = DRCCorpusReportCombiner().combine(
+            primaryReport: primary,
+            includedReports: [included]
+        )
+
+        #expect(combined.evidenceKind == .independentRuleCorrelation)
+        #expect(combined.assessment.criteria.requireIndependentOracle)
+        #expect(combined.assessment.findings.contains { $0.code == "independent_oracle_missing" })
+    }
+
     private func report(
         evidenceKind: DRCCorpusEvidenceKind,
         caseID: String

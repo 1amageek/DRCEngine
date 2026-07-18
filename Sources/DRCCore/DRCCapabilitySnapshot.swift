@@ -8,7 +8,7 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
         public let requiredInputs: [String]
         public let producedArtifacts: [String]
         public let diagnosticKinds: [String]
-        public let qualificationTags: [String]
+        public let coverageTags: [String]
         public let limitations: [String]
 
         public init(
@@ -20,7 +20,7 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
             requiredInputs: [String],
             producedArtifacts: [String],
             diagnosticKinds: [String],
-            qualificationTags: [String],
+            coverageTags: [String],
             limitations: [String]
         ) {
             self.backendID = backendID
@@ -31,7 +31,7 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
             self.requiredInputs = requiredInputs
             self.producedArtifacts = producedArtifacts
             self.diagnosticKinds = diagnosticKinds
-            self.qualificationTags = qualificationTags
+            self.coverageTags = coverageTags
             self.limitations = limitations
         }
     }
@@ -126,7 +126,7 @@ public struct DRCCapabilitySnapshot: Codable, Sendable, Hashable {
     public let openMilestones: [String]
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = 2,
         engineID: String,
         ownerPackage: String,
         status: String,

@@ -1,6 +1,7 @@
 {
   "schemaVersion" : 1,
   "defaultMaxDurationSeconds" : 30,
+  "evidenceKind" : "regression",
   "acceptanceCriteria" : {
     "requiredCoverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "external.magic", "layout.gds"]
   },

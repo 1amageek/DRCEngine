@@ -83,6 +83,6 @@ public struct DRCCorpusOracleResult: Sendable, Hashable, Codable {
         provenance = try container.decodeIfPresent(DRCCorpusCaseProvenance.self, forKey: .provenance)
         readinessStatus = try container.decode(DRCCorpusOracleReadinessStatus.self, forKey: .readinessStatus)
         readinessDiagnostics = try container.decode([String].self, forKey: .readinessDiagnostics)
-        markerFingerprints = try container.decodeIfPresent([String].self, forKey: .markerFingerprints) ?? []
+        markerFingerprints = try container.decode([String].self, forKey: .markerFingerprints)
     }
 }

@@ -9,7 +9,7 @@ struct DRCCorpusObservationVerifierTests {
         let directory = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(directory) }
         let reportURL = directory.appending(path: "drc-corpus-report.json")
-        let evidenceURL = directory.appending(path: "drc-tool-evidence.json")
+        let evidenceURL = directory.appending(path: "drc-observation-export.json")
         let report = DRCCorpusReport(
             passed: true,
             caseCount: 1,

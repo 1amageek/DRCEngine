@@ -15,7 +15,7 @@ public struct DRCCorpusReportCombiner: Sendable {
             ? (evidenceKinds.first ?? .regression)
             : .regression
         let acceptanceCriteria = DRCCorpusAcceptanceCriteria.strict.with(
-            requireIndependentOracle: evidenceKind == .independentCorrelation
+            requireIndependentOracle: evidenceKind.requiresIndependentOracle
         )
         let baseAssessment = acceptanceCriteria.evaluate(
             passed: passed,
@@ -41,7 +41,7 @@ public struct DRCCorpusReportCombiner: Sendable {
         if evidenceKinds.count > 1 {
             combinationFindings.append(DRCCorpusAssessmentFinding(
                 code: "mixed_evidence_kinds",
-                message: "Corpus reports with different evidence kinds cannot be combined into one qualification lane.",
+                message: "Corpus reports with different evidence kinds cannot be combined into one assessment lane.",
                 observedCount: evidenceKinds.count,
                 requiredCount: 1,
                 observedText: evidenceKinds.map(\.rawValue).sorted().joined(separator: ","),

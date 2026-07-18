@@ -3,7 +3,7 @@ import DRCFoundryImport
 
 /// Provenance-bound native antenna rules produced from a Magic source deck.
 ///
-/// The executable rules alone are not a assessment artifact: without the
+/// The executable rules alone are not an assessment artifact: without the
 /// source/profile digests and process connectivity context, a consumer cannot
 /// tell which foundry deck produced them. This envelope keeps those inputs and
 /// the lowering verdict together while still exposing `nativeRules` for a

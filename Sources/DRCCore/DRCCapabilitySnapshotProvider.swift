@@ -16,7 +16,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
             corpus: corpusContract(),
             actionDomain: DRCActionDomainExporter().snapshot(),
             agentContracts: [
-                "CLI emits structured JSON for single-run, corpus, qualification, coverage-audit, evidence, foundry-deck semantic inventory, foundry-rule seed import, action-domain, and capability queries.",
+                "CLI emits structured JSON for single-run, corpus assessment, coverage-audit, observations, foundry-deck semantic inventory, foundry-rule seed import, action-domain, and capability queries.",
                 "API exposes typed request/result, diagnostics, summary, manifest, corpus, coverage-audit, evidence, action-domain, and capability models.",
                 "Retained corpus reports can be audited through DRCCorpusCoverageAuditor and drcengine --audit-corpus-coverage to expose missing Magic oracle coverage, blocked readiness, duration-budget, and standard-input dimensions without prescribing a fixed repair flow.",
                 "Foundry deck semantic inspection is exposed through drcengine --foundry-deck-semantics and the signoff-foundry-deck-semantics artifact contract.",
@@ -30,17 +30,17 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "DefaultDRCEngine validates top-cell, backend identity, timeout, and POSIX environment contracts before backend lookup or execution, enforces the timeout cooperatively for in-process backends, and persists the resolved backend identity into result and manifest artifacts.",
                 "Persisted DRC artifact manifests are verified against real files, path containment, byte counts, SHA-256 digests, resolved verdicts, request digests, environment digests, and artifact-root commitments before a run is returned; DRCArtifactManifestVerifier is also available for downstream artifact gates.",
                 "Artifact manifests support canonical Ed25519 signatures with an injected DRCArtifactSigner, trusted public-key verification, and CLI key-file wiring; signed-artifact requests fail closed when the trust root is absent or invalid.",
-                "Corpus tool evidence can be signed with the same DRCArtifactSigner and revalidated against the current corpus report through DRCCorpusObservationVerifier, including report digest and recomputed qualification.",
+                "Corpus observation exports can be signed with the same DRCArtifactSigner and revalidated against the current corpus report through DRCCorpusObservationVerifier, including report digest and recomputed assessment.",
                 "Native JSON inputs reject empty or duplicated rectangle/rule IDs, non-finite coordinates and parameters, and non-positive rectangle dimensions before physical rule evaluation; release-gated antenna runs additionally require NativeDRCAntennaMetadata completeness attestations and reject net-bearing antenna conductors without positive gate-area annotations.",
-                "Corpus report consumers validate schema, case counts, result identity, duration values, and duplicate case IDs before qualification or coverage audit; coverage audit may intentionally recompute a retained summary from case results.",
-                "Independent-correlation corpus evidence compares normalized diagnostic marker fingerprints (rule, kind, layer, region, and related IDs); regression evidence keeps the legacy rule-ID contract.",
+                "Corpus report consumers validate schema, case counts, result identity, duration values, and duplicate case IDs before assessment or coverage audit; coverage audit may intentionally recompute a retained summary from case results.",
+                "Independent-correlation corpus evidence compares normalized diagnostic marker fingerprints (rule, kind, layer, region, and related IDs); independent-rule-correlation evidence compares backend-specific rule assertions without marker equivalence.",
                 "Saved DRC reports can be converted into typed repair hints for executable layout operations without log scraping.",
                 "Spacing and overlap diagnostics export translation repair hints with executable deltaX/deltaY vectors when backend-provided repair geometry is available, including native JSON and standard layout inputs.",
                 "Minimum-cut diagnostics export via repair hints with inferred viaDefinitionID, candidate position, existing/required/missing cut counts, and typed relatedViaIDs for existing cut references.",
                 "Native minimum-enclosure checks evaluate the union of same-layer rectangles so composite rectangular cover is judged as layout geometry rather than a single best rectangle.",
                 "Minimum enclosed-area diagnostics export fill-rectangle repair hints with explicit origin, size, area evidence, and native LVS verification gating.",
                 "Minimum-density diagnostics export fill-rectangle repair hints with explicit density-window geometry, measured/required density evidence, target fill area, and native LVS verification gating.",
-                "Corpus reports carry run/spec/parent-run provenance, case checkpoints, and completed-state semantics; qualification consumers recompute derived summary and qualification fields before requalification.",
+                "Corpus reports carry run/spec/parent-run provenance, case checkpoints, and completed-state semantics; assessment consumers recompute derived summary and assessment fields before applying policy.",
             ],
             openMilestones: [
                 "Broaden Magic cut-count import beyond generic source-policy lines and unique stack inference into multi-numeric or ambiguous real-deck variants, remaining unsupported future templayer operations beyond the typed native materialization set, golden foundry DRC cases, and broader Magic oracle agreement.",
@@ -63,7 +63,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
             requiredInputs: ["layout-json-with-rules", "top-cell"],
             producedArtifacts: ["drc-report", "drc-artifact-manifest", "drc-summary"],
             diagnosticKinds: diagnosticKinds(),
-            qualificationTags: [
+            coverageTags: [
                 "drc.clean",
                 "drc.grid",
                 "drc.width",
@@ -105,7 +105,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
             requiredInputs: ["standard-layout-file", "technology-json", "top-cell"],
             producedArtifacts: ["drc-report", "drc-artifact-manifest", "drc-summary"],
             diagnosticKinds: nativeGDSDiagnosticKinds(),
-            qualificationTags: [
+            coverageTags: [
                 "drc.input.cif",
                 "drc.input.dxf",
                 "drc.input.gds",
@@ -136,7 +136,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
             requiredInputs: ["layout", "top-cell", "magic-pdk-environment"],
             producedArtifacts: ["drc-report", "drc-artifact-manifest", "tool-log"],
             diagnosticKinds: ["external-tool-report"],
-            qualificationTags: ["drc.oracle.magic"],
+            coverageTags: ["drc.oracle.magic"],
             limitations: [
                 "Requires Magic and PDK setup outside the Swift process.",
                 "Used as an independent reference lane when backend identity and marker parsing prove independence.",
@@ -223,7 +223,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 format: "json",
                 producer: "DRCCore.DRCCorpusObservationExport",
                 consumer: ["Agent", "Human review", "CI", "DesignFlowKernel"],
-                integrityEvidenceFields: ["reportPath", "reportSHA256", "summary", "qualification", "signature"],
+                integrityEvidenceFields: ["reportArtifact", "summary", "observationRecord", "signature"],
                 currentnessVerifier: "DRCCorpusObservationVerifier",
                 verdictFields: ["observationRecord.observations", "summary", "reportSHA256"]
             ),
@@ -261,7 +261,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 consumer: ["NativeDRC", "Agent planning", "CI", "Human review"],
                 integrityEvidenceFields: ["path", "byteCount", "sha256"],
                 currentnessVerifier: "magic-rule-import-source-and-profile-digest-reference",
-                verdictFields: ["schemaVersion", "sourceDigest", "profileDigest", "nativeRules", "qualification", "oracleEvidence"]
+                verdictFields: ["schemaVersion", "sourceDigest", "profileDigest", "nativeRules", "assessment", "assessment.oracleEvidence"]
             ),
             DRCCapabilitySnapshot.ArtifactContract(
                 artifactID: "drc-corpus-coverage-audit",

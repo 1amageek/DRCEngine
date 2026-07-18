@@ -1,6 +1,8 @@
 {
   "schemaVersion" : 1,
   "defaultMaxDurationSeconds" : 0.000000000001,
+  "evidenceKind" : "regression",
+  "acceptanceCriteria" : {},
   "cases" : [
     {
       "backendID" : "native",
