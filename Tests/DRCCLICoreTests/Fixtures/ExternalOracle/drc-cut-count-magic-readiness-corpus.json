@@ -1,8 +1,16 @@
 {
-  "schemaVersion" : 1,
+  "schemaVersion" : 2,
   "defaultMaxDurationSeconds" : 30,
   "evidenceKind" : "regression",
   "acceptanceCriteria" : {
+    "requireCorpusPassed" : true,
+    "minimumPassRate" : 1,
+    "minimumDurationBudgetPassRate" : 1,
+    "minimumOracleCaseCount" : null,
+    "minimumOracleAgreementRate" : null,
+    "requireIndependentOracle" : false,
+    "allowPrimaryExecutionFailures" : false,
+    "allowOracleExecutionFailures" : false,
     "requiredCoverageTags" : ["drc.cut", "drc.cut.minimum", "drc.cut.minimum.external-oracle", "external.magic", "layout.gds"]
   },
   "cases" : [

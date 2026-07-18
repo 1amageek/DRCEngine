@@ -1,9 +1,16 @@
 {
-  "schemaVersion" : 1,
+  "schemaVersion" : 2,
   "evidenceKind" : "regression",
   "defaultMaxDurationSeconds" : 30,
   "acceptanceCriteria" : {
+    "requireCorpusPassed" : true,
+    "minimumPassRate" : 1,
+    "minimumDurationBudgetPassRate" : 1,
+    "minimumOracleCaseCount" : null,
+    "minimumOracleAgreementRate" : null,
     "requireIndependentOracle" : false,
+    "allowPrimaryExecutionFailures" : false,
+    "allowOracleExecutionFailures" : false,
     "requiredCoverageTags" : ["external.magic", "layout.gds", "sky130"]
   },
   "cases" : [

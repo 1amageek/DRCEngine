@@ -3,9 +3,9 @@ import DRCCore
 
 @Suite("DRC corpus evidence validation")
 struct DRCCorpusEvidenceValidationTests {
-    @Test func persistedQualificationMustMatchCaseResultsAndPolicy() throws {
+    @Test func persistedAssessmentIsCanonicalizedFromCaseResultsAndCriteria() throws {
         let result = caseResult(caseID: "clean")
-        let forgedQualification = DRCCorpusAssessment(
+        let forgedAssessment = DRCCorpusAssessment(
             criteria: DRCCorpusAcceptanceCriteria(requiredCoverageTags: ["missing-tag"]),
             findings: []
         )
@@ -14,13 +14,13 @@ struct DRCCorpusEvidenceValidationTests {
             caseCount: 1,
             matchedCaseCount: 1,
             summary: DRCCorpusSummary(caseResults: [result]),
-            assessment: forgedQualification,
+            assessment: forgedAssessment,
             caseResults: [result]
         )
 
-        #expect(throws: DRCError.self) {
-            try report.validateEvidence()
-        }
+        #expect(!report.assessment.meetsCriteria)
+        #expect(report.assessment.findings.contains { $0.code == "required_coverage_missing" })
+        try report.validateEvidence()
     }
 
     @Test func persistedSummaryMustMatchCaseResults() throws {

@@ -1,9 +1,16 @@
 {
-  "schemaVersion" : 1,
+  "schemaVersion" : 2,
   "evidenceKind" : "regression",
   "defaultMaxDurationSeconds" : 10,
   "acceptanceCriteria" : {
+    "requireCorpusPassed" : true,
+    "minimumPassRate" : 1,
+    "minimumDurationBudgetPassRate" : 1,
+    "minimumOracleCaseCount" : null,
+    "minimumOracleAgreementRate" : null,
     "requireIndependentOracle" : false,
+    "allowPrimaryExecutionFailures" : false,
+    "allowOracleExecutionFailures" : false,
     "requiredCoverageTags" : ["drc.antenna", "drc.antenna.multi-layer", "drc.antenna.process-step", "drc.antenna.via-aware", "drc.antenna.via-topology", "drc.antenna.detailed", "drc.antenna.cumulative", "drc.antenna.sidewall", "drc.area", "drc.clean", "drc.cut", "drc.cut.minimum", "drc.cut.minimum.fail", "drc.cut.minimum.multi-stack", "drc.cut.minimum.pass", "drc.cut.minimum.standard-input", "drc.density", "drc.density.minimum", "drc.enclosed-area", "drc.enclosure", "drc.enclosure.composite", "drc.extension", "drc.extension.minimum", "drc.grid", "drc.grid.manufacturing", "drc.input.cif", "drc.input.dxf", "drc.input.gds", "drc.input.oasis", "drc.marker", "drc.marker.forbidden-layer", "drc.notch", "drc.overlap", "drc.overlap.different-net", "drc.overlap.exact", "drc.overlap.forbidden", "drc.short", "drc.spacing", "drc.spacing.different-net", "drc.spacing.directional", "drc.spacing.end-of-line", "drc.spacing.layer-pair", "drc.spacing.net-scope", "drc.spacing.parallel-run-length", "drc.spacing.same-net", "drc.spacing.wide", "drc.tech.layer-map", "drc.waiver", "drc.width", "drc.width.maximum"]
   },
   "cases" : [

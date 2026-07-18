@@ -8,6 +8,31 @@ import LayoutTech
 
 
 extension DRCCLIOptionsTests {
+    @Test func corpusAcceptanceCriteriaDecodingRequiresEveryGate() throws {
+        let criteria = DRCCorpusAcceptanceCriteria()
+        let requiredKeys = [
+            "requireCorpusPassed",
+            "minimumPassRate",
+            "minimumDurationBudgetPassRate",
+            "minimumOracleCaseCount",
+            "minimumOracleAgreementRate",
+            "requireIndependentOracle",
+            "allowPrimaryExecutionFailures",
+            "allowOracleExecutionFailures",
+            "requiredCoverageTags",
+        ]
+
+        for key in requiredKeys {
+            let encoded = try JSONEncoder().encode(criteria)
+            var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+            object.removeValue(forKey: key)
+            let data = try JSONSerialization.data(withJSONObject: object)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(DRCCorpusAcceptanceCriteria.self, from: data)
+            }
+        }
+    }
+
     @Test func corpusCLIRunsCasesAndWritesReport() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
@@ -606,7 +631,7 @@ extension DRCCLIOptionsTests {
             && provenance.outputArtifacts.contains { $0.id == "manifest" && $0.kind == .manifest }
     }
 
-    @Test func corpusCLIOverridesOracleBackendForQualificationLane() async throws {
+    @Test func corpusCLIOverridesOracleBackendForAssessmentLane() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let outputDirectory = root.appending(path: "corpus-output")
@@ -680,7 +705,7 @@ extension DRCCLIOptionsTests {
         #expect(result.failureReasons.contains { $0.hasPrefix("duration_exceeded:") })
     }
 
-    @Test func corpusCLIUsesQualificationPolicyForExitStatus() async throws {
+    @Test func corpusCLIUsesAssessmentCriteriaForExitStatus() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let outputDirectory = root.appending(path: "corpus-output")
@@ -719,7 +744,7 @@ extension DRCCLIOptionsTests {
         #expect(report.assessment.criteria.minimumDurationBudgetPassRate == 0)
     }
 
-    @Test func corpusCLIRequiresCoverageTagsForQualification() async throws {
+    @Test func corpusCLIRequiresCoverageTagsForPassingAssessment() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let outputDirectory = root.appending(path: "corpus-output")
@@ -758,7 +783,7 @@ extension DRCCLIOptionsTests {
         #expect(failure.requiredText == "drc.spacing")
     }
 
-    @Test func corpusReportQualificationCLIRechecksSavedReport() async throws {
+    @Test func corpusReportAssessmentCLIRechecksSavedReport() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let outputDirectory = root.appending(path: "corpus-output")

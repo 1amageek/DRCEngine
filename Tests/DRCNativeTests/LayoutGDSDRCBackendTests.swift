@@ -803,7 +803,7 @@ struct LayoutGDSDRCBackendTests {
         #expect(diagnostic.region != nil)
     }
 
-    @Test func nonManhattanAngleInputFailsClosedUntilExactKernelIsQualified() async throws {
+    @Test func nonManhattanAngleInputFailsClosedWithoutAcceptedKernelEvidence() async throws {
         let root = try makeRoot()
         defer { removeTemporaryDirectory(root) }
         let gds = try writeLayout(

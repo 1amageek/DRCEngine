@@ -648,9 +648,9 @@ public enum DRCCLI {
     }
 
     private static func combinedCorpusReport(options: DRCCorpusCoverageAuditCLIOptions) throws -> DRCCorpusReport {
-        let primaryReport = try loadCorpusReport(from: options.reportURL, strictEvidence: false).report
+        let primaryReport = try loadCorpusReport(from: options.reportURL, strictEvidence: true).report
         let includedReports = try options.includedReportURLs.map {
-            try loadCorpusReport(from: $0, strictEvidence: false).report
+            try loadCorpusReport(from: $0, strictEvidence: true).report
         }
         return DRCCorpusReportCombiner().combine(primaryReport: primaryReport, includedReports: includedReports)
     }
@@ -698,16 +698,34 @@ public enum DRCCLI {
         options: DRCCorpusAssessmentCLIOptions
     ) throws -> DRCCorpusAssessment {
         let derivedSummary = DRCCorpusSummary(caseResults: report.caseResults)
-        guard let acceptanceCriteriaURL = options.acceptanceCriteriaURL else {
-            return report.assessment.criteria.evaluate(
-                passed: report.passed,
-                caseCount: report.caseCount,
-                summary: derivedSummary
-            )
+        let sourceCanonical = report.assessment.criteria.evaluate(
+            passed: report.passed,
+            caseCount: report.caseCount,
+            summary: derivedSummary,
+            completed: report.completed
+        )
+        let supplementalFindings = report.assessment.findings.filter {
+            !sourceCanonical.findings.contains($0)
         }
-        let policyData = try Data(contentsOf: acceptanceCriteriaURL)
-        let policy = try JSONDecoder().decode(DRCCorpusAcceptanceCriteria.self, from: policyData)
-        return policy.evaluate(passed: report.passed, caseCount: report.caseCount, summary: derivedSummary)
+        let policy: DRCCorpusAcceptanceCriteria
+        if let acceptanceCriteriaURL = options.acceptanceCriteriaURL {
+            let policyData = try Data(contentsOf: acceptanceCriteriaURL)
+            policy = try JSONDecoder().decode(DRCCorpusAcceptanceCriteria.self, from: policyData)
+        } else {
+            policy = report.assessment.criteria
+        }
+        let evaluated = policy.evaluate(
+            passed: report.passed,
+            caseCount: report.caseCount,
+            summary: derivedSummary,
+            completed: report.completed
+        )
+        return DRCCorpusAssessment(
+            criteria: evaluated.criteria,
+            findings: evaluated.findings + supplementalFindings.filter {
+                !evaluated.findings.contains($0)
+            }
+        )
     }
 
     private static func emitFoundryDeckSemanticReport(

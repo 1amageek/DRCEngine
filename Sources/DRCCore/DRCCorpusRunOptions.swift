@@ -38,9 +38,9 @@ public struct DRCCorpusRunOptions: Sendable, Hashable, Codable {
         oracleBackendIDOverride = try container.decodeIfPresent(String.self, forKey: .oracleBackendIDOverride)
         runID = try container.decodeIfPresent(String.self, forKey: .runID)
         resumeReportURL = try container.decodeIfPresent(URL.self, forKey: .resumeReportURL)
-        requireSignedArtifacts = try container.decodeIfPresent(Bool.self, forKey: .requireSignedArtifacts) ?? false
+        requireSignedArtifacts = try container.decode(Bool.self, forKey: .requireSignedArtifacts)
         trustedArtifactPublicKey = try container.decodeIfPresent(String.self, forKey: .trustedArtifactPublicKey)
-        requireAntennaRules = try container.decodeIfPresent(Bool.self, forKey: .requireAntennaRules) ?? false
+        requireAntennaRules = try container.decode(Bool.self, forKey: .requireAntennaRules)
     }
 
     public func validate() throws {

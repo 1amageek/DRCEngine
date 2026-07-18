@@ -1,9 +1,9 @@
 public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 1
+    public static let currentSchemaVersion = 2
 
     public let schemaVersion: Int
     public let policyID: String
-    public let requireQualifiedCorpus: Bool
+    public let requirePassingAssessment: Bool
     public let requireOracleAgreement: Bool
     public let requireIndependentOracle: Bool
     public let requireOracleReadiness: Bool
@@ -12,9 +12,35 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     public let maxReportAgeSeconds: Double?
     public let requirements: [Requirement]
 
+    public enum ValidationError: Error, Sendable, Hashable {
+        case emptyPolicyID
+        case invalidMinimumCaseCount(Int)
+        case invalidMaxReportAgeSeconds(Double)
+        case emptyRequirements
+        case duplicateRequirementID(String)
+        case invalidRequirement(index: Int, error: Requirement.ValidationError)
+
+        public var message: String {
+            switch self {
+            case .emptyPolicyID:
+                return "policyID must not be empty."
+            case .invalidMinimumCaseCount(let value):
+                return "minimumCaseCount must be one or greater; received \(value)."
+            case .invalidMaxReportAgeSeconds(let value):
+                return "maxReportAgeSeconds must be finite and zero or greater; received \(value)."
+            case .emptyRequirements:
+                return "At least one coverage requirement is required."
+            case .duplicateRequirementID(let requirementID):
+                return "Coverage requirement identifier \(requirementID) is duplicated."
+            case .invalidRequirement(let index, let error):
+                return "Coverage requirement at index \(index) is invalid: \(error.message)"
+            }
+        }
+    }
+
     public init(
         policyID: String,
-        requireQualifiedCorpus: Bool = true,
+        requirePassingAssessment: Bool = true,
         requireOracleAgreement: Bool = true,
         requireIndependentOracle: Bool = false,
         requireOracleReadiness: Bool = true,
@@ -25,23 +51,47 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     ) {
         self.schemaVersion = Self.currentSchemaVersion
         self.policyID = policyID
-        self.requireQualifiedCorpus = requireQualifiedCorpus
+        self.requirePassingAssessment = requirePassingAssessment
         self.requireOracleAgreement = requireOracleAgreement
         self.requireIndependentOracle = requireIndependentOracle
         self.requireOracleReadiness = requireOracleReadiness
         self.requireDurationBudget = requireDurationBudget
-        self.minimumCaseCount = max(0, minimumCaseCount)
-        if let maxReportAgeSeconds, maxReportAgeSeconds.isFinite, maxReportAgeSeconds >= 0 {
-            self.maxReportAgeSeconds = maxReportAgeSeconds
-        } else {
-            self.maxReportAgeSeconds = nil
-        }
+        self.minimumCaseCount = minimumCaseCount
+        self.maxReportAgeSeconds = maxReportAgeSeconds
         self.requirements = requirements.sorted { $0.requirementID < $1.requirementID }
+    }
+
+    public var validationErrors: [ValidationError] {
+        var errors: [ValidationError] = []
+        if policyID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors.append(.emptyPolicyID)
+        }
+        if minimumCaseCount < 1 {
+            errors.append(.invalidMinimumCaseCount(minimumCaseCount))
+        }
+        if let maxReportAgeSeconds,
+           !maxReportAgeSeconds.isFinite || maxReportAgeSeconds < 0 {
+            errors.append(.invalidMaxReportAgeSeconds(maxReportAgeSeconds))
+        }
+        if requirements.isEmpty {
+            errors.append(.emptyRequirements)
+        }
+        let groupedRequirementIDs = Dictionary(grouping: requirements, by: \.requirementID)
+        for requirementID in groupedRequirementIDs.keys.sorted()
+        where groupedRequirementIDs[requirementID, default: []].count > 1 {
+            errors.append(.duplicateRequirementID(requirementID))
+        }
+        for (index, requirement) in requirements.enumerated() {
+            errors.append(contentsOf: requirement.validationErrors.map {
+                .invalidRequirement(index: index, error: $0)
+            })
+        }
+        return errors
     }
 
     public static var magicFoundryExpansion: DRCCorpusCoverageAuditPolicy {
         DRCCorpusCoverageAuditPolicy(
-            policyID: "drc.magic-foundry-expansion.v1",
+            policyID: "drc.magic-foundry-expansion.v2",
             requireIndependentOracle: true,
             minimumCaseCount: 4,
             requirements: [
@@ -759,7 +809,7 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case policyID
-        case requireQualifiedCorpus
+        case requirePassingAssessment
         case requireOracleAgreement
         case requireIndependentOracle
         case requireOracleReadiness
@@ -780,22 +830,91 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
             )
         }
         policyID = try container.decode(String.self, forKey: .policyID)
-        requireQualifiedCorpus = try container.decodeIfPresent(Bool.self, forKey: .requireQualifiedCorpus) ?? true
-        requireOracleAgreement = try container.decodeIfPresent(Bool.self, forKey: .requireOracleAgreement) ?? true
-        requireIndependentOracle = try container.decodeIfPresent(Bool.self, forKey: .requireIndependentOracle) ?? false
-        requireOracleReadiness = try container.decodeIfPresent(Bool.self, forKey: .requireOracleReadiness) ?? true
-        requireDurationBudget = try container.decodeIfPresent(Bool.self, forKey: .requireDurationBudget) ?? true
-        minimumCaseCount = max(0, try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1)
-        if let decodedMaxReportAgeSeconds = try container.decodeIfPresent(
+        requirePassingAssessment = try container.decode(Bool.self, forKey: .requirePassingAssessment)
+        requireOracleAgreement = try container.decode(Bool.self, forKey: .requireOracleAgreement)
+        requireIndependentOracle = try container.decode(Bool.self, forKey: .requireIndependentOracle)
+        requireOracleReadiness = try container.decode(Bool.self, forKey: .requireOracleReadiness)
+        requireDurationBudget = try container.decode(Bool.self, forKey: .requireDurationBudget)
+        minimumCaseCount = try container.decode(Int.self, forKey: .minimumCaseCount)
+        guard minimumCaseCount >= 1 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .minimumCaseCount,
+                in: container,
+                debugDescription: "minimumCaseCount must be one or greater."
+            )
+        }
+        guard container.contains(.maxReportAgeSeconds) else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.maxReportAgeSeconds,
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "maxReportAgeSeconds must be explicitly declared."
+                )
+            )
+        }
+        let decodedMaxReportAgeSeconds = try container.decodeIfPresent(
             Double.self,
             forKey: .maxReportAgeSeconds
-        ), decodedMaxReportAgeSeconds.isFinite,
-           decodedMaxReportAgeSeconds >= 0 {
+        )
+        if let decodedMaxReportAgeSeconds {
+            guard decodedMaxReportAgeSeconds.isFinite, decodedMaxReportAgeSeconds >= 0 else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .maxReportAgeSeconds,
+                    in: container,
+                    debugDescription: "maxReportAgeSeconds must be finite and zero or greater."
+                )
+            }
             maxReportAgeSeconds = decodedMaxReportAgeSeconds
         } else {
             maxReportAgeSeconds = nil
         }
-        requirements = try container.decodeIfPresent([Requirement].self, forKey: .requirements) ?? []
+        requirements = try container.decode([Requirement].self, forKey: .requirements)
+        guard !policyID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .policyID,
+                in: container,
+                debugDescription: "policyID must not be empty."
+            )
+        }
+        guard !requirements.isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .requirements,
+                in: container,
+                debugDescription: "At least one coverage requirement is required."
+            )
+        }
+        let requirementIDs = requirements.map(\.requirementID)
+        guard Set(requirementIDs).count == requirementIDs.count else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .requirements,
+                in: container,
+                debugDescription: "Coverage requirement identifiers must be unique."
+            )
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        let errors = validationErrors
+        guard errors.isEmpty else {
+            throw EncodingError.invalidValue(
+                self,
+                EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: errors.map(\.message).joined(separator: " ")
+                )
+            )
+        }
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(policyID, forKey: .policyID)
+        try container.encode(requirePassingAssessment, forKey: .requirePassingAssessment)
+        try container.encode(requireOracleAgreement, forKey: .requireOracleAgreement)
+        try container.encode(requireIndependentOracle, forKey: .requireIndependentOracle)
+        try container.encode(requireOracleReadiness, forKey: .requireOracleReadiness)
+        try container.encode(requireDurationBudget, forKey: .requireDurationBudget)
+        try container.encode(minimumCaseCount, forKey: .minimumCaseCount)
+        try container.encode(maxReportAgeSeconds, forKey: .maxReportAgeSeconds)
+        try container.encode(requirements, forKey: .requirements)
     }
 
     public struct Requirement: Sendable, Hashable, Codable {
@@ -804,6 +923,26 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         public let requiredCoverageTags: [String]
         public let minimumCaseCount: Int
         public let suggestedActions: [String]
+
+        public enum ValidationError: Error, Sendable, Hashable {
+            case emptyRequirementID
+            case emptyTitle
+            case emptyRequiredCoverageTags
+            case invalidMinimumCaseCount(Int)
+
+            public var message: String {
+                switch self {
+                case .emptyRequirementID:
+                    return "requirementID must not be empty."
+                case .emptyTitle:
+                    return "title must not be empty."
+                case .emptyRequiredCoverageTags:
+                    return "requiredCoverageTags must not be empty."
+                case .invalidMinimumCaseCount(let value):
+                    return "minimumCaseCount must be one or greater; received \(value)."
+                }
+            }
+        }
 
         public init(
             requirementID: String,
@@ -815,8 +954,25 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
             self.requirementID = requirementID
             self.title = title
             self.requiredCoverageTags = Self.normalized(requiredCoverageTags)
-            self.minimumCaseCount = max(1, minimumCaseCount)
+            self.minimumCaseCount = minimumCaseCount
             self.suggestedActions = Self.normalized(suggestedActions)
+        }
+
+        public var validationErrors: [ValidationError] {
+            var errors: [ValidationError] = []
+            if requirementID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                errors.append(.emptyRequirementID)
+            }
+            if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                errors.append(.emptyTitle)
+            }
+            if requiredCoverageTags.isEmpty {
+                errors.append(.emptyRequiredCoverageTags)
+            }
+            if minimumCaseCount < 1 {
+                errors.append(.invalidMinimumCaseCount(minimumCaseCount))
+            }
+            return errors
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -831,15 +987,62 @@ public struct DRCCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             requirementID = try container.decode(String.self, forKey: .requirementID)
             title = try container.decode(String.self, forKey: .title)
-            requiredCoverageTags = Self.normalized(try container.decodeIfPresent(
+            requiredCoverageTags = Self.normalized(try container.decode(
                 [String].self,
                 forKey: .requiredCoverageTags
-            ) ?? [])
-            minimumCaseCount = max(1, try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1)
-            suggestedActions = Self.normalized(try container.decodeIfPresent(
+            ))
+            minimumCaseCount = try container.decode(Int.self, forKey: .minimumCaseCount)
+            guard minimumCaseCount >= 1 else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .minimumCaseCount,
+                    in: container,
+                    debugDescription: "Requirement minimumCaseCount must be one or greater."
+                )
+            }
+            suggestedActions = Self.normalized(try container.decode(
                 [String].self,
                 forKey: .suggestedActions
-            ) ?? [])
+            ))
+            guard !requirementID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .requirementID,
+                    in: container,
+                    debugDescription: "requirementID must not be empty."
+                )
+            }
+            guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .title,
+                    in: container,
+                    debugDescription: "Coverage requirement title must not be empty."
+                )
+            }
+            guard !requiredCoverageTags.isEmpty else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .requiredCoverageTags,
+                    in: container,
+                    debugDescription: "At least one required coverage tag is required."
+                )
+            }
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            let errors = validationErrors
+            guard errors.isEmpty else {
+                throw EncodingError.invalidValue(
+                    self,
+                    EncodingError.Context(
+                        codingPath: encoder.codingPath,
+                        debugDescription: errors.map(\.message).joined(separator: " ")
+                    )
+                )
+            }
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(requirementID, forKey: .requirementID)
+            try container.encode(title, forKey: .title)
+            try container.encode(requiredCoverageTags, forKey: .requiredCoverageTags)
+            try container.encode(minimumCaseCount, forKey: .minimumCaseCount)
+            try container.encode(suggestedActions, forKey: .suggestedActions)
         }
 
         private static func normalized(_ values: [String]) -> [String] {

@@ -1,11 +1,16 @@
 {
-  "schemaVersion" : 1,
+  "schemaVersion" : 2,
   "evidenceKind" : "independent-rule-correlation",
   "defaultMaxDurationSeconds" : 30,
   "acceptanceCriteria" : {
+    "requireCorpusPassed" : true,
+    "minimumPassRate" : 1,
+    "minimumDurationBudgetPassRate" : 1,
     "minimumOracleAgreementRate" : 1,
     "minimumOracleCaseCount" : 6,
     "requireIndependentOracle" : true,
+    "allowPrimaryExecutionFailures" : false,
+    "allowOracleExecutionFailures" : false,
     "requiredCoverageTags" : [
       "drc.area",
       "drc.spacing",

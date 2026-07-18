@@ -52,14 +52,17 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
         self.runOptions = runOptions
         let resolvedSummary = summary ?? DRCCorpusSummary(caseResults: caseResults)
         self.summary = resolvedSummary
+        let suppliedCriteria = assessment?.criteria ?? acceptanceCriteria
         let resolvedAcceptanceCriteria = evidenceKind.requiresIndependentOracle
-            ? acceptanceCriteria.with(requireIndependentOracle: true)
-            : acceptanceCriteria
-        self.assessment = assessment ?? resolvedAcceptanceCriteria.evaluate(
+            ? suppliedCriteria.with(requireIndependentOracle: true)
+            : suppliedCriteria
+        self.assessment = Self.canonicalAssessment(
+            criteria: resolvedAcceptanceCriteria,
             passed: passed,
             caseCount: caseCount,
             summary: resolvedSummary,
-            completed: completed
+            completed: completed,
+            supplementalFindings: assessment?.findings ?? []
         )
         self.caseResults = caseResults
     }
@@ -107,6 +110,40 @@ public struct DRCCorpusReport: Sendable, Hashable, Codable {
         runOptions = try container.decode(DRCCorpusRunOptions.self, forKey: .runOptions)
         caseResults = try container.decode([DRCCorpusCaseResult].self, forKey: .caseResults)
         summary = try container.decode(DRCCorpusSummary.self, forKey: .summary)
-        assessment = try container.decode(DRCCorpusAssessment.self, forKey: .assessment)
+        let decodedAssessment = try container.decode(DRCCorpusAssessment.self, forKey: .assessment)
+        let resolvedCriteria = evidenceKind.requiresIndependentOracle
+            ? decodedAssessment.criteria.with(requireIndependentOracle: true)
+            : decodedAssessment.criteria
+        assessment = Self.canonicalAssessment(
+            criteria: resolvedCriteria,
+            passed: passed,
+            caseCount: caseCount,
+            summary: summary,
+            completed: completed,
+            supplementalFindings: decodedAssessment.findings
+        )
+    }
+
+    private static func canonicalAssessment(
+        criteria: DRCCorpusAcceptanceCriteria,
+        passed: Bool,
+        caseCount: Int,
+        summary: DRCCorpusSummary,
+        completed: Bool,
+        supplementalFindings: [DRCCorpusAssessmentFinding]
+    ) -> DRCCorpusAssessment {
+        let evaluated = criteria.evaluate(
+            passed: passed,
+            caseCount: caseCount,
+            summary: summary,
+            completed: completed
+        )
+        let additionalFindings = supplementalFindings.filter {
+            !evaluated.findings.contains($0)
+        }
+        return DRCCorpusAssessment(
+            criteria: evaluated.criteria,
+            findings: evaluated.findings + additionalFindings
+        )
     }
 }

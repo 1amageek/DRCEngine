@@ -1,8 +1,18 @@
 {
-  "schemaVersion" : 1,
+  "schemaVersion" : 2,
   "defaultMaxDurationSeconds" : 0.000000000001,
   "evidenceKind" : "regression",
-  "acceptanceCriteria" : {},
+  "acceptanceCriteria" : {
+    "requireCorpusPassed" : true,
+    "minimumPassRate" : 1,
+    "minimumDurationBudgetPassRate" : 1,
+    "minimumOracleCaseCount" : null,
+    "minimumOracleAgreementRate" : null,
+    "requireIndependentOracle" : false,
+    "allowPrimaryExecutionFailures" : false,
+    "allowOracleExecutionFailures" : false,
+    "requiredCoverageTags" : []
+  },
   "cases" : [
     {
       "backendID" : "native",

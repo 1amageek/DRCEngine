@@ -22,9 +22,10 @@ public extension DRCCorpusReport {
             summary: derivedSummary,
             completed: completed
         )
-        guard assessment == derivedAssessment else {
+        guard assessment.criteria == derivedAssessment.criteria,
+              derivedAssessment.findings.allSatisfy(assessment.findings.contains) else {
             throw DRCError.invalidInput(
-                "DRC corpus report assessment does not match its case results and criteria."
+                "DRC corpus report assessment omits findings derived from its case results and criteria."
             )
         }
     }

@@ -344,9 +344,9 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         }
     }
 
-    @Test func antennaQualificationBlocksUntilIndependentOracleIsVerified() throws {
+    @Test func antennaAssessmentBlocksUntilIndependentOracleIsVerified() throws {
         let profile = MagicDRCLayoutTechImportProfile(
-            profileID: "test.magic.qualification",
+            profileID: "test.magic.assessment",
             layerOrder: ["MET1"],
             baseLayerNames: ["MET1"]
         )
@@ -362,7 +362,7 @@ struct Sky130MagicDRCLayoutTechImporterTests {
               model partial
               antenna met1 surface 10 none
             """,
-            sourcePath: "/tmp/qualification.magic.tech",
+            sourcePath: "/tmp/assessment.magic.tech",
             profile: profile,
             generatedAt: "2026-07-12T00:00:00Z"
         )
@@ -532,7 +532,7 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         }
     }
 
-    @Test func antennaQualificationBlocksConflictingSourceThickness() throws {
+    @Test func antennaAssessmentBlocksConflictingSourceThickness() throws {
         let profile = MagicDRCLayoutTechImportProfile(
             profileID: "test.magic.antenna-thickness-conflict",
             layerOrder: ["POLY"],
@@ -566,7 +566,7 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(assessment.failureCodes.contains("source_antenna_diagnostic:magic_drc_antenna_thickness_conflict"))
     }
 
-    @Test func antennaOracleEvidenceRejectsNativeSelfQualification() {
+    @Test func antennaOracleEvidenceRejectsNativeSelfReference() {
         let evidence = NativeDRCAntennaOracleEvidence(
             oracleID: "native",
             executableDigest: String(repeating: "a", count: 64),

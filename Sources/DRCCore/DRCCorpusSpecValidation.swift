@@ -1,7 +1,7 @@
 import Foundation
 
 public extension DRCCorpusSpec {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     /// Validates the complete corpus contract before any case is prepared or run.
     func validate() throws {

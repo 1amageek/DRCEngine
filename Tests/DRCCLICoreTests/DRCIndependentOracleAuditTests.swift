@@ -45,12 +45,12 @@ struct DRCIndependentOracleAuditTests {
 
         #expect(report.summary.nonIndependentOracleCaseCount == 1)
         let policy = DRCCorpusAcceptanceCriteria(requireIndependentOracle: true)
-        let qualification = policy.evaluate(
+        let assessment = policy.evaluate(
             passed: report.passed,
             caseCount: report.caseCount,
             summary: report.summary
         )
-        #expect(qualification.findings.contains { $0.code == "independent_oracle_failed" })
+        #expect(assessment.findings.contains { $0.code == "independent_oracle_failed" })
 
         let data = try JSONEncoder().encode(policy)
         let decoded = try JSONDecoder().decode(DRCCorpusAcceptanceCriteria.self, from: data)

@@ -109,6 +109,113 @@ struct DRCCorpusEvidenceKindTests {
         }
     }
 
+    @Test func coveragePolicyDecodingRequiresEveryFailClosedGate() throws {
+        let policy = DRCCorpusCoverageAuditPolicy(
+            policyID: "strict",
+            requirePassingAssessment: true,
+            requireOracleAgreement: true,
+            requireIndependentOracle: true,
+            requireOracleReadiness: true,
+            requireDurationBudget: true,
+            minimumCaseCount: 1,
+            requirements: [DRCCorpusCoverageAuditPolicy.Requirement(
+                requirementID: "coverage",
+                title: "Coverage",
+                requiredCoverageTags: ["drc.width"]
+            )]
+        )
+        let encoded = try JSONEncoder().encode(policy)
+        let object = try #require(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+
+        for key in [
+            "requirePassingAssessment",
+            "requireOracleAgreement",
+            "requireIndependentOracle",
+            "requireOracleReadiness",
+            "requireDurationBudget",
+            "minimumCaseCount",
+            "maxReportAgeSeconds",
+            "requirements",
+        ] {
+            var incomplete = object
+            incomplete.removeValue(forKey: key)
+            let data = try JSONSerialization.data(withJSONObject: incomplete)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(DRCCorpusCoverageAuditPolicy.self, from: data)
+            }
+        }
+    }
+
+    @Test func coveragePolicyDecodingRejectsInvalidStructure() throws {
+        let policy = DRCCorpusCoverageAuditPolicy(
+            policyID: "strict",
+            minimumCaseCount: 1,
+            requirements: [DRCCorpusCoverageAuditPolicy.Requirement(
+                requirementID: "coverage",
+                title: "Coverage",
+                requiredCoverageTags: ["drc.width"]
+            )]
+        )
+        let encoded = try JSONEncoder().encode(policy)
+        let object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+
+        let mutations: [(inout [String: Any]) -> Void] = [
+            { value in value["policyID"] = " " },
+            { value in value["minimumCaseCount"] = 0 },
+            { value in value["requirements"] = [] },
+        ]
+        for mutation in mutations {
+            var invalid = object
+            mutation(&invalid)
+            let data = try JSONSerialization.data(withJSONObject: invalid)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(DRCCorpusCoverageAuditPolicy.self, from: data)
+            }
+        }
+    }
+
+    @Test func programmaticInvalidCoveragePolicyFailsClosed() {
+        let policy = DRCCorpusCoverageAuditPolicy(
+            policyID: " ",
+            requirePassingAssessment: false,
+            requireOracleAgreement: false,
+            requireOracleReadiness: false,
+            requireDurationBudget: false,
+            minimumCaseCount: 0,
+            maxReportAgeSeconds: -.infinity,
+            requirements: []
+        )
+
+        #expect(throws: EncodingError.self) {
+            _ = try JSONEncoder().encode(policy)
+        }
+
+        let report = DRCCorpusReport(
+            passed: false,
+            caseCount: 0,
+            matchedCaseCount: 0,
+            caseResults: []
+        )
+        let audit = DRCCorpusCoverageAuditor().audit(report: report, policy: policy)
+        #expect(audit.status == .incomplete)
+        #expect(audit.policyID == "invalid-policy")
+        #expect(audit.missingRequirements.contains {
+            $0.requirementID.hasPrefix("coverage-policy-invalid-")
+        })
+    }
+
+    @Test func corpusRunOptionsDecodingRequiresTrustGates() throws {
+        let options = DRCCorpusRunOptions()
+        for key in ["requireSignedArtifacts", "requireAntennaRules"] {
+            let data = try encoded(options, removing: key)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(DRCCorpusRunOptions.self, from: data)
+            }
+        }
+    }
+
     @Test func corpusCaseCanonicalIdentityIsValidated() {
         let invalid = DRCCorpusSpec(cases: [
             DRCCorpusCase(
@@ -197,7 +304,7 @@ struct DRCCorpusEvidenceKindTests {
         }
     }
 
-    @Test func independentQualificationRejectsMissingOracleCases() {
+    @Test func independentAssessmentRejectsMissingOracleCases() {
         let summary = DRCCorpusSummary(
             expectationMatchedCaseCount: 1,
             durationBudgetPassedCaseCount: 1,
@@ -218,7 +325,7 @@ struct DRCCorpusEvidenceKindTests {
         #expect(result.findings.contains { $0.code == "independent_oracle_missing" })
     }
 
-    @Test func missingOracleAgreementDoesNotHideOtherQualificationFailures() {
+    @Test func missingOracleAgreementDoesNotHideOtherAssessmentFindings() {
         let summary = DRCCorpusSummary(
             expectationMatchedCaseCount: 0,
             durationBudgetPassedCaseCount: 0,
@@ -271,7 +378,7 @@ struct DRCCorpusEvidenceKindTests {
         }
     }
 
-    @Test func independentReportConstructorUsesIndependentQualificationPolicy() {
+    @Test func independentReportConstructorUsesIndependentAssessmentCriteria() {
         let summary = DRCDiagnosticSummary(infoCount: 0, warningCount: 0, errorCount: 0)
         let caseResult = DRCCorpusCaseResult(
             caseID: "independent-without-oracle",

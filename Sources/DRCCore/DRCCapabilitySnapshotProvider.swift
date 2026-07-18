@@ -45,7 +45,7 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
             openMilestones: [
                 "Broaden Magic cut-count import beyond generic source-policy lines and unique stack inference into multi-numeric or ambiguous real-deck variants, remaining unsupported future templayer operations beyond the typed native materialization set, golden foundry DRC cases, and broader Magic oracle agreement.",
                 "Broaden standard mask input lanes from deterministic clean/equivalence fixtures into larger foundry-oriented coverage.",
-                "Qualify the lowered Magic antenna contract against retained foundry layouts and an independently identified Magic oracle; the native evaluator and source-to-rule lowering contract are implemented, but release evidence is still missing when those tools are unavailable.",
+                "Produce retained foundry-layout and independent-oracle correlation observations for the lowered Magic antenna contract so ToolQualification can evaluate its release scope; the native evaluator and source-to-rule lowering contract are implemented, but release evidence is still missing when those tools are unavailable.",
                 "Add larger benchmark suites with public PDK-derived rule decks and regression budgets.",
                 "Expand repair hint normalization beyond current width, spacing, overlap, notch, enclosed-area, minimum-density, split, and via-cut edits until every active diagnostic kind has a benchmarked executable layout operation.",
                 "Add external trust-root rotation and key IDs for multi-tenant release workflows.",
@@ -118,9 +118,9 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "drc.overlap.exact",
             ],
             limitations: [
-                "Current standard-input qualification is focused on deterministic generated standard-mask fixtures.",
+                "Current standard-input assessment coverage is focused on deterministic generated standard-mask fixtures.",
                 "The standard-input native-gds lane remains limited to the LayoutTech rule model currently implemented by LayoutVerify; its Magic sidewall/surface declarations are still evidence-only, while canonical native-json detailed antenna rules are evaluated by NativeDRC.",
-                "This backend is not signoff-qualified; unsupported derived geometry and rule semantics block a clean verdict.",
+                "No external signoff qualification record is available for this backend; unsupported derived geometry and rule semantics block a clean verdict.",
                 "Independent cross-engine marker correlation is available only when the corpus spec opts into the independent-correlation evidence kind and an independently identified oracle is present.",
             ]
         )

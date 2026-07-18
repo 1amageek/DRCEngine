@@ -4,9 +4,9 @@ import DRCCore
 import DRCNative
 import DRCRuntime
 
-@Suite("DRC independent oracle qualification")
-struct DRCIndependentOracleQualificationTests {
-    @Test func independentlyAttestedReferenceBackendCanQualifyNativeCase() async throws {
+@Suite("DRC independent oracle assessment")
+struct DRCIndependentOracleAssessmentTests {
+    @Test func independentlyAttestedReferenceBackendCanSatisfyAssessment() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let layoutURL = root.appending(path: "layout.json")
@@ -55,7 +55,7 @@ struct DRCIndependentOracleQualificationTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appending(path: "DRCIndependentOracleQualificationTests-\(UUID().uuidString)")
+            .appending(path: "DRCIndependentOracleAssessmentTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }

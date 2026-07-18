@@ -81,6 +81,26 @@ extension DRCCLIOptionsTests {
         #expect(options.emitJSON)
     }
 
+    @Test func corpusCoverageAuditPolicyUsesAssessmentVocabulary() throws {
+        struct PolicyProjection: Decodable {
+            let schemaVersion: Int
+            let requirePassingAssessment: Bool
+        }
+
+        let data = try JSONEncoder().encode(DRCCorpusCoverageAuditPolicy(
+            policyID: "drc.assessment-vocabulary.v2",
+            requirePassingAssessment: false,
+            requirements: [DRCCorpusCoverageAuditPolicy.Requirement(
+                requirementID: "assessment-vocabulary",
+                title: "Assessment vocabulary",
+                requiredCoverageTags: ["drc.width"]
+            )]
+        ))
+        let projection = try JSONDecoder().decode(PolicyProjection.self, from: data)
+        #expect(projection.schemaVersion == 2)
+        #expect(!projection.requirePassingAssessment)
+    }
+
     @Test func evidencePacketOptionsParseReportOutputAndPacketID() throws {
         let options = try DRCEvidencePacketCLIOptions(arguments: [
             "--evidence-packet-from-corpus-report", "/tmp/drc-corpus-report.json",
@@ -104,14 +124,14 @@ extension DRCCLIOptionsTests {
         )
 
         #expect(audit.status == .incomplete)
-        #expect(audit.policyID == "drc.magic-foundry-expansion.v1")
+        #expect(audit.policyID == "drc.magic-foundry-expansion.v2")
         #expect(audit.summary.caseCount == 1)
         #expect(audit.summary.oracleCaseCount == 1)
         #expect(audit.summary.oracleReadinessBlockedCaseCount == 1)
         #expect(audit.summary.oracleAgreementPassedCaseCount == 0)
         #expect(audit.summary.missingRequirementCount > 0)
         let missingIDs = Set(audit.missingRequirements.map(\.requirementID))
-        #expect(missingIDs.contains("qualified-corpus"))
+        #expect(missingIDs.contains("passing-corpus-assessment"))
         #expect(missingIDs.contains("oracle-agreement"))
         #expect(missingIDs.contains("oracle-readiness"))
         #expect(missingIDs.contains("magic-oracle-baseline"))
@@ -154,7 +174,7 @@ extension DRCCLIOptionsTests {
           "summary": {
             "caseCount": 1,
             "matchedCaseCount": 1,
-            "qualified": true,
+            "meetsCriteria": true,
             "durationBudgetPassedCaseCount": 1,
             "durationBudgetPassRate": 1,
             "oracleCaseCount": 1,
@@ -256,7 +276,7 @@ extension DRCCLIOptionsTests {
         #expect(exitCode == 2)
         let audit = try JSONDecoder().decode(DRCCorpusCoverageAudit.self, from: Data(contentsOf: auditURL))
         #expect(audit.status == .incomplete)
-        #expect(audit.policyID == "drc.magic-foundry-expansion.v1")
+        #expect(audit.policyID == "drc.magic-foundry-expansion.v2")
         #expect(audit.summary.caseCount == 96)
         #expect(audit.summary.oracleCaseCount == 96)
         #expect(audit.summary.missingRequirementCount == 1)
@@ -347,13 +367,17 @@ extension DRCCLIOptionsTests {
         )
         let policy = DRCCorpusCoverageAuditPolicy(
             policyID: "drc.freshness.v1",
-            requireQualifiedCorpus: false,
+            requirePassingAssessment: false,
             requireOracleAgreement: false,
             requireOracleReadiness: false,
             requireDurationBudget: false,
-            minimumCaseCount: 0,
+            minimumCaseCount: 1,
             maxReportAgeSeconds: 86_400,
-            requirements: []
+            requirements: [DRCCorpusCoverageAuditPolicy.Requirement(
+                requirementID: "retained-coverage",
+                title: "Retained coverage",
+                requiredCoverageTags: ["drc.width"]
+            )]
         )
 
         let audit = DRCCorpusCoverageAuditor().audit(
@@ -415,12 +439,16 @@ extension DRCCLIOptionsTests {
         )
         let policy = DRCCorpusCoverageAuditPolicy(
             policyID: "drc.oracle-readiness.v1",
-            requireQualifiedCorpus: false,
+            requirePassingAssessment: false,
             requireOracleAgreement: true,
             requireOracleReadiness: true,
             requireDurationBudget: false,
-            minimumCaseCount: 0,
-            requirements: []
+            minimumCaseCount: 1,
+            requirements: [DRCCorpusCoverageAuditPolicy.Requirement(
+                requirementID: "oracle-coverage",
+                title: "Oracle coverage",
+                requiredCoverageTags: ["external.magic"]
+            )]
         )
 
         let audit = DRCCorpusCoverageAuditor().audit(
@@ -462,12 +490,16 @@ extension DRCCLIOptionsTests {
         )
         let policy = DRCCorpusCoverageAuditPolicy(
             policyID: "drc.oracle-readiness-counts.v1",
-            requireQualifiedCorpus: false,
+            requirePassingAssessment: false,
             requireOracleAgreement: false,
             requireOracleReadiness: true,
             requireDurationBudget: false,
-            minimumCaseCount: 0,
-            requirements: []
+            minimumCaseCount: 1,
+            requirements: [DRCCorpusCoverageAuditPolicy.Requirement(
+                requirementID: "oracle-coverage",
+                title: "Oracle coverage",
+                requiredCoverageTags: ["external.magic"]
+            )]
         )
 
         let audit = DRCCorpusCoverageAuditor().audit(
@@ -561,7 +593,7 @@ extension DRCCLIOptionsTests {
         #expect(issues.allSatisfy { !$0.fieldPath.isEmpty && !$0.suggestedActions.isEmpty })
     }
 
-    @Test func corpusCoverageAuditCLICanonicalizesInconsistentRetainedSummaryBeforeAudit() async throws {
+    @Test func corpusCoverageAuditCLIRejectsInconsistentRetainedSummary() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let reportURL = root.appending(path: "drc-corpus-report.json")
@@ -610,13 +642,9 @@ extension DRCCLIOptionsTests {
             "--json",
         ])
 
-        #expect(result.exitCode == 2)
-        #expect(result.standardError.isEmpty)
-        let audit = try JSONDecoder().decode(DRCCorpusCoverageAudit.self, from: Data(contentsOf: auditURL))
-        #expect(audit.validateIntegrity().isEmpty)
-        #expect(audit.summary.caseCount == 1)
-        #expect(audit.summary.durationBudgetPassedCaseCount == 1)
-        #expect(audit.summary.durationBudgetPassRate == 1)
+        #expect(result.exitCode == 1)
+        #expect(result.standardError.contains("summary does not match its case results"))
+        #expect(!FileManager.default.fileExists(atPath: auditURL.path(percentEncoded: false)))
     }
 
     @Test func corpusObservationExportMatchesRuntimeObservationShape() throws {
@@ -683,6 +711,7 @@ extension DRCCLIOptionsTests {
 
         #expect(packet.packetID == "drc-evidence-release")
         #expect(packet.domain == "drc.signoff-evidence")
+        #expect(packet.intent.requestedObservations.contains("assessment-findings"))
         #expect(packet.inputs.first?.sha256 == String(repeating: "a", count: 64))
         #expect(packet.readiness.contains { $0.component == "drc-corpus-evidence" && $0.status == .ready })
         #expect(packet.readiness.contains { $0.component == "drc-oracle-comparison" && $0.status == .blocked })
@@ -694,6 +723,10 @@ extension DRCCLIOptionsTests {
         #expect(packet.diagnostics.contains { $0.category == "rule_set_mismatch" })
         #expect(packet.diagnostics.contains { $0.category == "oracle_readiness" })
         #expect(packet.diagnostics.contains { $0.category == "oracle_agreement" })
+        #expect(packet.diagnostics.contains { $0.diagnosticID.hasPrefix("assessment:") })
+        #expect(packet.normalizedViews.contains {
+            $0.summaryCounts["assessmentFindingCount"] == report.assessment.findings.count
+        })
         #expect(packet.decisionHints.contains {
             $0.hintID == "drc:rule_set_mismatch"
                 && $0.suggestedActions.contains("inspect_expected_rule_ids")

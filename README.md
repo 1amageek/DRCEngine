@@ -17,13 +17,14 @@ flowchart LR
 
 `DefaultDRCEngine` conforms directly to `DRCExecuting`; no projection,
 adapter, or result envelope sits between the domain engine and the shared
-`Engine` contract. Foundry-rule qualification remains the responsibility of
-DRC's independent-oracle and PDK evidence gates.
+`Engine` contract. DRCEngine produces independent-oracle correlation and PDK
+observations; `ToolQualification` and the composing flow policy decide whether
+that evidence qualifies a tool and process scope.
 
 Protocol-composed design-rule checking for local, scriptable semiconductor
 layout flows. DRCEngine provides native Swift DRC, standard mask-data checking,
 Magic batch integration, foundry-deck import, structured diagnostics, retained
-artifacts, and Agent-facing qualification gates.
+artifacts, and Agent-facing assessment records.
 
 > **Qualification status:** the DRC/ARC kernels, import pipeline, regression
 > corpus, and evidence contracts are implemented and tested. Production
@@ -37,8 +38,8 @@ artifacts, and Agent-facing qualification gates.
 [`Xcircuite`](https://github.com/1amageek/Xcircuite) is the umbrella runtime
 that invokes DRCEngine through a flow stage executor and indexes DRC reports,
 diagnostics, evidence, and artifact manifests in the shared run ledger.
-DRCEngine remains independently usable and owns DRC/ARC semantics,
-qualification, and signoff diagnostics.
+DRCEngine remains independently usable and owns DRC/ARC semantics, raw
+observations, domain assessments, and signoff diagnostics.
 
 ## Scope at a glance
 
@@ -48,8 +49,8 @@ qualification, and signoff diagnostics.
 | ARC | PAR/CAR, surface/sidewall, process-stage, diffusion, via/contact connectivity, and structured repair diagnostics |
 | Foundry import | Magic tech/deck parsing into typed technology and native antenna artifacts |
 | External reference | Optional headless Magic adapter; external identity and file digests are retained |
-| Agent / CI | CLI, typed APIs, corpus runs, resumable checkpoints, artifact manifests, signatures, and qualification gates |
-| Production signoff | Blocked until independent-oracle evidence and a pinned PDK qualification envelope are present |
+| Agent / CI | CLI, typed APIs, corpus runs, resumable checkpoints, artifact manifests, signatures, and assessment criteria |
+| Production signoff | Blocked until ToolQualification accepts independent-oracle evidence and a pinned PDK qualification record is present |
 
 ```mermaid
 flowchart LR
@@ -57,7 +58,8 @@ flowchart LR
     Input --> Magic["Optional Magic adapter"]
     Native --> Evidence["Reports + manifests + diagnostics"]
     Magic --> Evidence
-    Evidence --> Gate["Independent-oracle qualification"]
+    Evidence --> Assessment["DRC corpus assessment"]
+    Assessment --> Gate["ToolQualification + flow policy"]
     Gate -->|qualified| Signoff["Signoff-eligible artifact"]
     Gate -->|blocked| Review["Human / Agent review"]
 ```
@@ -112,7 +114,8 @@ IDs are rejected with a typed backend-selection error.
 The native GDS path invokes `LayoutDRCService` in `exactOnly` geometry mode.
 Paths and non-rectilinear polygons therefore produce a blocking
 `drc.unsupported_exact_geometry` diagnostic until the exact edge kernel is
-qualified. Interactive layout feedback may still use the explicit
+covered by retained correlation evidence accepted through ToolQualification.
+Interactive layout feedback may still use the explicit
 `development` mode; that result must not be promoted to signoff evidence.
 
 Every `DRCRequest` validates its top-cell, selected backend, timeout, and POSIX
@@ -432,8 +435,8 @@ To emit the lowered Native antenna artifact alongside the source report, add
 `--native-antenna-out /path/native-antenna-artifact.json`. The output is a
 `NativeDRCAntennaArtifact` envelope, not an unqualified rule array: it binds
 the source/profile digests, profile layer order, source contact stacks,
-thickness map, source declarations, native rules, and the qualification
-verdict. The artifact can be structurally validated, but its
+thickness map, source declarations, native rules, and the domain assessment.
+The artifact can be structurally validated, but its
 `nativeAntennaAssessment` remains `blocked` until an independently
 identified oracle has been run and recorded as agreeing.
 
@@ -625,7 +628,7 @@ policy may require `requiredCoverageTags` so a release gate can fail when the
 corpus passes but does not cover the required capability areas. A case may also
 declare a `generatedLayoutFixture` so the corpus runner writes a deterministic
 standard-layout input, such as a GDSII/OASIS/CIF/DXF file plus technology deck, before invoking
-the backend. This keeps the `native-gds` lane under the same qualification policy
+the backend. This keeps the `native-gds` lane under the same corpus assessment criteria
 as JSON-layout rule semantics. Each case writes
 its normal DRC report and artifact manifest under the corpus output directory. If
 an oracle backend is specified, its report and manifest are written under the
@@ -702,7 +705,7 @@ stricter or looser release gate to retained corpus evidence without changing the
 original run artifacts. Assessment and observation commands recompute derived
 summary and finding fields from case results.
 
-Persisted corpus reports are structurally validated before CLI qualification or
+Persisted corpus reports are structurally validated before CLI assessment or
 coverage audit (schema, case counts, result IDs, duration values, and duplicate
 case IDs). Coverage audit intentionally recomputes its summary from case results
 so a stale retained summary cannot silently alter the audit outcome.
@@ -757,7 +760,7 @@ The separate
 is the executable Native-versus-Magic lane. Every case uses `native-gds` as the
 primary backend, `magic` as the oracle, and the same generated Sky130 GDS input.
 It contains clean and violating width, spacing, and area pairs with explicit
-backend-specific rule assertions. A qualifying run therefore retains two real
+backend-specific rule assertions. A correlation run therefore retains two real
 executions, two independently identified implementation families, the shared
 input digest, and the attested Magic executable, driver, and PDK digests. This
 is raw correlation evidence; ToolQualification and flow policy still decide

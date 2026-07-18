@@ -10,7 +10,10 @@
   "budgetExceededCaseCount": 0,
   "totalDurationSeconds": 0.1,
   "evidenceKind": "independent-correlation",
-  "runOptions": {},
+  "runOptions": {
+    "requireAntennaRules": false,
+    "requireSignedArtifacts": false
+  },
   "summary": {
     "expectationMatchedCaseCount": 1,
     "durationBudgetPassedCaseCount": 1,

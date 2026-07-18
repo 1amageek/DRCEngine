@@ -3,7 +3,7 @@ import DRCCore
 
 @Suite("DRC corpus report combiner")
 struct DRCCorpusReportCombinerTests {
-    @Test func mixedEvidenceKindsAndDuplicateCaseIDsAreNotQualified() {
+    @Test func mixedEvidenceKindsAndDuplicateCaseIDsFailAssessment() {
         let primary = report(evidenceKind: .regression, caseID: "same")
         let included = report(evidenceKind: .independentCorrelation, caseID: "same")
 
@@ -18,7 +18,7 @@ struct DRCCorpusReportCombinerTests {
         #expect(combined.assessment.findings.contains { $0.code == "duplicate_case_ids" })
     }
 
-    @Test func homogeneousIndependentEvidenceKeepsItsQualificationLane() {
+    @Test func homogeneousIndependentEvidenceKeepsItsAssessmentLane() {
         let primary = report(evidenceKind: .independentCorrelation, caseID: "primary")
         let included = report(evidenceKind: .independentCorrelation, caseID: "included")
 
@@ -43,6 +43,18 @@ struct DRCCorpusReportCombinerTests {
         #expect(combined.evidenceKind == .independentRuleCorrelation)
         #expect(combined.assessment.criteria.requireIndependentOracle)
         #expect(combined.assessment.findings.contains { $0.code == "independent_oracle_missing" })
+    }
+
+    @Test func combinedSupplementalFindingsRemainValidEvidence() throws {
+        let primary = report(evidenceKind: .regression, caseID: "primary")
+        let included = report(evidenceKind: .independentCorrelation, caseID: "included")
+        let combined = DRCCorpusReportCombiner().combine(
+            primaryReport: primary,
+            includedReports: [included]
+        )
+
+        #expect(combined.assessment.findings.contains { $0.code == "mixed_evidence_kinds" })
+        try combined.validateEvidence()
     }
 
     private func report(

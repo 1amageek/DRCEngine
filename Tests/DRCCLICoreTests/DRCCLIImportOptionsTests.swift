@@ -61,13 +61,13 @@ extension DRCCLIOptionsTests {
             "--assess-native-antenna",
             "--native-antenna-artifact", "/tmp/native-antenna-artifact.json",
             "--oracle-evidence", "/tmp/magic-oracle-evidence.json",
-            "--out", "/tmp/native-antenna-qualified.json",
+            "--out", "/tmp/native-antenna-assessed.json",
             "--json",
         ])
 
         #expect(options.artifactURL.path(percentEncoded: false) == "/tmp/native-antenna-artifact.json")
         #expect(options.oracleEvidenceURL.path(percentEncoded: false) == "/tmp/magic-oracle-evidence.json")
-        #expect(options.outputURL.path(percentEncoded: false) == "/tmp/native-antenna-qualified.json")
+        #expect(options.outputURL.path(percentEncoded: false) == "/tmp/native-antenna-assessed.json")
         #expect(options.emitJSON)
     }
 
@@ -1017,14 +1017,14 @@ extension DRCCLIOptionsTests {
         defer { removeTemporaryDirectory(root) }
         let artifactURL = root.appending(path: "native-antenna-artifact.json")
         let evidenceURL = root.appending(path: "magic-oracle-evidence.json")
-        let outputURL = root.appending(path: "native-antenna-qualified.json")
+        let outputURL = root.appending(path: "native-antenna-assessed.json")
         let sourceReport = MagicDRCLayoutTechImportReport(
             generatedAt: "2026-07-12T00:00:00Z",
             status: .partial,
-            sourcePath: "/tmp/qualification-cli.magic.tech",
+            sourcePath: "/tmp/assessment-cli.magic.tech",
             sourceDigest: String(repeating: "a", count: 64),
             profileDigest: String(repeating: "b", count: 64),
-            profileID: "test.magic.cli.qualification",
+            profileID: "test.magic.cli.assessment",
             profileLayerOrder: ["MET1"],
             supportedRuleFamilies: [],
             importedRuleCount: 1,

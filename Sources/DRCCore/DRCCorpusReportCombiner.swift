@@ -26,8 +26,8 @@ public struct DRCCorpusReportCombiner: Sendable {
         let sourceFindings = reports.enumerated().flatMap { index, report in
             report.assessment.meetsCriteria ? [] : [
                 DRCCorpusAssessmentFinding(
-                    code: "included_report_not_qualified",
-                    message: "One or more source corpus reports did not qualify.",
+                    code: "included_report_failed_assessment",
+                    message: "One or more source corpus reports failed their assessment criteria.",
                     observedCount: index,
                     requiredCount: 0
                 ),

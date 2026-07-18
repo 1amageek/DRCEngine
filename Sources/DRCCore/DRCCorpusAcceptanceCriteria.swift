@@ -47,30 +47,53 @@ public struct DRCCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        requireCorpusPassed = try container.decodeIfPresent(Bool.self, forKey: .requireCorpusPassed) ?? true
-        minimumPassRate = try container.decodeIfPresent(Double.self, forKey: .minimumPassRate) ?? 1
-        minimumDurationBudgetPassRate = try container.decodeIfPresent(
+        requireCorpusPassed = try container.decode(Bool.self, forKey: .requireCorpusPassed)
+        minimumPassRate = try container.decode(Double.self, forKey: .minimumPassRate)
+        minimumDurationBudgetPassRate = try container.decode(
             Double.self,
             forKey: .minimumDurationBudgetPassRate
-        ) ?? 1
+        )
+        guard container.contains(.minimumOracleCaseCount),
+              container.contains(.minimumOracleAgreementRate) else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.minimumOracleCaseCount,
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "DRC corpus acceptance criteria must declare every fail-closed gate."
+                )
+            )
+        }
         minimumOracleCaseCount = try container.decodeIfPresent(Int.self, forKey: .minimumOracleCaseCount)
         minimumOracleAgreementRate = try container.decodeIfPresent(Double.self, forKey: .minimumOracleAgreementRate)
-        requireIndependentOracle = try container.decodeIfPresent(
+        requireIndependentOracle = try container.decode(
             Bool.self,
             forKey: .requireIndependentOracle
-        ) ?? false
-        allowPrimaryExecutionFailures = try container.decodeIfPresent(
+        )
+        allowPrimaryExecutionFailures = try container.decode(
             Bool.self,
             forKey: .allowPrimaryExecutionFailures
-        ) ?? false
-        allowOracleExecutionFailures = try container.decodeIfPresent(
+        )
+        allowOracleExecutionFailures = try container.decode(
             Bool.self,
             forKey: .allowOracleExecutionFailures
-        ) ?? false
-        requiredCoverageTags = Self.normalizedCoverageTags(try container.decodeIfPresent(
+        )
+        requiredCoverageTags = Self.normalizedCoverageTags(try container.decode(
             [String].self,
             forKey: .requiredCoverageTags
-        ) ?? [])
+        ))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(requireCorpusPassed, forKey: .requireCorpusPassed)
+        try container.encode(minimumPassRate, forKey: .minimumPassRate)
+        try container.encode(minimumDurationBudgetPassRate, forKey: .minimumDurationBudgetPassRate)
+        try container.encode(minimumOracleCaseCount, forKey: .minimumOracleCaseCount)
+        try container.encode(minimumOracleAgreementRate, forKey: .minimumOracleAgreementRate)
+        try container.encode(requireIndependentOracle, forKey: .requireIndependentOracle)
+        try container.encode(allowPrimaryExecutionFailures, forKey: .allowPrimaryExecutionFailures)
+        try container.encode(allowOracleExecutionFailures, forKey: .allowOracleExecutionFailures)
+        try container.encode(requiredCoverageTags, forKey: .requiredCoverageTags)
     }
 
     public func evaluate(

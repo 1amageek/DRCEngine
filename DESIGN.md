@@ -4,8 +4,8 @@
 
 DRCEngine evaluates layout design rules and antenna rules. It may use the
 native Swift kernel or an independently identified external tool. It records
-the evidence needed to decide whether a run is merely executable, qualified,
-or eligible for signoff.
+raw observations, correlation results, and domain assessments. ToolQualification
+and the composing flow policy decide tool trust and signoff eligibility.
 
 ```mermaid
 flowchart TD
@@ -37,9 +37,10 @@ identity while preserving DRC's existing request model.
 | Concern | Owner |
 |---|---|
 | DRC geometry, ARC, waivers, native backends | DRCEngine |
-| Foundry-deck import and qualification | DRCEngine + PDK evidence gate |
+| Foundry-deck import and domain assessment | DRCEngine |
+| Tool/process qualification | ToolQualification + PDK evidence gate + flow policy |
 | Stable engine/evidence vocabulary | CircuiteFoundation |
 | Project/run lifecycle and human approval | Xcircuite / DesignFlowKernel |
 
-An ARC kernel is not equivalent to foundry-rule validation. An empty or
-unqualified antenna rule set must remain a blocked result.
+An ARC kernel is not equivalent to foundry-rule validation. An empty antenna
+rule set, or one without an external qualification record, must remain blocked.

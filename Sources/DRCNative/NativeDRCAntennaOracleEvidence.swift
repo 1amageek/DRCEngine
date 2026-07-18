@@ -143,7 +143,7 @@ public struct NativeDRCAntennaOracleEvidence: Sendable, Hashable, Codable {
         }
     }
 
-    /// Returns qualification failure codes without throwing, so a blocked
+    /// Returns assessment finding codes without throwing, so a blocked
     /// artifact can explain precisely which evidence field is incomplete.
     public func failureCodes(
         expectedSourceDigest: String?,

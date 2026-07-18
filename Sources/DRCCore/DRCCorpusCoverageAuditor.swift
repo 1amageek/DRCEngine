@@ -17,6 +17,18 @@ public struct DRCCorpusCoverageAuditor: Sendable {
             policy: policy,
             observedTags: observedTags
         )
+        let policyValidationErrors = policy.validationErrors
+        missingRequirements.append(contentsOf: policyValidationErrors.enumerated().map { index, error in
+            DRCCorpusCoverageAudit.MissingRequirement(
+                requirementID: "coverage-policy-invalid-\(index + 1)",
+                title: "Valid coverage policy",
+                missingCoverageTags: [],
+                observedCaseCount: 0,
+                requiredCaseCount: 1,
+                reason: error.message,
+                suggestedActions: ["fix_drc_corpus_coverage_policy"]
+            )
+        })
         let freshness = reportFreshness(
             report: report,
             policy: policy,
@@ -26,14 +38,14 @@ public struct DRCCorpusCoverageAuditor: Sendable {
             missingRequirements.append(missingRequirement)
         }
 
-        if policy.requireQualifiedCorpus, !report.assessment.meetsCriteria {
+        if policy.requirePassingAssessment, !report.assessment.meetsCriteria {
             missingRequirements.append(DRCCorpusCoverageAudit.MissingRequirement(
-                requirementID: "qualified-corpus",
-                title: "Qualified corpus",
+                requirementID: "passing-corpus-assessment",
+                title: "Passing corpus assessment",
                 missingCoverageTags: [],
                 observedCaseCount: report.matchedCaseCount,
                 requiredCaseCount: report.caseCount,
-                reason: "The corpus qualification did not pass.",
+                reason: "The corpus assessment did not meet its criteria.",
                 suggestedActions: ["inspect_drc_corpus_failures", "fix_or_mark_blocked_drc_oracle_cases"]
             ))
         }
@@ -68,7 +80,7 @@ public struct DRCCorpusCoverageAuditor: Sendable {
                     ),
                     requiredCaseCount: report.caseCount,
                     reason: missingOracleCaseCount > 0
-                        ? "Independent-oracle qualification requires an oracle comparison for every corpus case."
+                        ? "Independent-oracle assessment requires an oracle comparison for every corpus case."
                         : "One or more oracle comparisons use the same backend implementation family or lack verifiable backend identity.",
                     suggestedActions: missingOracleCaseCount > 0
                         ? ["run_drc_corpus_with_independent_reference", "inspect_drc_oracle_readiness"]
@@ -155,7 +167,8 @@ public struct DRCCorpusCoverageAuditor: Sendable {
             missingRequirementIDs: missingRequirementIDs
         )
         let requiredRequirementCount = policy.requirements.count
-            + (policy.requireQualifiedCorpus ? 1 : 0)
+            + policyValidationErrors.count
+            + (policy.requirePassingAssessment ? 1 : 0)
             + (policy.requireOracleAgreement ? 1 : 0)
             + (policy.requireIndependentOracle ? 1 : 0)
             + (policy.requireOracleReadiness ? 1 : 0)
@@ -169,7 +182,9 @@ public struct DRCCorpusCoverageAuditor: Sendable {
         return DRCCorpusCoverageAudit(
             auditID: auditID ?? defaultAuditID(reportPath: reportPath, policyID: policy.policyID),
             status: status,
-            policyID: policy.policyID,
+            policyID: policy.policyID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "invalid-policy"
+                : policy.policyID,
             reportPath: reportPath,
             summary: DRCCorpusCoverageAudit.Summary(
                 caseCount: report.caseCount,
@@ -308,6 +323,9 @@ public struct DRCCorpusCoverageAuditor: Sendable {
         missingRequirement: DRCCorpusCoverageAudit.MissingRequirement?
     ) {
         guard let maxReportAgeSeconds = policy.maxReportAgeSeconds else {
+            return (checkedAt.map { iso8601String(from: $0) }, nil, nil)
+        }
+        guard maxReportAgeSeconds.isFinite, maxReportAgeSeconds >= 0 else {
             return (checkedAt.map { iso8601String(from: $0) }, nil, nil)
         }
         guard let checkedAt else {

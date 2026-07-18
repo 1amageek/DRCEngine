@@ -33,10 +33,10 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
             ),
             intent: DRCEvidenceIntent(
                 summary: "Expose retained DRC corpus observations as decision material.",
-                designContext: "DRC corpus qualification with rule-ID expectations, oracle comparison, coverage, and runtime gates.",
+                designContext: "DRC corpus assessment with rule-ID expectations, oracle comparison, coverage, and runtime criteria.",
                 requestedObservations: [
                     "corpus-readiness",
-                    "qualification-gates",
+                    "assessment-findings",
                     "rule-id-expectations",
                     "oracle-agreement",
                     "coverage-tags",
@@ -403,14 +403,14 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
         var values: [DRCEvidenceDiagnostic] = []
         for failure in report.assessment.findings {
             values.append(DRCEvidenceDiagnostic(
-                diagnosticID: "qualification:\(failure.code)",
+                diagnosticID: "assessment:\(failure.code)",
                 severity: .error,
-                category: category(qualificationCode: failure.code),
+                category: category(assessmentCode: failure.code),
                 message: failure.message,
                 observedValue: failure.observedDouble,
                 requiredValue: failure.requiredDouble,
                 artifactIDs: ["drc-corpus-report"],
-                suggestedActions: suggestedActions(category: category(qualificationCode: failure.code))
+                suggestedActions: suggestedActions(category: category(assessmentCode: failure.code))
             ))
         }
         for context in contexts {
@@ -573,7 +573,7 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
         }
         return DRCEvidenceConfidence(
             level: .medium,
-            reason: "The DRC corpus produced usable evidence, but qualification diagnostics remain.",
+            reason: "The DRC corpus produced usable evidence, but assessment findings remain.",
             evidenceCount: evidenceCount,
             limitationCount: diagnostics.count
         )
@@ -633,7 +633,7 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
             "oracleExecutionFailedCaseCount": report.summary.oracleExecutionFailedCaseCount,
             "oracleReadinessBlockedCaseCount": report.summary.oracleReadinessBlockedCaseCount,
             "coverageTagCount": report.summary.coverageTagCounts.count,
-            "qualificationFailureCount": report.assessment.findings.count,
+            "assessmentFindingCount": report.assessment.findings.count,
         ]
     }
 
@@ -643,8 +643,8 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
             : Double(report.summary.durationBudgetPassedCaseCount) / Double(report.caseCount)
     }
 
-    private func category(qualificationCode: String) -> String {
-        switch qualificationCode {
+    private func category(assessmentCode: String) -> String {
+        switch assessmentCode {
         case "required_coverage_missing":
             return "coverage_gap"
         case "primary_execution_failed":
@@ -661,7 +661,7 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
              "corpus_not_passed":
             return "corpus_gate"
         default:
-            return "qualification_failure"
+            return "assessment_finding"
         }
     }
 
@@ -727,13 +727,13 @@ public struct DRCCorpusEvidencePacketBuilder: Sendable {
         case "oracle_agreement":
             return "\(count) native-vs-oracle DRC agreement issue(s) need rule mapping inspection."
         case "coverage_gap":
-            return "\(count) DRC coverage gap(s) prevent qualification under the current policy."
+            return "\(count) DRC coverage gap(s) fail the current corpus assessment criteria."
         case "expectation_mismatch", "rule_set_mismatch":
             return "\(count) DRC expected-vs-observed diagnostic mismatch issue(s) need rule-ID inspection."
         case "duration_budget":
             return "\(count) DRC duration budget issue(s) need runtime inspection."
         case "corpus_gate":
-            return "\(count) DRC corpus gate issue(s) prevent qualification."
+            return "\(count) DRC corpus gate issue(s) fail the current assessment."
         default:
             return "\(count) DRC diagnostic issue(s) need inspection."
         }

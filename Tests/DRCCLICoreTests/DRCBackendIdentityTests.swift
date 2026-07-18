@@ -20,7 +20,7 @@ struct DRCBackendIdentityTests {
         )
     }
 
-    @Test func unknownBackendIdentityCannotQualifyAsIndependent() {
+    @Test func unknownBackendIdentityCannotSatisfyIndependentAssessment() {
         #expect(
             DRCBackendIdentity(backendID: "custom-a")
                 .independenceFailureCode(comparedTo: DRCBackendIdentity(backendID: "custom-b"))
