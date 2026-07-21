@@ -74,6 +74,7 @@ let package = Package(
             dependencies: [
                 "DRCCore",
                 "DRCFoundryImport",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
                 .product(name: "LayoutVerify", package: "semiconductor-layout"),
@@ -87,11 +88,18 @@ let package = Package(
             dependencies: [
                 "DRCCore",
                 "DRCParsers",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
                 .product(name: "SignoffToolSupport", package: "SignoffToolSupport"),
             ],
             resources: [.copy("Resources/drc.tcl")]
         ),
-        .target(name: "DRCPersistence", dependencies: ["DRCCore"]),
+        .target(
+            name: "DRCPersistence",
+            dependencies: [
+                "DRCCore",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
+            ]
+        ),
         .target(
             name: "DRCRuntime",
             dependencies: [
@@ -129,11 +137,19 @@ let package = Package(
             ]
         ),
         .testTarget(name: "DRCParsersTests", dependencies: ["DRCParsers", "DRCCore"]),
-        .testTarget(name: "DRCRuntimeTests", dependencies: ["DRCRuntime", "DRCCore"]),
+        .testTarget(
+            name: "DRCRuntimeTests",
+            dependencies: [
+                "DRCRuntime",
+                "DRCCore",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
+            ]
+        ),
         .testTarget(
             name: "DRCCLICoreTests",
             dependencies: [
                 "DRCCLICore",
+                "DRCAdapters",
                 "DRCFoundryImport",
                 "DRCNative",
                 .product(name: "LayoutCore", package: "semiconductor-layout"),

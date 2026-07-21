@@ -266,7 +266,7 @@ extension DRCCLIOptionsTests {
 
         #expect(report.result.passed)
         #expect(canonicalPath(report.artifactManifestURL) == canonicalPath(manifestURL))
-        #expect(manifest.schemaVersion == 1)
+        #expect(manifest.schemaVersion == DRCArtifactManifest.currentSchemaVersion)
         #expect(manifest.backendID == "native")
         #expect(manifest.toolName == "NativeDRC")
         #expect(manifest.passed)
@@ -446,8 +446,7 @@ extension DRCCLIOptionsTests {
 
         #expect(invocation.exitCode == 1)
         #expect(invocation.standardOutput.isEmpty)
-        #expect(invocation.standardError.contains("Invalid DRC input"))
-        #expect(invocation.standardError.contains("could not read layout"))
+        #expect(invocation.standardError.contains("Artifact file does not exist"))
         #expect(!FileManager.default.fileExists(atPath: outputDirectory.path(percentEncoded: false)))
     }
 

@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import Testing
+import CircuiteFoundation
 import DRCCore
 
 @Suite("DRC artifact manifest verifier")
@@ -19,6 +20,12 @@ struct DRCArtifactManifestVerifierTests {
         let manifest = DRCArtifactManifest(
             generatedAt: "2026-07-12T00:00:00Z",
             backendID: "native",
+            producer: try ProducerIdentity(
+                kind: .engine,
+                identifier: "layout-verify",
+                version: DRCExecutionProvenance.nativeImplementationVersion,
+                build: DRCExecutionProvenance.currentExecutableDigest()
+            ),
             toolName: "NativeDRC",
             passed: true,
             completed: true,
@@ -44,6 +51,12 @@ struct DRCArtifactManifestVerifierTests {
         let manifest = DRCArtifactManifest(
             generatedAt: "2026-07-12T00:00:00Z",
             backendID: "native",
+            producer: try ProducerIdentity(
+                kind: .engine,
+                identifier: "layout-verify",
+                version: DRCExecutionProvenance.nativeImplementationVersion,
+                build: DRCExecutionProvenance.currentExecutableDigest()
+            ),
             toolName: "NativeDRC",
             passed: true,
             completed: true,
@@ -81,6 +94,43 @@ struct DRCArtifactManifestVerifierTests {
         #expect(issues.contains { $0.code == "path-outside-base-directory" })
     }
 
+    @Test func rejectsInputWithoutExactSourceReference() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let layoutURL = directory.appending(path: "layout.gds")
+        try Data("layout".utf8).write(to: layoutURL)
+        let data = try Data(contentsOf: layoutURL)
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let manifest = DRCArtifactManifest(
+            generatedAt: "2026-07-12T00:00:00Z",
+            backendID: "native",
+            producer: try ProducerIdentity(
+                kind: .engine,
+                identifier: "layout-verify",
+                version: DRCExecutionProvenance.nativeImplementationVersion,
+                build: DRCExecutionProvenance.currentExecutableDigest()
+            ),
+            toolName: "NativeDRC",
+            passed: true,
+            completed: true,
+            inputs: [
+                DRCArtifactRecord(
+                    id: "input-layout",
+                    kind: .layout,
+                    path: "layout.gds",
+                    byteCount: data.count,
+                    sha256: digest
+                ),
+            ],
+            outputs: [],
+            diagnosticSummary: DRCDiagnosticSummary(infoCount: 0, warningCount: 0, errorCount: 0)
+        )
+
+        let issues = DRCArtifactManifestVerifier().verify(manifest, relativeTo: directory)
+
+        #expect(issues.contains { $0.code == "input-source-reference-missing" })
+    }
+
     private func record(
         id: String,
         kind: DRCArtifactRecord.Kind,
@@ -89,12 +139,28 @@ struct DRCArtifactManifestVerifierTests {
     ) throws -> DRCArtifactRecord {
         let data = try Data(contentsOf: url)
         let sha256 = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let sourceReference: ArtifactReference?
+        if kind == .layout {
+            sourceReference = ArtifactReference(
+                locator: ArtifactLocator(
+                    location: try ArtifactLocation(fileURL: url),
+                    role: .input,
+                    kind: .layout,
+                    format: .gdsii
+                ),
+                digest: try ContentDigest(algorithm: .sha256, hexadecimalValue: sha256),
+                byteCount: UInt64(data.count)
+            )
+        } else {
+            sourceReference = nil
+        }
         return DRCArtifactRecord(
             id: id,
             kind: kind,
             path: String(url.path(percentEncoded: false).dropFirst(base.path(percentEncoded: false).count + 1)),
             byteCount: data.count,
-            sha256: sha256
+            sha256: sha256,
+            sourceReference: sourceReference
         )
     }
 

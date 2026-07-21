@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import DRCCore
 import DRCCLICore
+import DRCAdapters
 import DRCNative
 import LayoutCore
 import LayoutTech
@@ -428,7 +429,10 @@ extension DRCCLIOptionsTests {
 
     // Each retained Sky130 case launches one bounded external process. The
     // package test runner supplies the stricter suite-level deadline.
-    @Test(.timeLimit(.minutes(1)))
+    @Test(
+        .enabled(if: MagicDRCAdapter.locate() != nil),
+        .timeLimit(.minutes(1))
+    )
     func magicLayoutViaContactCorpusRetainsExpectedRulesAndArtifacts() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }

@@ -6,8 +6,10 @@ import DRCRuntime
 @Suite("DRC run session")
 struct DRCRunSessionTests {
     @Test func successfulSessionFinishesEventStream() async throws {
+        let fixture = try SessionLayoutFixture()
+        defer { fixture.remove() }
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/missing-layout.json"),
+            layoutURL: fixture.layoutURL,
             topCell: "top",
             backendSelection: DRCBackendSelection(backendID: "stub")
         )
@@ -31,8 +33,10 @@ struct DRCRunSessionTests {
     }
 
     @Test func cancellationFinishesEventStreamAsCancelled() async throws {
+        let fixture = try SessionLayoutFixture()
+        defer { fixture.remove() }
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/missing-layout.json"),
+            layoutURL: fixture.layoutURL,
             topCell: "top",
             backendSelection: DRCBackendSelection(backendID: "stub")
         )
@@ -55,8 +59,10 @@ struct DRCRunSessionTests {
     }
 
     @Test func shutdownTransitionsRunningSessionToCancelledAndFinishesStream() async throws {
+        let fixture = try SessionLayoutFixture()
+        defer { fixture.remove() }
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/missing-layout.json"),
+            layoutURL: fixture.layoutURL,
             topCell: "top",
             backendSelection: DRCBackendSelection(backendID: "stub")
         )
@@ -76,6 +82,29 @@ struct DRCRunSessionTests {
     }
 }
 
+private struct SessionLayoutFixture {
+    let directory: URL
+    let layoutURL: URL
+
+    init() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "DRCRunSessionTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let layoutURL = directory.appending(path: "layout.json")
+        try Data("{}".utf8).write(to: layoutURL, options: .atomic)
+        self.directory = directory
+        self.layoutURL = layoutURL
+    }
+
+    func remove() {
+        do {
+            try FileManager.default.removeItem(at: directory)
+        } catch {
+            Issue.record("Failed to remove DRC run-session fixture: \(error.localizedDescription)")
+        }
+    }
+}
+
 private struct SessionStubBackend: DRCBackend {
     let backendID = "stub"
     var delayNanoseconds: UInt64 = 0
@@ -84,7 +113,7 @@ private struct SessionStubBackend: DRCBackend {
         if delayNanoseconds > 0 {
             try await Task.sleep(nanoseconds: delayNanoseconds)
         }
-        return DRCExecutionResult(
+        return try DRCExecutionResult.inProcess(
             request: request,
             result: DRCResult(
                 backendID: backendID,

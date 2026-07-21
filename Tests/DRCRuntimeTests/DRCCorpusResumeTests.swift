@@ -33,6 +33,12 @@ struct DRCCorpusResumeTests {
         #expect(firstReport.specSHA256?.count == 64)
         #expect(await counter.value == 1)
 
+        let firstManifestPath = try #require(firstReport.caseResults.first?.manifestPath)
+        let firstManifestIssues = try DRCArtifactManifestVerifier().verify(
+            manifestURL: URL(filePath: firstManifestPath)
+        )
+        #expect(firstManifestIssues.isEmpty)
+
         let eventSink = EventSink()
         let resumedReport = try await DRCCorpusRunner(engine: engine).run(
             specURL: specURL,
@@ -109,7 +115,7 @@ private struct ResumeStubBackend: DRCBackend {
 
     func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
         await counter.increment()
-        return DRCExecutionResult(
+        return try DRCExecutionResult.inProcess(
             request: request,
             result: DRCResult(
                 backendID: backendID,
@@ -118,7 +124,12 @@ private struct ResumeStubBackend: DRCBackend {
                 success: true,
                 completed: true,
                 logPath: ""
-            )
+            ),
+            implementationID: DRCExecutionProvenance.implementationID(for: identity),
+            implementationVersion: identity.toolVersion
+                ?? DRCExecutionProvenance.implementationVersion(for: backendID),
+            implementationBuild: identity.executableDigest
+                ?? DRCExecutionProvenance.currentExecutableDigest()
         )
     }
 }

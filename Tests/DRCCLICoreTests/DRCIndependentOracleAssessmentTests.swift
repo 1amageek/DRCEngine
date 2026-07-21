@@ -80,6 +80,7 @@ private struct IndependentReferenceBackend: DRCBackend {
     let identity = DRCBackendIdentity(
         backendID: "reference",
         implementationFamily: .magic,
+        toolVersion: "test-reference-1.0",
         executableDigest: String(repeating: "1", count: 64),
         ruleProgramDigest: String(repeating: "2", count: 64),
         technologyDigest: String(repeating: "3", count: 64)
@@ -117,7 +118,7 @@ private struct IndependentReferenceBackend: DRCBackend {
                 )
             }
         }
-        return DRCExecutionResult(
+        return try DRCExecutionResult.inProcess(
             request: request,
             result: DRCResult(
                 backendID: backendID,
@@ -127,7 +128,10 @@ private struct IndependentReferenceBackend: DRCBackend {
                 completed: true,
                 logPath: "",
                 diagnostics: diagnostics
-            )
+            ),
+            implementationID: "magic",
+            implementationVersion: "test-reference-1.0",
+            implementationBuild: String(repeating: "1", count: 64)
         )
     }
 }

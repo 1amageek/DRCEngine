@@ -86,6 +86,7 @@
         "backendIdentity": {
           "backendID": "magic",
           "implementationFamily": "magic",
+          "toolVersion": "8.3.460",
           "executableDigest": "2222222222222222222222222222222222222222222222222222222222222222",
           "ruleProgramDigest": "3333333333333333333333333333333333333333333333333333333333333333",
           "technologyDigest": "4444444444444444444444444444444444444444444444444444444444444444"
@@ -111,6 +112,7 @@
           "backendIdentity": {
             "backendID": "magic",
             "implementationFamily": "magic",
+            "toolVersion": "8.3.460",
             "executableDigest": "2222222222222222222222222222222222222222222222222222222222222222",
             "ruleProgramDigest": "3333333333333333333333333333333333333333333333333333333333333333",
             "technologyDigest": "4444444444444444444444444444444444444444444444444444444444444444"

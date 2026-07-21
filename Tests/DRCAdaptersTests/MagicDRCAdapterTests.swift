@@ -7,14 +7,18 @@ import DRCAdapters
 @Suite("Magic DRC adapter")
 struct MagicDRCAdapterTests {
     @Test func additionalEnvironmentCannotOverrideReservedKeys() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = directory.appending(path: "inverter.gds")
+        try Data([0]).write(to: layoutURL, options: .atomic)
         let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: URL(filePath: "/bin/true"),
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",
             driverScriptURL: URL(filePath: "/tmp/drc.tcl")
         ))
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            layoutURL: layoutURL,
             topCell: "inv",
             options: DRCOptions(additionalEnvironment: ["DRC_CELL": "other"])
         )
@@ -43,14 +47,17 @@ struct MagicDRCAdapterTests {
             echo "DRC_DONE"
             """
         )
+        let layoutURL = directory.appending(path: "inverter.gds")
+        try Data([0x00]).write(to: layoutURL, options: .atomic)
         let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: executableURL,
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",
             driverScriptURL: URL(filePath: "/tmp/drc.tcl")
         ))
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            layoutURL: layoutURL,
             topCell: "inv",
             workingDirectory: directory,
             options: DRCOptions(additionalEnvironment: ["MAGIC_DRC_STYLE": "drc(full)"])
@@ -61,6 +68,11 @@ struct MagicDRCAdapterTests {
 
         #expect(result.result.passed)
         #expect(log.contains("STYLE=drc(full)"))
+        #expect(result.provenance.producer.identifier == "magic")
+        #expect(result.provenance.producer.version == "test-magic-1.0")
+        #expect(result.provenance.producer.build?.count == 64)
+        #expect(result.provenance.inputs.count == 1)
+        #expect(result.provenance.invocation?.executable == executableURL.path(percentEncoded: false))
     }
 
     @Test func magicLayoutInputForwardsDRCMagInsteadOfDRCGDS() async throws {
@@ -79,6 +91,7 @@ struct MagicDRCAdapterTests {
             """
         )
         let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: executableURL,
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",
@@ -100,14 +113,18 @@ struct MagicDRCAdapterTests {
     }
 
     @Test func invalidMagicDRCStyleEnvironmentIsRejected() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = directory.appending(path: "inverter.gds")
+        try Data([0]).write(to: layoutURL, options: .atomic)
         let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: URL(filePath: "/bin/true"),
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",
             driverScriptURL: URL(filePath: "/tmp/drc.tcl")
         ))
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            layoutURL: layoutURL,
             topCell: "inv",
             options: DRCOptions(additionalEnvironment: ["MAGIC_DRC_STYLE": "drc(full);exec"])
         )
@@ -138,6 +155,7 @@ struct MagicDRCAdapterTests {
             """
         )
         let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: executableURL,
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",
@@ -179,6 +197,7 @@ struct MagicDRCAdapterTests {
             """
         )
         let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: executableURL,
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",
@@ -208,6 +227,8 @@ struct MagicDRCAdapterTests {
 
     @Test func emptyTopCellIsRejectedBeforeLaunchingMagic() async throws {
         let directory = try makeTemporaryDirectory()
+        let layoutURL = directory.appending(path: "inverter.gds")
+        try Data([0]).write(to: layoutURL, options: .atomic)
         let launchedMarker = directory.appending(path: "launched")
         let executableURL = try makeExecutableScript(
             in: directory,
@@ -218,13 +239,14 @@ struct MagicDRCAdapterTests {
             """
         )
         let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: executableURL,
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",
             driverScriptURL: URL(filePath: "/tmp/drc.tcl")
         ))
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            layoutURL: layoutURL,
             topCell: " \t ",
             workingDirectory: directory
         )
@@ -246,6 +268,8 @@ struct MagicDRCAdapterTests {
 
     @Test func repeatedRunsUseDistinctLogArtifacts() async throws {
         let directory = try makeTemporaryDirectory()
+        let layoutURL = directory.appending(path: "inverter.gds")
+        try Data([0]).write(to: layoutURL, options: .atomic)
         let executableURL = try makeExecutableScript(
             in: directory,
             name: "fake-magic",
@@ -256,13 +280,14 @@ struct MagicDRCAdapterTests {
             """
         )
         let adapter = MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: executableURL,
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",
             driverScriptURL: URL(filePath: "/tmp/drc.tcl")
         ))
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            layoutURL: layoutURL,
             topCell: "inv",
             workingDirectory: directory
         )
@@ -281,9 +306,11 @@ struct MagicDRCAdapterTests {
     @Test(.timeLimit(.minutes(1)))
     func cancellationCheckTerminatesMagicProcessTree() async throws {
         let fixture = try makeCancellationFixture()
+        let layoutURL = fixture.directory.appending(path: "inverter.gds")
+        try Data([0]).write(to: layoutURL, options: .atomic)
         let adapter = makeAdapter(executableURL: fixture.executableURL)
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            layoutURL: layoutURL,
             topCell: "inv",
             workingDirectory: fixture.directory,
             options: DRCOptions(timeoutSeconds: 5)
@@ -357,6 +384,7 @@ struct MagicDRCAdapterTests {
 
     private func makeAdapter(executableURL: URL) -> MagicDRCAdapter {
         MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: "test-magic-1.0",
             magicExecutableURL: executableURL,
             rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
             pdkRoot: "/tmp/pdk",

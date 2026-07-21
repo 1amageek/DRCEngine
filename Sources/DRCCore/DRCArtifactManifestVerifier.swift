@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import CircuiteFoundation
 
 public struct DRCArtifactManifestVerifier: Sendable {
     public init() {}
@@ -40,10 +41,18 @@ public struct DRCArtifactManifestVerifier: Sendable {
         trustedPublicKey: String? = nil
     ) -> [DRCArtifactIntegrityIssue] {
         var issues: [DRCArtifactIntegrityIssue] = []
-        guard manifest.schemaVersion == 1 else {
+        guard manifest.schemaVersion == DRCArtifactManifest.currentSchemaVersion else {
             issues.append(DRCArtifactIntegrityIssue(
                 code: "unsupported-schema-version",
-                message: "DRC artifact manifest schemaVersion must be 1."
+                message: "DRC artifact manifest schemaVersion must be \(DRCArtifactManifest.currentSchemaVersion)."
+            ))
+            return issues
+        }
+        guard let producerBuild = manifest.producer.build,
+              isValidSHA256(producerBuild) else {
+            issues.append(DRCArtifactIntegrityIssue(
+                code: "invalid-producer-build",
+                message: "DRC artifact manifest producer build must be the measured executable SHA-256."
             ))
             return issues
         }
@@ -93,6 +102,17 @@ public struct DRCArtifactManifestVerifier: Sendable {
         )
         if requireSignature {
             verifyRequiredProvenance(manifest, issues: &issues)
+        }
+        for record in manifest.inputs {
+            verifySourceIdentity(record, issues: &issues)
+        }
+        for record in manifest.outputs where record.sourceReference != nil {
+            issues.append(DRCArtifactIntegrityIssue(
+                code: "output-source-reference-present",
+                recordID: record.id,
+                path: record.path,
+                message: "DRC output artifact records must not claim an execution input source reference."
+            ))
         }
         var recordIDs: Set<String> = []
         for record in manifest.inputs + manifest.outputs {
@@ -404,6 +424,52 @@ public struct DRCArtifactManifestVerifier: Sendable {
         }
     }
 
+    private func verifySourceIdentity(
+        _ record: DRCArtifactRecord,
+        issues: inout [DRCArtifactIntegrityIssue]
+    ) {
+        guard let reference = record.sourceReference else {
+            issues.append(DRCArtifactIntegrityIssue(
+                code: "input-source-reference-missing",
+                recordID: record.id,
+                path: record.path,
+                message: "DRC input artifact records must retain their exact execution provenance reference."
+            ))
+            return
+        }
+        guard sourceKind(for: record.kind) == reference.locator.kind else {
+            issues.append(DRCArtifactIntegrityIssue(
+                code: "input-source-kind-mismatch",
+                recordID: record.id,
+                path: record.path,
+                message: "DRC input record kind does not match its execution provenance artifact kind."
+            ))
+            return
+        }
+        guard let byteCount = record.byteCount,
+              byteCount >= 0,
+              reference.digest.algorithm == .sha256,
+              reference.digest.hexadecimalValue == record.sha256,
+              reference.byteCount == UInt64(byteCount) else {
+            issues.append(DRCArtifactIntegrityIssue(
+                code: "input-source-integrity-mismatch",
+                recordID: record.id,
+                path: record.path,
+                message: "DRC input record content identity does not match its execution provenance reference."
+            ))
+            return
+        }
+    }
+
+    private func sourceKind(for kind: DRCArtifactRecord.Kind) -> ArtifactKind? {
+        switch kind {
+        case .layout: .layout
+        case .technology: .technology
+        case .waiver: .constraint
+        case .report, .log, .manifest: nil
+        }
+    }
+
     private func digest<T: Encodable>(_ value: T) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -428,10 +494,36 @@ public struct DRCArtifactManifestVerifier: Sendable {
             .filter { $0.kind != .manifest }
             .sorted { $0.id < $1.id }
             .map { record in
-                [record.id, record.kind.rawValue, record.path, String(record.byteCount ?? -1), record.sha256 ?? ""].joined(separator: "|")
+                [
+                    record.id,
+                    record.kind.rawValue,
+                    record.path,
+                    String(record.byteCount ?? -1),
+                    record.sha256 ?? "",
+                    artifactReferenceIdentity(record.sourceReference),
+                ].joined(separator: "|")
             }
             .joined(separator: "\n")
         return SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func artifactReferenceIdentity(_ reference: ArtifactReference?) -> String {
+        guard let reference else { return "" }
+        let producer = reference.producer.map {
+            [$0.kind.rawValue, $0.identifier, $0.version, $0.build ?? ""].joined(separator: "\u{001F}")
+        } ?? ""
+        return [
+            reference.id.rawValue,
+            reference.locator.location.storage.rawValue,
+            reference.locator.location.value,
+            reference.locator.role.rawValue,
+            reference.locator.kind.rawValue,
+            reference.locator.format.rawValue,
+            reference.digest.algorithm.rawValue,
+            reference.digest.hexadecimalValue,
+            String(reference.byteCount),
+            producer,
+        ].joined(separator: "\u{001E}")
     }
 
     private func isValidSHA256(_ value: String) -> Bool {

@@ -8,8 +8,12 @@ import DRCPersistence
 @Suite("Default DRC engine")
 struct DefaultDRCEngineTests {
     @Test func cancellableBackendDeadlineProducesTypedTimeout() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let layoutURL = directory.appending(path: "inverter.gds")
+        try Data([0x00, 0x01, 0x02]).write(to: layoutURL)
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            layoutURL: layoutURL,
             topCell: "inv",
             backendSelection: DRCBackendSelection(backendID: "deadline-stub"),
             options: DRCOptions(timeoutSeconds: 0.01)
@@ -49,6 +53,9 @@ struct DefaultDRCEngineTests {
         #expect(decoded.result.backendIdentity?.implementationFamily == .unknown)
         let manifestURL = try #require(result.artifactManifestURL)
         let manifest = try JSONDecoder().decode(DRCArtifactManifest.self, from: Data(contentsOf: manifestURL))
+        #expect(manifest.schemaVersion == DRCArtifactManifest.currentSchemaVersion)
+        #expect(manifest.producer == result.provenance.producer)
+        #expect(manifest.producer.build?.count == 64)
         #expect(manifest.backendIdentity?.backendID == "stub")
         #expect(manifest.runID?.isEmpty == false)
         #expect(manifest.requestSHA256?.count == 64)
@@ -62,6 +69,8 @@ struct DefaultDRCEngineTests {
         let expectedReportSHA256 = try sha256(reportURL)
         #expect(inputLayout.sha256 == expectedInputLayoutSHA256)
         #expect(inputLayout.byteCount == 3)
+        #expect(inputLayout.sourceReference == result.provenance.inputs.first)
+        #expect(manifest.outputs.allSatisfy { $0.sourceReference == nil })
         #expect(report.sha256 == expectedReportSHA256)
         #expect(report.byteCount == data.count)
     }
@@ -241,8 +250,12 @@ struct DefaultDRCEngineTests {
     }
 
     @Test func rejectsBackendResultIdentityMismatch() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let layoutURL = directory.appending(path: "inverter.gds")
+        try Data([0x00, 0x01, 0x02]).write(to: layoutURL)
         let request = DRCRequest(
-            layoutURL: URL(filePath: "/tmp/inverter.gds"),
+            layoutURL: layoutURL,
             topCell: "inv",
             backendSelection: DRCBackendSelection(backendID: "lying-stub")
         )
@@ -808,7 +821,7 @@ struct DefaultDRCEngineTests {
         let backendID = "stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,
@@ -852,7 +865,7 @@ struct DefaultDRCEngineTests {
         let backendID: String
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,
@@ -869,7 +882,7 @@ struct DefaultDRCEngineTests {
         let backendID = "lying-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: "other-backend",
@@ -886,7 +899,7 @@ struct DefaultDRCEngineTests {
         let backendID = "waiver-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,
@@ -914,7 +927,7 @@ struct DefaultDRCEngineTests {
         let backendID = "clean-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,
@@ -931,7 +944,7 @@ struct DefaultDRCEngineTests {
         let backendID = "violation-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,
@@ -956,7 +969,7 @@ struct DefaultDRCEngineTests {
         let backendID = "marker-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,
@@ -985,7 +998,7 @@ struct DefaultDRCEngineTests {
         let backendID = "incomplete-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,

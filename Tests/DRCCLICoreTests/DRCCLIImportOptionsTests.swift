@@ -437,7 +437,7 @@ extension DRCCLIOptionsTests {
         let importRuleSeed = try #require(snapshot.operations.first {
             $0.operationID == "drc.import-foundry-rule-seed"
         })
-        #expect(importRuleSeed.maturity == "available-unqualified")
+        #expect(importRuleSeed.maturity == "implemented")
         #expect(importRuleSeed.inputRefs == [
             "magic-tech-ref-or-signoff-profile",
             "magic-layouttech-import-profile",
@@ -1217,7 +1217,7 @@ extension DRCCLIOptionsTests {
         #expect(!operationIDs.contains("drc.diagnostic-to-repair-objective"))
 
         let run = try #require(snapshot.operations.first { $0.operationID == "drc.run-native" })
-        #expect(run.maturity == "preview-verified")
+        #expect(run.maturity == "implemented")
         #expect(run.producedArtifacts.contains("drc-summary"))
         #expect(run.verificationGates.contains("drc-artifacts"))
         #expect(run.effects.contains("composite-enclosure-coverage-evaluated"))
@@ -1232,7 +1232,7 @@ extension DRCCLIOptionsTests {
         let ruleSeedImport = try #require(snapshot.operations.first {
             $0.operationID == "drc.import-foundry-rule-seed"
         })
-        #expect(ruleSeedImport.maturity == "available-unqualified")
+        #expect(ruleSeedImport.maturity == "implemented")
         #expect(ruleSeedImport.inputRefs == [
             "magic-tech-ref-or-signoff-profile",
             "magic-layouttech-import-profile",

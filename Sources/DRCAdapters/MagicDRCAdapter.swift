@@ -1,3 +1,4 @@
+import CircuiteFoundation
 import Foundation
 import CryptoKit
 import DRCCore
@@ -5,17 +6,20 @@ import DRCParsers
 import SignoffToolSupport
 
 public struct MagicDRCToolchain: Sendable, Hashable {
+    public let toolVersion: String
     public let magicExecutableURL: URL
     public let rcFileURL: URL
     public let pdkRoot: String
     public let driverScriptURL: URL
 
     public init(
+        toolVersion: String,
         magicExecutableURL: URL,
         rcFileURL: URL,
         pdkRoot: String,
         driverScriptURL: URL
     ) {
+        self.toolVersion = toolVersion
         self.magicExecutableURL = magicExecutableURL
         self.rcFileURL = rcFileURL
         self.pdkRoot = pdkRoot
@@ -34,6 +38,7 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
         DRCBackendIdentity(
             backendID: "magic",
             implementationFamily: .magic,
+            toolVersion: toolchain.toolVersion,
             executableDigest: Self.fileDigest(at: toolchain.magicExecutableURL),
             ruleProgramDigest: Self.combinedFileDigest([
                 toolchain.rcFileURL,
@@ -140,6 +145,10 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
         fileManager: FileManager = .default
     ) -> MagicDRCAdapter? {
         guard let driver = bundledDriverScriptURL else { return nil }
+        guard let toolVersion = environment["MAGIC_VERSION"],
+              !toolVersion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
         let magicPath = environment["MAGIC_BIN"]
             ?? NSString(string: "~/.local/magic/bin/magic").expandingTildeInPath
         guard fileManager.isExecutableFile(atPath: magicPath) else { return nil }
@@ -171,6 +180,7 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
             return nil
         }
         return MagicDRCAdapter(toolchain: MagicDRCToolchain(
+            toolVersion: toolVersion,
             magicExecutableURL: URL(filePath: magicPath),
             rcFileURL: rcFile,
             pdkRoot: pdkRoot,
@@ -186,6 +196,15 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
         _ request: DRCRequest,
         cancellationCheck: DRCExecutionCancellationCheck?
     ) async throws -> DRCExecutionResult {
+        try Self.validateAdditionalEnvironment(request.options.additionalEnvironment)
+        try Self.validateMagicDRCStyle(request.options.additionalEnvironment["MAGIC_DRC_STYLE"])
+        let startedAt = Date()
+        let inputArtifacts = try DRCExecutionProvenance.captureInputArtifacts(for: request)
+        guard let executableDigest = identity.executableDigest else {
+            throw DRCError.backendUnavailable(
+                "Magic executable identity could not be attested before execution."
+            )
+        }
         let context = try prepareExecutionContext(for: request)
         let process = makeProcess(context: context)
         let processResult = try await runProcess(
@@ -193,6 +212,11 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
             request: request,
             cancellationCheck: cancellationCheck
         )
+        guard Self.fileDigest(at: toolchain.magicExecutableURL) == executableDigest else {
+            throw DRCError.backendFailed(
+                "Magic executable changed during DRC execution."
+            )
+        }
         let rawOutput = Self.combinedOutput(from: processResult)
         try writeLog(
             to: context.logURL,
@@ -206,7 +230,25 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
             success: processResult.exitCode == 0,
             provenance: makeProvenance(request: request)
         )
-        return DRCExecutionResult(request: request, result: parsed)
+        return DRCExecutionResult(
+            request: request,
+            result: parsed,
+            provenance: try DRCExecutionProvenance.make(
+                request: request,
+                result: parsed,
+                implementationID: "magic",
+                implementationVersion: toolchain.toolVersion,
+                implementationBuild: executableDigest,
+                inputArtifacts: inputArtifacts,
+                invocation: ExecutionInvocation.externalProcess(
+                    executable: toolchain.magicExecutableURL.path(percentEncoded: false),
+                    arguments: process.arguments ?? [],
+                    workingDirectory: context.artifactDirectory.path(percentEncoded: false)
+                ),
+                startedAt: startedAt,
+                completedAt: Date()
+            )
+        )
     }
 
     private enum MagicInputKind {
@@ -221,8 +263,6 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
     }
 
     private func prepareExecutionContext(for request: DRCRequest) throws -> ExecutionContext {
-        try Self.validateAdditionalEnvironment(request.options.additionalEnvironment)
-        try Self.validateMagicDRCStyle(request.options.additionalEnvironment["MAGIC_DRC_STYLE"])
         try Self.validateTopCell(request.topCell)
         let inputKind = try Self.resolveInputKind(for: request)
         let artifactDirectory = request.workingDirectory ?? FileManager.default.temporaryDirectory

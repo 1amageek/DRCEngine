@@ -42,7 +42,7 @@ extension DRCCLIOptionsTests {
         }
     }
 
-    @Test func cliOutputIncludesStructuredDiagnostics() {
+    @Test func cliOutputIncludesStructuredDiagnostics() throws {
         let diagnostic = DRCDiagnostic(
             severity: .error,
             message: "Minimum width violation",
@@ -57,7 +57,7 @@ extension DRCCLIOptionsTests {
             suggestedFix: "Increase the narrow dimension.",
             rawLine: "MIN_WIDTH layer=met1 id=thin"
         )
-        let output = DRCCLIOutput(result: DRCExecutionResult(
+        let output = DRCCLIOutput(result: try DRCExecutionResult.inProcess(
             request: DRCRequest(layoutURL: URL(filePath: "/tmp/layout.json"), topCell: "inv"),
             result: DRCResult(
                 backendID: "native",
@@ -85,7 +85,7 @@ extension DRCCLIOptionsTests {
         #expect(output.waiverReport?.unusedWaiverIDs == ["unused"])
     }
 
-    @Test func cliOutputUsesRunSummaryForWaivedDiagnostics() {
+    @Test func cliOutputUsesRunSummaryForWaivedDiagnostics() throws {
         let diagnostic = DRCDiagnostic(
             severity: .error,
             message: "Waived minimum width violation",
@@ -100,7 +100,7 @@ extension DRCCLIOptionsTests {
             waiverReason: "Fixture waiver",
             rawLine: "MIN_WIDTH layer=met1 id=thin"
         )
-        let output = DRCCLIOutput(result: DRCExecutionResult(
+        let output = DRCCLIOutput(result: try DRCExecutionResult.inProcess(
             request: DRCRequest(layoutURL: URL(filePath: "/tmp/layout.json"), topCell: "inv"),
             result: DRCResult(
                 backendID: "native",
@@ -135,31 +135,21 @@ extension DRCCLIOptionsTests {
     }
 
     @Test func executionResultAllowsAbsentOptionalRepairHintGeometry() throws {
-        let data = Data("""
-        {
-          "request" : {
-            "layoutURL" : "file:///tmp/layout.json",
-            "topCell" : "inv",
-            "backendSelection" : {
-              "backendID" : "native"
-            },
-            "options" : {
-              "timeoutSeconds" : 300,
-              "requireSignedArtifacts" : false,
-              "requireAntennaRules" : false,
-              "additionalEnvironment" : {}
-            }
-          },
-          "result" : {
-            "backendID" : "native",
-            "toolName" : "NativeDRC",
-            "success" : true,
-            "completed" : true,
-            "logPath" : "",
-            "diagnostics" : []
-          }
-        }
-        """.utf8)
+        let data = try JSONEncoder().encode(DRCExecutionResult.inProcess(
+            request: DRCRequest(
+                layoutURL: URL(filePath: "/tmp/layout.json"),
+                topCell: "inv"
+            ),
+            result: DRCResult(
+                backendID: "native",
+                toolName: "NativeDRC",
+                success: true,
+                completed: true,
+                logPath: ""
+            )
+        ))
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(object["repairHintGeometry"] == nil)
 
         let result = try JSONDecoder().decode(DRCExecutionResult.self, from: data)
 
@@ -169,7 +159,7 @@ extension DRCCLIOptionsTests {
     }
 
     @Test func minimumExtensionRepairHintTargetsExtendingShapeWithAxisDeltas() throws {
-        let result = DRCExecutionResult(
+        let result = try DRCExecutionResult.inProcess(
             request: DRCRequest(layoutURL: URL(filePath: "/tmp/minimum-extension.json"), topCell: "inv"),
             result: DRCResult(
                 backendID: "native",
@@ -268,7 +258,7 @@ extension DRCCLIOptionsTests {
         }
         """.write(to: layoutURL, atomically: true, encoding: .utf8)
 
-        let result = DRCExecutionResult(
+        let result = try DRCExecutionResult.inProcess(
             request: DRCRequest(layoutURL: layoutURL, topCell: "inv"),
             result: DRCResult(
                 backendID: "native",
@@ -498,7 +488,7 @@ extension DRCCLIOptionsTests {
         }
         """.write(to: layoutURL, atomically: true, encoding: .utf8)
 
-        let result = DRCExecutionResult(
+        let result = try DRCExecutionResult.inProcess(
             request: DRCRequest(layoutURL: layoutURL, topCell: "inv"),
             result: DRCResult(
                 backendID: "native",
@@ -536,8 +526,8 @@ extension DRCCLIOptionsTests {
         })
     }
 
-    @Test func repairHintBuilderDoesNotReportLayoutContextWhenHintDoesNotNeedGeometry() {
-        let result = DRCExecutionResult(
+    @Test func repairHintBuilderDoesNotReportLayoutContextWhenHintDoesNotNeedGeometry() throws {
+        let result = try DRCExecutionResult.inProcess(
             request: DRCRequest(layoutURL: URL(filePath: "/tmp/missing-repair-hint-layout.json"), topCell: "inv"),
             result: DRCResult(
                 backendID: "native",
@@ -625,7 +615,7 @@ extension DRCCLIOptionsTests {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let reportURL = root.appending(path: "drc-report.json")
-        try writeJSON(DRCExecutionResult(
+        try writeJSON(try DRCExecutionResult.inProcess(
             request: DRCRequest(layoutURL: URL(filePath: "/tmp/layout.json"), topCell: "inv"),
             result: DRCResult(
                 backendID: "native",
@@ -664,7 +654,7 @@ extension DRCCLIOptionsTests {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let reportURL = root.appending(path: "drc-report.json")
-        try writeJSON(DRCExecutionResult(
+        try writeJSON(try DRCExecutionResult.inProcess(
             request: DRCRequest(layoutURL: URL(filePath: "/tmp/layout.json"), topCell: "inv"),
             result: DRCResult(
                 backendID: "native",

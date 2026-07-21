@@ -1,3 +1,4 @@
+import CircuiteFoundation
 import Foundation
 import DRCCore
 import LayoutCore
@@ -25,6 +26,8 @@ public struct LayoutGDSDRCBackend: DRCCancellableBackend {
         _ request: DRCRequest,
         cancellationCheck: DRCExecutionCancellationCheck?
     ) async throws -> DRCExecutionResult {
+        let startedAt = Date()
+        let inputArtifacts = try DRCExecutionProvenance.captureInputArtifacts(for: request)
         try await checkCancellation(cancellationCheck)
         let input = try Self.loadExecutionInput(for: request)
         try Self.validateTechnologyReadiness(input.tech, request: request)
@@ -52,7 +55,17 @@ public struct LayoutGDSDRCBackend: DRCCancellableBackend {
         return DRCExecutionResult(
             request: request,
             result: result,
-            repairHintGeometry: Self.repairHintGeometry(from: input.topCell)
+            repairHintGeometry: Self.repairHintGeometry(from: input.topCell),
+            provenance: try DRCExecutionProvenance.make(
+                request: request,
+                result: result,
+                inputArtifacts: inputArtifacts,
+                invocation: ExecutionInvocation.inProcess(
+                    entryPoint: "LayoutGDSDRCBackend.run"
+                ),
+                startedAt: startedAt,
+                completedAt: Date()
+            )
         )
     }
 

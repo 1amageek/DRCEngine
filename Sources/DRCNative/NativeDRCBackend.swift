@@ -1,3 +1,4 @@
+import CircuiteFoundation
 import Foundation
 import DRCCore
 
@@ -17,6 +18,8 @@ public struct NativeDRCBackend: DRCCancellableBackend {
         _ request: DRCRequest,
         cancellationCheck: DRCExecutionCancellationCheck?
     ) async throws -> DRCExecutionResult {
+        let startedAt = Date()
+        let inputArtifacts = try DRCExecutionProvenance.captureInputArtifacts(for: request)
         try await checkCancellation(cancellationCheck)
         let layout = try loadLayout(for: request)
         try await checkCancellation(cancellationCheck)
@@ -27,7 +30,14 @@ public struct NativeDRCBackend: DRCCancellableBackend {
         let diagnostics = try await evaluate(layout: layout, cancellationCheck: cancellationCheck)
         try await checkCancellation(cancellationCheck)
         let logPath = try writeRunLogIfRequested(diagnostics: diagnostics, request: request)
-        return makeExecutionResult(request: request, layout: layout, diagnostics: diagnostics, logPath: logPath)
+        return try makeExecutionResult(
+            request: request,
+            layout: layout,
+            diagnostics: diagnostics,
+            logPath: logPath,
+            startedAt: startedAt,
+            inputArtifacts: inputArtifacts
+        )
     }
 
     private func checkCancellation(
@@ -350,8 +360,10 @@ public struct NativeDRCBackend: DRCCancellableBackend {
         request: DRCRequest,
         layout: NativeDRCLayout,
         diagnostics: [DRCDiagnostic],
-        logPath: String
-    ) -> DRCExecutionResult {
+        logPath: String,
+        startedAt: Date,
+        inputArtifacts: [ArtifactReference]
+    ) throws -> DRCExecutionResult {
         let result = makeResult(
             layout: layout,
             diagnostics: diagnostics,
@@ -361,7 +373,17 @@ public struct NativeDRCBackend: DRCCancellableBackend {
         return DRCExecutionResult(
             request: request,
             result: result,
-            repairHintGeometry: repairHintGeometry(from: layout)
+            repairHintGeometry: repairHintGeometry(from: layout),
+            provenance: try DRCExecutionProvenance.make(
+                request: request,
+                result: result,
+                inputArtifacts: inputArtifacts,
+                invocation: ExecutionInvocation.inProcess(
+                    entryPoint: "NativeDRCBackend.run"
+                ),
+                startedAt: startedAt,
+                completedAt: Date()
+            )
         )
     }
 

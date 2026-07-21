@@ -23,7 +23,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func runNativeDRCOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.run-native",
-            maturity: "preview-verified",
+            maturity: "implemented",
             inputRefs: ["layout-ref", "technology-ref", "optional-waiver-ref"],
             preconditions: ["supported-layout-format", "top-cell-known", "backend-selection-validated"],
             effects: [
@@ -41,7 +41,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func exportRepairHintsOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.export-repair-hints",
-            maturity: "preview-verified",
+            maturity: "implemented",
             inputRefs: ["drc-report"],
             preconditions: ["drc-report-readable", "active-diagnostics-present"],
             effects: ["drc-repair-hints-produced"],
@@ -54,7 +54,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func inspectFoundryDeckSemanticsOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.inspect-foundry-deck-semantics",
-            maturity: "available-unqualified",
+            maturity: "implemented",
             inputRefs: ["optional-pdk-root"],
             preconditions: ["magic-drc-deck-readable"],
             effects: ["foundry-deck-semantic-report-produced"],
@@ -67,7 +67,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func importFoundryRuleSeedOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.import-foundry-rule-seed",
-            maturity: "available-unqualified",
+            maturity: "implemented",
             inputRefs: ["magic-tech-ref-or-signoff-profile", "magic-layouttech-import-profile", "optional-pdk-root"],
             preconditions: ["magic-tech-readable-or-signoff-profile-resolved", "magic-layouttech-import-profile-valid"],
             effects: ["layout-tech-seed-produced", "foundry-rule-import-report-produced"],
@@ -80,7 +80,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func assessCorpusOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.assess-corpus",
-            maturity: "preview-verified",
+            maturity: "implemented",
             inputRefs: ["drc-corpus-spec", "optional-oracle-backend"],
             preconditions: ["corpus-spec-valid", "coverage-tags-declared"],
             effects: ["corpus-report-written", "corpus-assessment-produced"],
@@ -93,7 +93,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func assessNativeAntennaOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.assess-native-antenna",
-            maturity: "available-unqualified",
+            maturity: "implemented",
             inputRefs: ["drc-native-antenna-artifact", "drc-antenna-oracle-evidence"],
             preconditions: ["native-antenna-artifact-readable", "oracle-evidence-readable", "digest-bindings-match"],
             effects: ["native-antenna-assessment-updated"],
@@ -106,7 +106,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func auditCorpusCoverageOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.audit-corpus-coverage",
-            maturity: "preview-verified",
+            maturity: "implemented",
             inputRefs: ["drc-corpus-report", "optional-coverage-policy"],
             preconditions: ["corpus-report-readable"],
             effects: ["coverage-audit-produced", "missing-coverage-requirements-classified"],
@@ -145,7 +145,7 @@ public struct DRCActionDomainExporter: Sendable {
     private func waiverReviewOperation() -> DRCActionDomainOperation {
         DRCActionDomainOperation(
             operationID: "drc.waiver-review",
-            maturity: "preview-verified",
+            maturity: "implemented",
             inputRefs: ["drc-diagnostics", "waiver-policy"],
             preconditions: ["waiver-policy-readable", "diagnostic-rule-id-present"],
             effects: ["waiver-report-produced", "active-error-count-updated"],

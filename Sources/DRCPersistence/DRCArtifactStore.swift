@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import CircuiteFoundation
 import DRCCore
 
 public struct DRCArtifactSaveResult: Sendable, Hashable {
@@ -36,7 +37,8 @@ public struct DRCArtifactStore: Sendable {
                 repairHintGeometry: executionResult.repairHintGeometry,
                 reportURL: reportURL,
                 artifactManifestURL: manifestURL,
-                artifactRunID: runID
+                artifactRunID: runID,
+                provenance: executionResult.provenance
             )
             let data = try encoder.encode(storedResult)
             try data.write(to: reportURL, options: [.atomic])
@@ -77,7 +79,9 @@ public struct DRCArtifactStore: Sendable {
                 id: "input-layout",
                 kind: .layout,
                 url: executionResult.request.layoutURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                sourceReferences: executionResult.provenance.inputs,
+                expectedArtifactKind: .layout
             ),
         ]
         if let technologyURL = executionResult.request.technologyURL {
@@ -85,7 +89,9 @@ public struct DRCArtifactStore: Sendable {
                 id: "input-technology",
                 kind: .technology,
                 url: technologyURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                sourceReferences: executionResult.provenance.inputs,
+                expectedArtifactKind: .technology
             ))
         }
         if let waiverURL = executionResult.request.waiverURL {
@@ -93,7 +99,9 @@ public struct DRCArtifactStore: Sendable {
                 id: "input-waivers",
                 kind: .waiver,
                 url: waiverURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                sourceReferences: executionResult.provenance.inputs,
+                expectedArtifactKind: .constraint
             ))
         }
 
@@ -125,6 +133,7 @@ public struct DRCArtifactStore: Sendable {
             generatedAt: ISO8601DateFormatter().string(from: Date()),
             backendID: executionResult.result.backendID,
             backendIdentity: executionResult.result.backendIdentity,
+            producer: executionResult.provenance.producer,
             toolName: executionResult.result.toolName,
             passed: executionResult.result.passed,
             completed: executionResult.result.completed,
@@ -159,7 +168,14 @@ public struct DRCArtifactStore: Sendable {
             .filter { $0.kind != .manifest }
             .sorted { $0.id < $1.id }
             .map { record in
-                [record.id, record.kind.rawValue, record.path, String(record.byteCount ?? -1), record.sha256 ?? ""].joined(separator: "|")
+                [
+                    record.id,
+                    record.kind.rawValue,
+                    record.path,
+                    String(record.byteCount ?? -1),
+                    record.sha256 ?? "",
+                    artifactReferenceIdentity(record.sourceReference),
+                ].joined(separator: "|")
             }
             .joined(separator: "\n")
         return SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -197,12 +213,26 @@ public struct DRCArtifactStore: Sendable {
         id: String,
         kind: DRCArtifactRecord.Kind,
         url: URL,
-        baseDirectory: URL
+        baseDirectory: URL,
+        sourceReferences: [ArtifactReference] = [],
+        expectedArtifactKind: ArtifactKind? = nil
     ) throws -> DRCArtifactRecord {
         guard url.isFileURL else {
             throw DRCError.artifactWriteFailed("non-file artifact URL is not supported for \(id): \(url.absoluteString)")
         }
         let data = try Data(contentsOf: url)
+        let sourceReference: ArtifactReference?
+        if let expectedArtifactKind {
+            sourceReference = try uniqueSourceReference(
+                for: url,
+                data: data,
+                expectedKind: expectedArtifactKind,
+                among: sourceReferences,
+                recordID: id
+            )
+        } else {
+            sourceReference = nil
+        }
         let retainedURL = try retainedArtifactURL(
             for: url,
             id: id,
@@ -214,8 +244,68 @@ public struct DRCArtifactStore: Sendable {
             kind: kind,
             path: relativePath(for: retainedURL, baseDirectory: baseDirectory),
             byteCount: data.count,
-            sha256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            sha256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(),
+            sourceReference: sourceReference
         )
+    }
+
+    private func uniqueSourceReference(
+        for url: URL,
+        data: Data,
+        expectedKind: ArtifactKind,
+        among references: [ArtifactReference],
+        recordID: String
+    ) throws -> ArtifactReference {
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let matches = references.filter { reference in
+            reference.locator.kind == expectedKind
+                && reference.digest.algorithm == .sha256
+                && reference.digest.hexadecimalValue == digest
+                && reference.byteCount == UInt64(data.count)
+                && sourceLocation(reference.locator.location, matches: url)
+        }
+        guard matches.count == 1, let match = matches.first else {
+            throw DRCError.artifactWriteFailed(
+                "DRC manifest input \(recordID) requires exactly one matching execution provenance artifact; found \(matches.count)."
+            )
+        }
+        return match
+    }
+
+    private func sourceLocation(_ location: ArtifactLocation, matches url: URL) -> Bool {
+        let sourcePath = url.resolvingSymlinksInPath().standardizedFileURL.path(percentEncoded: false)
+        switch location.storage {
+        case .absoluteFileURL:
+            guard let referenceURL = URL(string: location.value), referenceURL.isFileURL else {
+                return false
+            }
+            return referenceURL.resolvingSymlinksInPath().standardizedFileURL
+                .path(percentEncoded: false) == sourcePath
+        case .workspaceRelative:
+            let relativePath = location.value.split(separator: "/", omittingEmptySubsequences: true)
+                .map(String.init)
+                .joined(separator: "/")
+            return sourcePath == "/" + relativePath || sourcePath.hasSuffix("/" + relativePath)
+        }
+    }
+
+    private func artifactReferenceIdentity(_ reference: ArtifactReference?) -> String {
+        guard let reference else { return "" }
+        let producer = reference.producer.map {
+            [$0.kind.rawValue, $0.identifier, $0.version, $0.build ?? ""].joined(separator: "\u{001F}")
+        } ?? ""
+        return [
+            reference.id.rawValue,
+            reference.locator.location.storage.rawValue,
+            reference.locator.location.value,
+            reference.locator.role.rawValue,
+            reference.locator.kind.rawValue,
+            reference.locator.format.rawValue,
+            reference.digest.algorithm.rawValue,
+            reference.digest.hexadecimalValue,
+            String(reference.byteCount),
+            producer,
+        ].joined(separator: "\u{001E}")
     }
 
     private func retainedArtifactURL(

@@ -228,7 +228,7 @@ struct DRCCorpusEvidenceRetentionTests {
         let backendID = "primary-pass-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,
@@ -246,7 +246,7 @@ struct DRCCorpusEvidenceRetentionTests {
         let backendID = "oracle-width-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
-            DRCExecutionResult(
+            try DRCExecutionResult.inProcess(
                 request: request,
                 result: DRCResult(
                     backendID: backendID,

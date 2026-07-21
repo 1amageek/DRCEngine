@@ -32,6 +32,7 @@ struct DRCBackendIdentityTests {
         let identity = DRCBackendIdentity(
             backendID: "reference",
             implementationFamily: .klayout,
+            toolVersion: "test-klayout-1.0",
             executableDigest: "exe-sha",
             ruleProgramDigest: "program-sha"
         )
@@ -51,6 +52,7 @@ struct DRCBackendIdentityTests {
         let attestedMagic = DRCBackendIdentity(
             backendID: "magic",
             implementationFamily: .magic,
+            toolVersion: "test-magic-1.0",
             executableDigest: String(repeating: "1", count: 64),
             ruleProgramDigest: String(repeating: "2", count: 64),
             technologyDigest: String(repeating: "3", count: 64)

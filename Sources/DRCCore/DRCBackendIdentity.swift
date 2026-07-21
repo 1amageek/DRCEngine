@@ -10,6 +10,7 @@ public struct DRCBackendIdentity: Sendable, Hashable, Codable {
 
     public let backendID: String
     public let implementationFamily: ImplementationFamily
+    public let toolVersion: String?
     public let executableDigest: String?
     public let ruleProgramDigest: String?
     public let technologyDigest: String?
@@ -24,12 +25,14 @@ public struct DRCBackendIdentity: Sendable, Hashable, Codable {
     public init(
         backendID: String,
         implementationFamily: ImplementationFamily,
+        toolVersion: String? = nil,
         executableDigest: String? = nil,
         ruleProgramDigest: String? = nil,
         technologyDigest: String? = nil
     ) {
         self.backendID = backendID
         self.implementationFamily = implementationFamily
+        self.toolVersion = toolVersion
         self.executableDigest = executableDigest
         self.ruleProgramDigest = ruleProgramDigest
         self.technologyDigest = technologyDigest
@@ -74,7 +77,8 @@ public struct DRCBackendIdentity: Sendable, Hashable, Codable {
         case .layoutVerify:
             return true
         case .magic, .klayout:
-            return executableDigest != nil
+            return toolVersion != nil
+                && executableDigest != nil
                 && ruleProgramDigest != nil
                 && technologyDigest != nil
         case .unknown:

@@ -291,6 +291,13 @@ struct NativeDRCBackendTests {
         ))
 
         #expect(!result.result.passed)
+        #expect(result.provenance.producer.identifier == "layout-verify")
+        #expect(result.provenance.producer.version == DRCExecutionProvenance.nativeImplementationVersion)
+        #expect(result.provenance.producer.build?.count == 64)
+        #expect(result.provenance.inputs.count == 1)
+        #expect(result.provenance.inputs[0].byteCount > 0)
+        #expect(result.provenance.invocation?.entryPoint == "NativeDRCBackend.run")
+        #expect(result.provenance.environment != nil)
         #expect(result.result.diagnostics.count == 1)
         let diagnostic = result.result.diagnostics[0]
         #expect(diagnostic.ruleID == "met1.antenna")

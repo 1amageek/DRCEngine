@@ -133,6 +133,7 @@ struct DRCIndependentOracleAuditTests {
                 backendIdentity: DRCBackendIdentity(
                     backendID: "custom-primary",
                     implementationFamily: .klayout,
+                    toolVersion: "test-klayout-1.0",
                     executableDigest: String(repeating: "1", count: 64),
                     ruleProgramDigest: String(repeating: "2", count: 64),
                     technologyDigest: String(repeating: "3", count: 64)
@@ -145,6 +146,7 @@ struct DRCIndependentOracleAuditTests {
                 backendIdentity: DRCBackendIdentity(
                     backendID: "custom-oracle",
                     implementationFamily: .magic,
+                    toolVersion: "test-magic-1.0",
                     executableDigest: String(repeating: "4", count: 64),
                     ruleProgramDigest: String(repeating: "5", count: 64),
                     technologyDigest: String(repeating: "6", count: 64)

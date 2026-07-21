@@ -21,6 +21,16 @@ adapter, or result envelope sits between the domain engine and the shared
 observations; `ToolQualification` and the composing flow policy decide whether
 that evidence qualifies a tool and process scope.
 
+Every `DRCExecutionResult` carries mandatory `ExecutionProvenance`. The
+provenance binds the exact digest-and-byte-count input references, the native
+entry point or external process invocation, a sanitized environment
+fingerprint, and the implementation producer. `ProducerIdentity.build` is the
+measured SHA-256 of the executable carrying the implementation; Magic also
+requires an explicit tool version (`MagicDRCToolchain.toolVersion`, or
+`MAGIC_VERSION` for automatic discovery). Persisted artifact manifest
+schema 2 repeats that producer identity, so a report or summary cannot be
+attributed to the flow wrapper instead of the backend that produced it.
+
 Protocol-composed design-rule checking for local, scriptable semiconductor
 layout flows. DRCEngine provides native Swift DRC, standard mask-data checking,
 Magic batch integration, foundry-deck import, structured diagnostics, retained

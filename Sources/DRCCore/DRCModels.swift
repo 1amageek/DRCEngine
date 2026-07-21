@@ -1,3 +1,4 @@
+import CircuiteFoundation
 import Foundation
 
 public struct DRCBackendSelection: Sendable, Hashable, Codable {
@@ -57,6 +58,7 @@ public struct DRCRequest: Sendable, Hashable, Codable {
     public let options: DRCOptions
     public let designRevision: String?
     public let canonicalStateDigest: String?
+    public let executionInputArtifacts: [ArtifactReference]
 
     public init(
         layoutURL: URL,
@@ -68,7 +70,8 @@ public struct DRCRequest: Sendable, Hashable, Codable {
         backendSelection: DRCBackendSelection = DRCBackendSelection(backendID: "magic"),
         options: DRCOptions = DRCOptions(),
         designRevision: String? = nil,
-        canonicalStateDigest: String? = nil
+        canonicalStateDigest: String? = nil,
+        executionInputArtifacts: [ArtifactReference] = []
     ) {
         self.layoutURL = layoutURL
         self.topCell = topCell
@@ -80,6 +83,7 @@ public struct DRCRequest: Sendable, Hashable, Codable {
         self.options = options
         self.designRevision = designRevision
         self.canonicalStateDigest = canonicalStateDigest
+        self.executionInputArtifacts = executionInputArtifacts
     }
 }
 
@@ -265,6 +269,7 @@ public struct DRCExecutionResult: Sendable, Hashable, Codable {
     public let reportURL: URL?
     public let artifactManifestURL: URL?
     public let artifactRunID: String?
+    public let provenance: ExecutionProvenance
 
     public init(
         request: DRCRequest,
@@ -273,7 +278,8 @@ public struct DRCExecutionResult: Sendable, Hashable, Codable {
         repairHintGeometry: DRCRepairHintGeometryContext? = nil,
         reportURL: URL? = nil,
         artifactManifestURL: URL? = nil,
-        artifactRunID: String? = nil
+        artifactRunID: String? = nil,
+        provenance: ExecutionProvenance
     ) {
         self.request = request
         self.result = result
@@ -282,6 +288,44 @@ public struct DRCExecutionResult: Sendable, Hashable, Codable {
         self.reportURL = reportURL
         self.artifactManifestURL = artifactManifestURL
         self.artifactRunID = artifactRunID
+        self.provenance = provenance
+    }
+
+    public static func inProcess(
+        request: DRCRequest,
+        result: DRCResult,
+        waiverReport: DRCWaiverApplicationReport? = nil,
+        repairHintGeometry: DRCRepairHintGeometryContext? = nil,
+        reportURL: URL? = nil,
+        artifactManifestURL: URL? = nil,
+        artifactRunID: String? = nil,
+        entryPoint: String = "DRCExecutionResult.inProcess",
+        implementationID: String? = nil,
+        implementationVersion: String? = nil,
+        implementationBuild: String? = nil,
+        startedAt: Date = Date(),
+        completedAt: Date = Date()
+    ) throws -> Self {
+        Self(
+            request: request,
+            result: result,
+            waiverReport: waiverReport,
+            repairHintGeometry: repairHintGeometry,
+            reportURL: reportURL,
+            artifactManifestURL: artifactManifestURL,
+            artifactRunID: artifactRunID,
+            provenance: try DRCExecutionProvenance.make(
+                request: request,
+                result: result,
+                implementationID: implementationID,
+                implementationVersion: implementationVersion,
+                implementationBuild: implementationBuild,
+                captureInputFiles: false,
+                invocation: ExecutionInvocation.inProcess(entryPoint: entryPoint),
+                startedAt: startedAt,
+                completedAt: completedAt
+            )
+        )
     }
 }
 
@@ -336,10 +380,13 @@ public struct DRCRepairHintGeometryRectangle: Sendable, Hashable, Codable {
 }
 
 public struct DRCArtifactManifest: Sendable, Hashable, Codable {
+    public static let currentSchemaVersion = 3
+
     public let schemaVersion: Int
     public let generatedAt: String
     public let backendID: String
     public let backendIdentity: DRCBackendIdentity?
+    public let producer: ProducerIdentity
     public let toolName: String
     public let passed: Bool
     public let completed: Bool
@@ -355,10 +402,11 @@ public struct DRCArtifactManifest: Sendable, Hashable, Codable {
     public let signature: DRCArtifactSignature?
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = DRCArtifactManifest.currentSchemaVersion,
         generatedAt: String,
         backendID: String,
         backendIdentity: DRCBackendIdentity? = nil,
+        producer: ProducerIdentity,
         toolName: String,
         passed: Bool,
         completed: Bool,
@@ -377,6 +425,7 @@ public struct DRCArtifactManifest: Sendable, Hashable, Codable {
         self.generatedAt = generatedAt
         self.backendID = backendID
         self.backendIdentity = backendIdentity
+        self.producer = producer
         self.toolName = toolName
         self.passed = passed
         self.completed = completed
@@ -398,6 +447,7 @@ public struct DRCArtifactManifest: Sendable, Hashable, Codable {
             generatedAt: generatedAt,
             backendID: backendID,
             backendIdentity: backendIdentity,
+            producer: producer,
             toolName: toolName,
             passed: passed,
             completed: completed,
@@ -430,19 +480,22 @@ public struct DRCArtifactRecord: Sendable, Hashable, Codable {
     public let path: String
     public let byteCount: Int?
     public let sha256: String?
+    public let sourceReference: ArtifactReference?
 
     public init(
         id: String,
         kind: Kind,
         path: String,
         byteCount: Int?,
-        sha256: String?
+        sha256: String?,
+        sourceReference: ArtifactReference? = nil
     ) {
         self.id = id
         self.kind = kind
         self.path = path
         self.byteCount = byteCount
         self.sha256 = sha256
+        self.sourceReference = sourceReference
     }
 }
 

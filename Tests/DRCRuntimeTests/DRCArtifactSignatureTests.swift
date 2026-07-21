@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import CircuiteFoundation
 import DRCCore
 
 @Suite("DRC artifact signatures")
@@ -11,6 +12,12 @@ struct DRCArtifactSignatureTests {
         let unsigned = DRCArtifactManifest(
             generatedAt: "2026-07-12T00:00:00Z",
             backendID: "native",
+            producer: try ProducerIdentity(
+                kind: .engine,
+                identifier: "layout-verify",
+                version: DRCExecutionProvenance.nativeImplementationVersion,
+                build: DRCExecutionProvenance.currentExecutableDigest()
+            ),
             toolName: "NativeDRC",
             passed: true,
             completed: true,
