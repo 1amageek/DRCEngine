@@ -34,6 +34,7 @@ struct MagicDRCVariantAndCIFImportTests {
               cifwidth active_wide 200 "Derived active width"
               cifspacing active_wide poly_halo 300 touching_illegal "Derived spacing"
               extend poly active 100 "Poly extension when present"
+              overhang poly active 80 "Required poly overhang"
               variants *
               width poly 50 "Shared poly width"
             end
@@ -55,6 +56,7 @@ struct MagicDRCVariantAndCIFImportTests {
         #expect(result.report.importedFamilyCounts["cifwidth"] == 1)
         #expect(result.report.importedFamilyCounts["cifspacing"] == 1)
         #expect(result.report.importedFamilyCounts["extend"] == 1)
+        #expect(result.report.importedFamilyCounts["overhang"] == 1)
         #expect(result.technology.ruleSet(for: active)?.minWidth == 0)
         #expect(result.technology.ruleSet(for: poly)?.minWidth == 0.05)
         #expect(result.technology.ruleSet(for: activeWide)?.minWidth == 0.2)
@@ -76,13 +78,14 @@ struct MagicDRCVariantAndCIFImportTests {
                 && $0.operation == .grow
                 && $0.operationDistance == 0.02
         })
-        #expect(result.technology.extensionRules.count == 2)
-        #expect(result.technology.extensionRules.allSatisfy {
-            $0.extendingLayer == poly
-                && $0.enclosedLayer == active
-                && $0.minExtension == 0.1
-                && $0.coveragePolicy == .whenPresent
-        })
+        #expect(result.technology.extensionRules.map {
+            "\($0.direction.rawValue):\($0.coveragePolicy.rawValue):\($0.minExtension)"
+        } == [
+            "horizontal:required:0.08",
+            "horizontal:when-present:0.1",
+            "vertical:required:0.08",
+            "vertical:when-present:0.1",
+        ])
         #expect(result.report.sourceTempLayerMaterializedRuleIDs == [
             "magic.templayer.active_wide",
             "magic.templayer.poly_halo",

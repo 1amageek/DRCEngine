@@ -514,6 +514,9 @@ extension MagicDRCLayoutTechImporter {
             .sorted {
                 if $0.extendingLayer.name == $1.extendingLayer.name {
                     if $0.enclosedLayer.name == $1.enclosedLayer.name {
+                        if $0.direction == $1.direction {
+                            return $0.coveragePolicy.rawValue < $1.coveragePolicy.rawValue
+                        }
                         return $0.direction.rawValue < $1.direction.rawValue
                     }
                     return layerSortKey($0.enclosedLayer.name, $1.enclosedLayer.name, profile: profile)
