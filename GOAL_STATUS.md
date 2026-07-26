@@ -8,6 +8,7 @@
 | Typed design-object addressing | Complete (`DRCRequest.designObjectReference`) |
 | ARC kernel | Existing implementation retained |
 | Foundry-rule observations and assessment | Complete; native ARC does not imply trust |
+| Magic cut-count and typed derived-layer import | Complete for the declared supported scope; ambiguous declarations fail closed |
 | Tool/process qualification | Out of scope; owned by ToolQualification and flow policy |
 | Project/run orchestration | Out of scope; owned by higher layers |
 | Build after migration | Passed |

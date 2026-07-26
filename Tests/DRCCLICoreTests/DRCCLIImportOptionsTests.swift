@@ -376,8 +376,8 @@ extension DRCCLIOptionsTests {
         #expect(snapshot.agentContracts.contains { $0.contains("allowedAngleStepDegrees") })
         #expect(snapshot.agentContracts.contains { $0.contains("minEnclosedArea") })
         #expect(snapshot.agentContracts.contains { $0.contains("composite rectangular cover") })
-        #expect(snapshot.openMilestones.contains { $0.contains("multi-numeric or ambiguous real-deck variants") })
-        #expect(snapshot.openMilestones.contains { $0.contains("future templayer operations") })
+        #expect(!snapshot.openMilestones.contains { $0.contains("multi-numeric or ambiguous real-deck variants") })
+        #expect(!snapshot.openMilestones.contains { $0.contains("future templayer operations") })
         #expect(!snapshot.openMilestones.contains { $0.contains("angle semantics") })
 
         let data = try JSONEncoder().encode(snapshot)

@@ -43,7 +43,6 @@ public struct DRCCapabilitySnapshotProvider: Sendable {
                 "Corpus reports carry run/spec/parent-run provenance, case checkpoints, and completed-state semantics; assessment consumers recompute derived summary and assessment fields before applying policy.",
             ],
             openMilestones: [
-                "Broaden Magic cut-count import beyond generic source-policy lines and unique stack inference into multi-numeric or ambiguous real-deck variants, remaining unsupported future templayer operations beyond the typed native materialization set, golden foundry DRC cases, and broader Magic oracle agreement.",
                 "Broaden standard mask input lanes from deterministic clean/equivalence fixtures into larger foundry-oriented coverage.",
                 "Produce retained foundry-layout and independent-oracle correlation observations for the lowered Magic antenna contract so ToolQualification can evaluate its release scope; the native evaluator and source-to-rule lowering contract are implemented, but release evidence is still missing when those tools are unavailable.",
                 "Add larger benchmark suites with public PDK-derived rule decks and regression budgets.",
