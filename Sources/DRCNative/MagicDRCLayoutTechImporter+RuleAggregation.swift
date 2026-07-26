@@ -11,9 +11,9 @@ extension MagicDRCLayoutTechImporter {
         for rule in importedRules {
             var state = states[rule.layerName] ?? LayerRuleState()
             switch rule.family {
-            case "width":
+            case "width", "cifwidth":
                 state.minWidth = max(state.minWidth ?? 0, rule.value)
-            case "spacing":
+            case "spacing", "cifspacing":
                 if rule.secondaryLayerName == nil || rule.secondaryLayerName == rule.layerName {
                     state.minSpacing = max(state.minSpacing ?? 0, rule.value)
                 }
@@ -63,7 +63,7 @@ extension MagicDRCLayoutTechImporter {
         profile: MagicDRCLayoutTechImportProfile
     ) -> [LayoutSpacingRule] {
         var minimumSpacingByKey: [SpacingRuleKey: Double] = [:]
-        for rule in importedRules where rule.family == "spacing" {
+        for rule in importedRules where rule.family == "spacing" || rule.family == "cifspacing" {
             guard let secondaryLayerName = rule.secondaryLayerName,
                   secondaryLayerName != rule.layerName else {
                 continue
@@ -477,6 +477,7 @@ extension MagicDRCLayoutTechImporter {
         var extendingLayerName: String
         var enclosedLayerName: String
         var direction: LayoutExtensionRule.Direction
+        var coveragePolicy: LayoutExtensionRule.CoveragePolicy
     }
 
     static func aggregateExtensionRules(
@@ -484,15 +485,18 @@ extension MagicDRCLayoutTechImporter {
         profile: MagicDRCLayoutTechImportProfile
     ) -> [LayoutExtensionRule] {
         var minimumExtensionByKey: [ExtensionRuleKey: Double] = [:]
-        for rule in importedRules where rule.family == "overhang" {
+        for rule in importedRules where rule.family == "overhang" || rule.family == "extend" {
             guard let enclosedLayerName = rule.secondaryLayerName else {
                 continue
             }
+            let coveragePolicy: LayoutExtensionRule.CoveragePolicy =
+                rule.family == "overhang" ? .required : .whenPresent
             for direction in [LayoutExtensionRule.Direction.horizontal, .vertical] {
                 let key = ExtensionRuleKey(
                     extendingLayerName: rule.layerName,
                     enclosedLayerName: enclosedLayerName,
-                    direction: direction
+                    direction: direction,
+                    coveragePolicy: coveragePolicy
                 )
                 minimumExtensionByKey[key] = max(minimumExtensionByKey[key] ?? 0, rule.value)
             }
@@ -503,7 +507,8 @@ extension MagicDRCLayoutTechImporter {
                     extendingLayer: layerID(for: entry.key.extendingLayerName, profile: profile),
                     enclosedLayer: layerID(for: entry.key.enclosedLayerName, profile: profile),
                     minExtension: entry.value,
-                    direction: entry.key.direction
+                    direction: entry.key.direction,
+                    coveragePolicy: entry.key.coveragePolicy
                 )
             }
             .sorted {

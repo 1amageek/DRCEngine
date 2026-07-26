@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "profileID": "sky130.magic.layouttech",
   "displayName": "Sky130 Magic LayoutTech Import Profile",
+  "selectedDRCVariant": "full",
   "layerOrder": [
     "DNWELL",
     "NWELL",

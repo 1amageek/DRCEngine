@@ -121,15 +121,10 @@ public enum MagicDRCLayoutTechImporter {
             from: logicalLines,
             resolver: resolver
         )
-        let materializableTempLayerNames = Set(
-            sourceTempLayerDefinitionArtifacts.compactMap {
-                materializedSourceTempLayerRules(
-                    for: $0,
-                    definitionsByName: sourceTempLayerDefinitionsByName,
-                    resolver: resolver,
-                    targetLayer: markerLayerID(for: $0.name)
-                )?.finalLayer.name
-            }
+        let materializableTempLayerNames = materializableSourceTempLayerNames(
+            definitions: sourceTempLayerDefinitionArtifacts,
+            definitionsByName: sourceTempLayerDefinitionsByName,
+            resolver: resolver
         )
         let parsed = parseDRCRules(
             from: logicalLines,
@@ -144,6 +139,7 @@ public enum MagicDRCLayoutTechImporter {
         let sourceTempLayerDerivedLayerAggregation = aggregateSourceTempLayerDerivedLayerRules(
             definitions: sourceTempLayerDefinitionArtifacts,
             forbiddenMarkerRules: parsed.sourceForbiddenMarkerRules,
+            materializedTempLayerNames: parsed.materializedTempLayerNames,
             definitionsByName: sourceTempLayerDefinitionsByName,
             resolver: resolver
         )
@@ -391,6 +387,9 @@ public enum MagicDRCLayoutTechImporter {
         "exact_overlap",
         "angles",
         "cifmaxwidth",
+        "cifwidth",
+        "cifspacing",
+        "extend",
         "minimumcut",
         "minimum_cut",
         "mincut",
@@ -465,6 +464,7 @@ public enum MagicDRCLayoutTechImporter {
         var skippedFamilyCounts: [String: Int] = [:]
         var sourceEnclosedHoleRules: [MagicDRCSourceEnclosedHoleRule] = []
         var sourceForbiddenMarkerRules: [MagicDRCSourceForbiddenMarkerRule] = []
+        var materializedTempLayerNames: Set<String> = []
         var sourceMinimumCutPolicies: [MagicDRCSourceMinimumCutPolicy] = []
         var sourceAntennaRules: [MagicDRCSourceAntennaRule] = []
         var sourceAntennaModel: MagicDRCAntennaModel?

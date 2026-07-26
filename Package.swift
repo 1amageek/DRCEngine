@@ -33,7 +33,7 @@ let semiconductorLayoutDependency: Package.Dependency = isLSIWorkspace && FileMa
     ? .package(path: "../semiconductor-layout")
     : .package(
         url: "https://github.com/1amageek/semiconductor-layout.git",
-        revision: "692a056d21b6e292c29215f76c3ae225215d03c2"
+        revision: "68d87be55cba1155d2bd4751539545c4e8791af5"
     )
 
 let package = Package(

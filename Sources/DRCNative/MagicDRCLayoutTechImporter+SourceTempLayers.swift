@@ -208,6 +208,7 @@ extension MagicDRCLayoutTechImporter {
     static func aggregateSourceTempLayerDerivedLayerRules(
         definitions: [MagicDRCSourceTempLayerDefinition],
         forbiddenMarkerRules: [MagicDRCSourceForbiddenMarkerRule],
+        materializedTempLayerNames: Set<String>,
         definitionsByName: [String: MagicDRCSourceTempLayerDefinition],
         resolver: LayerResolver
     ) -> SourceTempLayerDerivedLayerAggregation {
@@ -215,15 +216,24 @@ extension MagicDRCLayoutTechImporter {
         var rules: [LayoutDerivedLayerRule] = []
         var materializedRuleIDs: [String] = []
         var seenRuleIDs: Set<String> = []
+        var cache: [String: SourceTempLayerMaterialization] = [:]
+        var visiting: Set<String> = []
         for definition in definitions {
-            guard markerNames.contains(definition.name) else {
+            let targetLayer: LayoutLayerID
+            if markerNames.contains(definition.name) {
+                targetLayer = markerLayerID(for: definition.name)
+            } else if materializedTempLayerNames.contains(definition.name) {
+                targetLayer = layerID(for: definition.name, profile: resolver.profile)
+            } else {
                 continue
             }
             guard let materialization = materializedSourceTempLayerRules(
                 for: definition,
                 definitionsByName: definitionsByName,
                 resolver: resolver,
-                targetLayer: markerLayerID(for: definition.name)
+                targetLayer: targetLayer,
+                cache: &cache,
+                visiting: &visiting
             ) else {
                 continue
             }
@@ -236,6 +246,35 @@ extension MagicDRCLayoutTechImporter {
             rules: rules,
             materializedRuleIDs: materializedRuleIDs.sorted()
         )
+    }
+
+    static func materializableSourceTempLayerNames(
+        definitions: [MagicDRCSourceTempLayerDefinition],
+        definitionsByName: [String: MagicDRCSourceTempLayerDefinition],
+        resolver: LayerResolver
+    ) -> Set<String> {
+        var names: Set<String> = []
+        var cache: [String: SourceTempLayerMaterialization] = [:]
+        var visiting: Set<String> = []
+        for definition in definitions {
+            if cache[definition.name] != nil {
+                names.insert(definition.name)
+                continue
+            }
+            guard let materialization = materializedSourceTempLayerRules(
+                for: definition,
+                definitionsByName: definitionsByName,
+                resolver: resolver,
+                targetLayer: sourceTempLayerDerivedLayerID(name: definition.name),
+                cache: &cache,
+                visiting: &visiting
+            ) else {
+                continue
+            }
+            cache[definition.name] = materialization
+            names.insert(definition.name)
+        }
+        return names
     }
 
     static func materializedSourceTempLayerRules(

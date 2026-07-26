@@ -327,6 +327,7 @@ semantic readiness gate, then parses Magic `layer` / `calma` mapping,
 layer expressions, and DRC `width`, same-layer and cross-layer `spacing`,
 `area`, `notch`, resolvable `surround`
 enclosure, same-layer `widespacing`, resolvable `overhang` extension,
+conditional `extend`, derived-layer `cifwidth` / `cifspacing`,
 `rect_only` rectangular-geometry rules, `angles` layer-angle restrictions,
 `exact_overlap` layer-pair rules, and Sky130 hole-empty `cifmaxwidth`
 patterns as minimum enclosed-area rules. Source Magic `cut` declarations are
@@ -378,6 +379,12 @@ cell abutment box as derived marker geometry. Magic `bridge` materializes
 rectangle bridge fill for diagonal gap and corner-pinch cases, and Magic
 `close` materializes enclosed empty rectangles below the configured area
 threshold before downstream boolean marker operations run.
+The profile's `selectedDRCVariant` selects rules from Magic `variants`
+directives and defaults to `full` for backward-compatible profile decoding.
+Style-control directives are interpreted as control flow rather than counted
+as skipped rules. Materializable temp-layer dependencies share one import-local
+cache, while only temp layers referenced by active rules are emitted into the
+technology artifact.
 Magic MiM / pad layer expressions that depend on derived geometry are recorded
 as `LayoutDerivedLayerRule` entries. The current Sky130 seed materializes
 rectangular `MIMCC = VIA3 ∩ CAPM` and `MIM2CC = VIA4 ∩ CAPM2` intersections
@@ -450,12 +457,12 @@ The artifact can be structurally validated, but its
 `nativeAntennaAssessment` remains `blocked` until an independently
 identified oracle has been run and recorded as agreeing.
 
-The normal successful state for a fully represented deck is `complete`. Real
-Sky130 PDK import may still report `partial` when observed families or ambiguous
-cut-count rules are not represented by the native rule model. Import completion
-is syntactic translation status only; it is not signoff qualification. Add
-`--require-complete` when a release or Agent gate must fail until every observed
-Magic rule family is represented by the native rule model.
+The normal successful state for a fully represented deck is `complete`. The
+Sky130A full-variant deck currently imports the typed rule families above but
+remains `partial` for general `edge4way` semantics and antenna oracle evidence.
+Import completion is syntactic translation status only; it is not signoff
+qualification. Add `--require-complete` when a release or Agent gate must fail
+until every observed Magic rule family is represented by the native rule model.
 
 ## Standard-input backend: `native-gds`
 

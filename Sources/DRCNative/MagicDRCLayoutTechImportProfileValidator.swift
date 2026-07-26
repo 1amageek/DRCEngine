@@ -13,6 +13,19 @@ struct MagicDRCLayoutTechImportProfileValidator {
                 message: "Profile identifier must not be empty."
             ))
         }
+        let variant = profile.selectedDRCVariant
+        let allowedVariantCharacters = CharacterSet.alphanumerics.union(
+            CharacterSet(charactersIn: "_.-")
+        )
+        if variant.isEmpty || variant.unicodeScalars.contains(where: {
+            !allowedVariantCharacters.contains($0)
+        }) {
+            issues.append(issue(
+                .invalidSelectedDRCVariant,
+                field: "selectedDRCVariant",
+                message: "The selected DRC variant must contain only letters, digits, '.', '_' or '-'."
+            ))
+        }
         let declaredLayerNames = Set(profile.baseLayerNames)
         appendLayerListIssues(profile.layerOrder, field: "layerOrder", issues: &issues)
         appendLayerListIssues(profile.cutLayerNames, field: "cutLayerNames", issues: &issues)

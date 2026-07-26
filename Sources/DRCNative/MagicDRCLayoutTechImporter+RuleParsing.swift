@@ -14,6 +14,7 @@ extension MagicDRCLayoutTechImporter {
     ) -> ParsedRuleState {
         var state = ParsedRuleState()
         var inDRC = false
+        var activeVariants: Set<String>?
         for line in logicalLines {
             let commandLine = textWithoutQuotedTail(line.text)
             let tokens = splitCommand(commandLine)
@@ -48,6 +49,33 @@ extension MagicDRCLayoutTechImporter {
                 continue
             }
             guard inDRC else {
+                continue
+            }
+            switch command {
+            case "style", "scalefactor", "cifstyle":
+                continue
+            case "variants":
+                guard let variants = parseDRCVariants(tokens.dropFirst()) else {
+                    skip(
+                        line: line,
+                        family: "variants",
+                        code: "magic_drc_variants_parse_failed",
+                        state: &state
+                    )
+                    continue
+                }
+                switch variants {
+                case .all:
+                    activeVariants = nil
+                case .selected(let selected):
+                    activeVariants = selected
+                }
+                continue
+            default:
+                break
+            }
+            if let activeVariants,
+               !activeVariants.contains(resolver.profile.selectedDRCVariant.lowercased()) {
                 continue
             }
             guard observedRuleFamilies.contains(command) else {
@@ -100,6 +128,24 @@ extension MagicDRCLayoutTechImporter {
                     profile: resolver.profile,
                     state: &state
                 )
+            case "cifwidth":
+                importCIFWidth(
+                    tokens: tokens,
+                    line: line,
+                    tempLayerDefinitions: tempLayerDefinitions,
+                    materializableTempLayerNames: materializableTempLayerNames,
+                    state: &state
+                )
+            case "cifspacing":
+                importCIFSpacing(
+                    tokens: tokens,
+                    line: line,
+                    tempLayerDefinitions: tempLayerDefinitions,
+                    materializableTempLayerNames: materializableTempLayerNames,
+                    state: &state
+                )
+            case "extend":
+                importExtend(tokens: tokens, line: line, resolver: resolver, state: &state)
             case "minimumcut", "minimum_cut", "mincut", "cutcount", "cut_count":
                 importMinimumCut(
                     tokens: tokens,
@@ -113,6 +159,33 @@ extension MagicDRCLayoutTechImporter {
             }
         }
         return state
+    }
+
+    private enum DRCVariantSelection {
+        case all
+        case selected(Set<String>)
+    }
+
+    private static func parseDRCVariants<S: Sequence>(
+        _ tokens: S
+    ) -> DRCVariantSelection? where S.Element == String {
+        let values = tokens
+            .flatMap { $0.split(separator: ",") }
+            .map {
+                $0.trimmingCharacters(
+                    in: CharacterSet.whitespacesAndNewlines.union(
+                        CharacterSet(charactersIn: "()")
+                    )
+                )
+            }
+            .filter { !$0.isEmpty }
+        guard !values.isEmpty else {
+            return nil
+        }
+        if values.contains("*") {
+            return .all
+        }
+        return .selected(Set(values.map { $0.lowercased() }))
     }
 
     private static func importWidth(
@@ -588,6 +661,39 @@ extension MagicDRCLayoutTechImporter {
         }
     }
 
+    private static func importExtend(
+        tokens: [String],
+        line: LogicalLine,
+        resolver: LayerResolver,
+        state: inout ParsedRuleState
+    ) {
+        guard tokens.count >= 4,
+              let value = Double(tokens[3]),
+              value.isFinite,
+              value > 0 else {
+            skip(line: line, family: "extend", code: "magic_drc_rule_parse_failed", state: &state)
+            return
+        }
+        let extendingLayerNames = resolver.resolveLayerSet(tokens[1])
+        let enclosedLayerNames = resolver.resolveLayerSet(tokens[2])
+        guard !extendingLayerNames.isEmpty, !enclosedLayerNames.isEmpty else {
+            skip(line: line, family: "extend", code: "magic_drc_layer_pair_unresolved", state: &state)
+            return
+        }
+        for extendingLayerName in extendingLayerNames {
+            for enclosedLayerName in enclosedLayerNames {
+                appendImportedRule(
+                    family: "extend",
+                    layerName: extendingLayerName,
+                    secondaryLayerNames: [enclosedLayerName],
+                    value: value / 1_000,
+                    line: line,
+                    state: &state
+                )
+            }
+        }
+    }
+
     private static func importExactOverlap(
         tokens: [String],
         line: LogicalLine,
@@ -703,6 +809,83 @@ extension MagicDRCLayoutTechImporter {
         state.sourceEnclosedHoleRules.sort {
             layerSortKey($0.layerName, $1.layerName, profile: profile)
         }
+    }
+
+    private static func importCIFWidth(
+        tokens: [String],
+        line: LogicalLine,
+        tempLayerDefinitions: [String: LogicalLine],
+        materializableTempLayerNames: Set<String>,
+        state: inout ParsedRuleState
+    ) {
+        guard tokens.count >= 3,
+              let minimumWidth = Double(tokens[2]),
+              minimumWidth.isFinite,
+              minimumWidth > 0 else {
+            skip(line: line, family: "cifwidth", code: "magic_drc_rule_parse_failed", state: &state)
+            return
+        }
+        let layerName = tokens[1]
+        guard tempLayerDefinitions[layerName] != nil else {
+            skip(line: line, family: "cifwidth", code: "magic_drc_templayer_unresolved", state: &state)
+            return
+        }
+        guard materializableTempLayerNames.contains(layerName) else {
+            skip(
+                line: line,
+                family: "cifwidth",
+                code: "magic_drc_templayer_materialization_deferred",
+                state: &state
+            )
+            return
+        }
+        state.materializedTempLayerNames.insert(layerName)
+        appendImportedRule(
+            family: "cifwidth",
+            layerName: layerName,
+            value: minimumWidth / 1_000,
+            line: line,
+            state: &state
+        )
+    }
+
+    private static func importCIFSpacing(
+        tokens: [String],
+        line: LogicalLine,
+        tempLayerDefinitions: [String: LogicalLine],
+        materializableTempLayerNames: Set<String>,
+        state: inout ParsedRuleState
+    ) {
+        guard tokens.count >= 4,
+              let minimumSpacing = Double(tokens[3]),
+              minimumSpacing.isFinite,
+              minimumSpacing > 0 else {
+            skip(line: line, family: "cifspacing", code: "magic_drc_rule_parse_failed", state: &state)
+            return
+        }
+        let layerNames = [tokens[1], tokens[2]]
+        guard layerNames.allSatisfy({ tempLayerDefinitions[$0] != nil }) else {
+            skip(line: line, family: "cifspacing", code: "magic_drc_templayer_unresolved", state: &state)
+            return
+        }
+        guard layerNames.allSatisfy(materializableTempLayerNames.contains) else {
+            skip(
+                line: line,
+                family: "cifspacing",
+                code: "magic_drc_templayer_materialization_deferred",
+                state: &state
+            )
+            return
+        }
+        state.materializedTempLayerNames.formUnion(layerNames)
+        appendImportedRule(
+            family: "cifspacing",
+            layerName: layerNames[0],
+            secondaryLayerNames: [layerNames[1]],
+            value: minimumSpacing / 1_000,
+            line: line,
+            state: &state
+        )
     }
 
     private static func importMinimumCut(

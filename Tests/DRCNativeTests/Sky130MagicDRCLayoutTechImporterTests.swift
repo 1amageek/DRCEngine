@@ -19,6 +19,44 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         }
     }
 
+    @Test func importProfileDecodingDefaultsToFullVariant() throws {
+        let data = Data(#"{"schemaVersion":1,"profileID":"compatible"}"#.utf8)
+
+        let profile = try JSONDecoder().decode(
+            MagicDRCLayoutTechImportProfile.self,
+            from: data
+        )
+
+        #expect(profile.selectedDRCVariant == "full")
+    }
+
+    @Test func invalidSelectedVariantBlocksImport() {
+        let profile = MagicDRCLayoutTechImportProfile(
+            profileID: "test.magic.invalid-variant",
+            selectedDRCVariant: "full routing"
+        )
+
+        #expect(profile.validationIssues().contains {
+            $0.code == .invalidSelectedDRCVariant
+                && $0.field == "selectedDRCVariant"
+        })
+
+        let result = MagicDRCLayoutTechImporter.importTechnology(
+            text: """
+            drc
+              width active 100 "Active width"
+            end
+            """,
+            sourcePath: "/tmp/invalid-variant.magic.tech",
+            profile: profile,
+            generatedAt: "2026-07-26T00:00:00Z"
+        )
+
+        #expect(result.report.status == .blocked)
+        #expect(result.report.importedRuleCount == 0)
+        #expect(result.report.diagnostics.first?.code == "magic_drc_layouttech_profile_validation_failed")
+    }
+
     @Test func exactOverlapSourceRuleRejectsEmptySecondaryLayers() {
         #expect(throws: MagicDRCSourceRuleValidationError.emptyExactOverlapSecondaryLayers(ruleID: "exactOverlap.invalid")) {
             _ = try MagicDRCSourceExactOverlapRule(
@@ -639,7 +677,7 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(result.report.importedRules.map(\.layerName) == ["METX"])
     }
 
-    @Test func unsupportedMagicRuleFamiliesAreReportedAsPartialImport() {
+    @Test func unsupportedAndMalformedMagicRuleFamiliesAreReportedAsPartialImport() {
         let profile = MagicDRCLayoutTechImportProfile(
             profileID: "test.magic.unsupported-families",
             layerOrder: ["METX"],
@@ -671,7 +709,11 @@ struct Sky130MagicDRCLayoutTechImporterTests {
         #expect(result.report.skippedFamilyCounts["cifwidth"] == 1)
         #expect(result.report.skippedRuleCount == 4)
         #expect(result.report.diagnostics.count == 4)
-        #expect(result.report.diagnostics.allSatisfy { $0.code == "unsupported_magic_drc_family" })
+        #expect(Set(result.report.diagnostics.map(\.code)) == [
+            "unsupported_magic_drc_family",
+            "magic_drc_rule_parse_failed",
+            "magic_drc_templayer_unresolved",
+        ])
     }
 
     @Test func unrecognizedMagicRuleFamiliesInsideDRCBlockAreReportedAsPartialImport() {

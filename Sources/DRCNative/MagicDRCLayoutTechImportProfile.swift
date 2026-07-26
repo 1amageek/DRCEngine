@@ -6,6 +6,7 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
     public let schemaVersion: Int
     public let profileID: String
     public let displayName: String?
+    public let selectedDRCVariant: String
     public let layerOrder: [String]
     public let cutLayerNames: [String]
     public let layerPurposes: [String: String]
@@ -24,6 +25,7 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
     public init(
         profileID: String,
         displayName: String? = nil,
+        selectedDRCVariant: String = "full",
         layerOrder: [String] = [],
         cutLayerNames: [String] = [],
         layerPurposes: [String: String] = [:],
@@ -42,6 +44,7 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
         self.schemaVersion = Self.currentSchemaVersion
         self.profileID = profileID
         self.displayName = displayName
+        self.selectedDRCVariant = selectedDRCVariant
         self.layerOrder = layerOrder
         self.cutLayerNames = cutLayerNames
         self.layerPurposes = layerPurposes
@@ -103,6 +106,7 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
         case schemaVersion
         case profileID
         case displayName
+        case selectedDRCVariant
         case layerOrder
         case cutLayerNames
         case layerPurposes
@@ -132,6 +136,10 @@ public struct MagicDRCLayoutTechImportProfile: Codable, Sendable, Hashable {
         self.init(
             profileID: try container.decode(String.self, forKey: .profileID),
             displayName: try container.decodeIfPresent(String.self, forKey: .displayName),
+            selectedDRCVariant: try container.decodeIfPresent(
+                String.self,
+                forKey: .selectedDRCVariant
+            ) ?? "full",
             layerOrder: try container.decodeIfPresent([String].self, forKey: .layerOrder) ?? [],
             cutLayerNames: try container.decodeIfPresent([String].self, forKey: .cutLayerNames) ?? [],
             layerPurposes: try container.decodeIfPresent([String: String].self, forKey: .layerPurposes) ?? [:],
