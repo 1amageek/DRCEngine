@@ -25,8 +25,14 @@ public extension DRCExecuting {
 }
 
 extension DRCRequest {
-    /// Returns the Foundation hierarchy identity for the requested top cell.
-    public func designObjectReference() throws -> DesignObjectReference {
-        try DesignObjectReference(kind: .cell, identifier: topCell)
+    /// Returns the unresolved physical path for the requested top cell.
+    public func designSubjectReference() throws -> DesignSubjectReference {
+        .path(
+            try DesignPathReference(
+                facetID: DesignFacetID(rawValue: "physical"),
+                kindID: DesignEntityKindID(rawValue: "cell"),
+                localIdentifier: topCell
+            )
+        )
     }
 }

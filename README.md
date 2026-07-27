@@ -4,7 +4,7 @@
 
 DRCEngine is an independent signoff engine. It owns DRC and antenna-rule
 evaluation, while `CircuiteFoundation` owns only the cross-engine vocabulary:
-`Engine`, `DesignObjectReference`, `ArtifactReference`, `EvidenceManifest`,
+`Engine`, `DesignSubjectReference`, `ArtifactReference`, `EvidenceManifest`,
 `ExecutionProvenance`, and typed diagnostics.
 
 ```mermaid
