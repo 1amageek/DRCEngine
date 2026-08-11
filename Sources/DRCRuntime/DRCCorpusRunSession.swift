@@ -53,7 +53,7 @@ public actor DRCCorpusRunSession {
     }
 
     public func shutdown() {
-        if state == .running {
+        if state == .idle || state == .running {
             state = .cancelled
             continuation.yield(.cancelled(runID: options.runID ?? "unknown"))
         }

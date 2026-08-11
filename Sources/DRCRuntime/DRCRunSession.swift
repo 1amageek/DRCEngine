@@ -44,7 +44,7 @@ public actor DRCRunSession {
     }
 
     public func shutdown() {
-        if state == .running {
+        if state == .idle || state == .running {
             let reason = cancellationReason ?? "DRC run session shutdown requested."
             cancellationReason = reason
             state = .cancelled

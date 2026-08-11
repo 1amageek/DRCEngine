@@ -5,6 +5,30 @@ import DRCRuntime
 
 @Suite("DRC run session")
 struct DRCRunSessionTests {
+    @Test func shutdownBeforeStartIsTerminalAndPreventsExecution() async throws {
+        let fixture = try SessionLayoutFixture()
+        defer { fixture.remove() }
+        let request = DRCRequest(
+            layoutURL: fixture.layoutURL,
+            topCell: "top",
+            backendSelection: DRCBackendSelection(backendID: "stub")
+        )
+        let session = DRCRunSession(
+            engine: DefaultDRCEngine(backends: [SessionStubBackend()]),
+            request: request
+        )
+
+        await session.shutdown()
+        await session.start()
+
+        #expect(await session.currentState() == .cancelled)
+        var iterator = session.events.makeAsyncIterator()
+        while await iterator.next() != nil {}
+        await #expect(throws: DRCError.self) {
+            _ = try await session.wait()
+        }
+    }
+
     @Test func successfulSessionFinishesEventStream() async throws {
         let fixture = try SessionLayoutFixture()
         defer { fixture.remove() }
