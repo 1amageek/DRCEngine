@@ -141,15 +141,17 @@ struct DRCArtifactManifestVerifierTests {
         let sha256 = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         let sourceReference: ArtifactReference?
         if kind == .layout {
-            sourceReference = ArtifactReference(
-                locator: ArtifactLocator(
-                    location: try ArtifactLocation(fileURL: url),
+            sourceReference = try ArtifactReference(
+                digest: ContentDigest(
+                    algorithm: .sha256,
+                    hexadecimalValue: sha256
+                ),
+                byteCount: UInt64(data.count),
+                descriptor: ArtifactDescriptor(
                     role: .input,
                     kind: .layout,
                     format: .gdsii
-                ),
-                digest: try ContentDigest(algorithm: .sha256, hexadecimalValue: sha256),
-                byteCount: UInt64(data.count)
+                )
             )
         } else {
             sourceReference = nil

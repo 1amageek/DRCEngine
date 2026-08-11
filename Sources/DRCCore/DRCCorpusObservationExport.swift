@@ -41,6 +41,7 @@ public struct DRCCorpusObservationExport: Sendable, Hashable, Codable {
     }
 
     public let schemaVersion: Int
+    public let reportPath: String
     public let reportArtifact: ArtifactReference
     public let summary: DRCCorpusSummary
     public let observationRecord: ObservationRecord
@@ -48,12 +49,14 @@ public struct DRCCorpusObservationExport: Sendable, Hashable, Codable {
 
     private init(
         schemaVersion: Int,
+        reportPath: String,
         reportArtifact: ArtifactReference,
         summary: DRCCorpusSummary,
         observationRecord: ObservationRecord,
         signature: DRCArtifactSignature?
     ) {
         self.schemaVersion = schemaVersion
+        self.reportPath = reportPath
         self.reportArtifact = reportArtifact
         self.summary = summary
         self.observationRecord = observationRecord
@@ -61,7 +64,7 @@ public struct DRCCorpusObservationExport: Sendable, Hashable, Codable {
     }
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = 2,
         reportPath: String,
         reportSHA256: String,
         reportByteCount: UInt64,
@@ -71,19 +74,18 @@ public struct DRCCorpusObservationExport: Sendable, Hashable, Codable {
         signature: DRCArtifactSignature? = nil
     ) throws {
         self.schemaVersion = schemaVersion
-        self.reportArtifact = ArtifactReference(
-            id: try ArtifactID(rawValue: "drc-corpus-report"),
-            locator: ArtifactLocator(
-                location: try ArtifactLocation(workspaceRelativePath: reportPath),
-                role: .input,
-                kind: .report,
-                format: .json
-            ),
+        self.reportPath = reportPath
+        self.reportArtifact = try ArtifactReference(
             digest: try ContentDigest(
                 algorithm: .sha256,
                 hexadecimalValue: reportSHA256
             ),
-            byteCount: reportByteCount
+            byteCount: reportByteCount,
+            descriptor: ArtifactDescriptor(
+                role: .input,
+                kind: .report,
+                format: .json
+            )
         )
         self.summary = report.summary
         self.signature = signature
@@ -103,6 +105,7 @@ public struct DRCCorpusObservationExport: Sendable, Hashable, Codable {
     public func withSignature(_ signature: DRCArtifactSignature?) -> DRCCorpusObservationExport {
         DRCCorpusObservationExport(
             schemaVersion: schemaVersion,
+            reportPath: reportPath,
             reportArtifact: reportArtifact,
             summary: summary,
             observationRecord: observationRecord,
@@ -110,7 +113,6 @@ public struct DRCCorpusObservationExport: Sendable, Hashable, Codable {
         )
     }
 
-    public var reportPath: String { reportArtifact.path }
     public var reportSHA256: String { reportArtifact.digest.hexadecimalValue }
 
     public func signed(using signer: any DRCArtifactSigner) throws -> DRCCorpusObservationExport {

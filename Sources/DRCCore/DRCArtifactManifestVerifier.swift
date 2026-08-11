@@ -437,7 +437,7 @@ public struct DRCArtifactManifestVerifier: Sendable {
             ))
             return
         }
-        guard sourceKind(for: record.kind) == reference.locator.kind else {
+        guard sourceKind(for: record.kind) == reference.descriptor.kind else {
             issues.append(DRCArtifactIntegrityIssue(
                 code: "input-source-kind-mismatch",
                 recordID: record.id,
@@ -509,20 +509,14 @@ public struct DRCArtifactManifestVerifier: Sendable {
 
     private func artifactReferenceIdentity(_ reference: ArtifactReference?) -> String {
         guard let reference else { return "" }
-        let producer = reference.producer.map {
-            [$0.kind.rawValue, $0.identifier, $0.version, $0.build ?? ""].joined(separator: "\u{001F}")
-        } ?? ""
         return [
-            reference.id.rawValue,
-            reference.locator.location.storage.rawValue,
-            reference.locator.location.value,
-            reference.locator.role.rawValue,
-            reference.locator.kind.rawValue,
-            reference.locator.format.rawValue,
+            reference.id.description,
+            reference.descriptor.role.rawValue,
+            reference.descriptor.kind.rawValue,
+            reference.descriptor.format.rawValue,
             reference.digest.algorithm.rawValue,
             reference.digest.hexadecimalValue,
             String(reference.byteCount),
-            producer,
         ].joined(separator: "\u{001E}")
     }
 

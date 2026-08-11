@@ -1,4 +1,7 @@
 import CircuiteFoundation
+import CircuiteFoundationCrypto
+import CircuiteFoundationFileSystem
+import CircuiteFoundationFoundation
 import Foundation
 
 public enum DRCExecutionProvenance {
@@ -50,7 +53,7 @@ public enum DRCExecutionProvenance {
         }
         if captureInputFiles,
            request.executionInputArtifacts.isEmpty,
-           !inputs.allSatisfy({ LocalArtifactVerifier().verify($0).isVerified }) {
+           !verifyCapturedInputs(inputs, for: request) {
             throw DRCError.backendFailed(
                 "A DRC input artifact changed during execution."
             )
@@ -102,46 +105,71 @@ public enum DRCExecutionProvenance {
         guard request.executionInputArtifacts.isEmpty else {
             return request.executionInputArtifacts
         }
-        var references = [try reference(
+        return try inputLocators(for: request).map {
+            try LocalArtifactReferencer().reference($0, relativeTo: nil)
+        }
+    }
+
+    private static func inputLocators(for request: DRCRequest) throws -> [ArtifactLocator] {
+        var locators = [try locator(
             url: request.layoutURL,
-            role: .input,
             kind: .layout,
             format: try layoutFormat(request.layoutFormat)
         )]
         if let technologyURL = request.technologyURL {
-            references.append(try reference(
+            locators.append(try locator(
                 url: technologyURL,
-                role: .input,
                 kind: .technology,
                 format: .json
             ))
         }
         if let waiverURL = request.waiverURL {
-            references.append(try reference(
+            locators.append(try locator(
                 url: waiverURL,
-                role: .input,
                 kind: .constraint,
                 format: .json
             ))
         }
-        return references
+        return locators
     }
 
-    private static func reference(
+    private static func locator(
         url: URL,
-        role: ArtifactRole,
         kind: ArtifactKind,
         format: ArtifactFormat
-    ) throws -> ArtifactReference {
+    ) throws -> ArtifactLocator {
         let resolvedURL = url.resolvingSymlinksInPath()
-        return try LocalArtifactReferencer().reference(
-            ArtifactLocator(
-                location: ArtifactLocation(fileURL: resolvedURL),
-                role: role,
-                kind: kind,
-                format: format
-            )
+        return ArtifactLocator(
+            location: try ArtifactLocation(fileURL: resolvedURL),
+            role: .input,
+            kind: kind,
+            format: format
         )
+    }
+
+    private static func verifyCapturedInputs(
+        _ references: [ArtifactReference],
+        for request: DRCRequest
+    ) -> Bool {
+        let locators: [ArtifactLocator]
+        do {
+            locators = try inputLocators(for: request)
+        } catch {
+            return false
+        }
+        guard references.count == locators.count else { return false }
+        let verifier = LocalArtifactVerifier()
+        var remaining = references
+        for locator in locators {
+            guard let index = remaining.firstIndex(where: { $0.descriptor == locator.descriptor }) else {
+                return false
+            }
+            let reference = remaining.remove(at: index)
+            guard verifier.verify(reference, at: locator, relativeTo: nil).isVerified else {
+                return false
+            }
+        }
+        return remaining.isEmpty
     }
 
     private static func layoutFormat(_ format: DRCLayoutFormat?) throws -> ArtifactFormat {

@@ -85,12 +85,6 @@ public struct DRCCorpusObservationVerifier: Sendable {
                 message: "DRC corpus evidence reportSHA256 does not match the supplied report."
             ))
         }
-        if evidence.observationRecord.artifact.path != evidence.reportPath {
-            issues.append(.init(
-                code: "report-path-mismatch",
-                message: "DRC corpus evidence report reference does not match reportPath."
-            ))
-        }
         if reportURL.deletingLastPathComponent().appending(path: evidence.reportPath)
             .standardizedFileURL.path(percentEncoded: false)
             != reportURL.standardizedFileURL.path(percentEncoded: false) {

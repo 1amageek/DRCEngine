@@ -258,11 +258,10 @@ public struct DRCArtifactStore: Sendable {
     ) throws -> ArtifactReference {
         let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         let matches = references.filter { reference in
-            reference.locator.kind == expectedKind
+            reference.descriptor.kind == expectedKind
                 && reference.digest.algorithm == .sha256
                 && reference.digest.hexadecimalValue == digest
                 && reference.byteCount == UInt64(data.count)
-                && sourceLocation(reference.locator.location, matches: url)
         }
         guard matches.count == 1, let match = matches.first else {
             throw DRCError.artifactWriteFailed(
@@ -272,39 +271,16 @@ public struct DRCArtifactStore: Sendable {
         return match
     }
 
-    private func sourceLocation(_ location: ArtifactLocation, matches url: URL) -> Bool {
-        let sourcePath = url.resolvingSymlinksInPath().standardizedFileURL.path(percentEncoded: false)
-        switch location.storage {
-        case .absoluteFileURL:
-            guard let referenceURL = URL(string: location.value), referenceURL.isFileURL else {
-                return false
-            }
-            return referenceURL.resolvingSymlinksInPath().standardizedFileURL
-                .path(percentEncoded: false) == sourcePath
-        case .workspaceRelative:
-            let relativePath = location.value.split(separator: "/", omittingEmptySubsequences: true)
-                .map(String.init)
-                .joined(separator: "/")
-            return sourcePath == "/" + relativePath || sourcePath.hasSuffix("/" + relativePath)
-        }
-    }
-
     private func artifactReferenceIdentity(_ reference: ArtifactReference?) -> String {
         guard let reference else { return "" }
-        let producer = reference.producer.map {
-            [$0.kind.rawValue, $0.identifier, $0.version, $0.build ?? ""].joined(separator: "\u{001F}")
-        } ?? ""
         return [
-            reference.id.rawValue,
-            reference.locator.location.storage.rawValue,
-            reference.locator.location.value,
-            reference.locator.role.rawValue,
-            reference.locator.kind.rawValue,
-            reference.locator.format.rawValue,
+            reference.id.description,
+            reference.descriptor.role.rawValue,
+            reference.descriptor.kind.rawValue,
+            reference.descriptor.format.rawValue,
             reference.digest.algorithm.rawValue,
             reference.digest.hexadecimalValue,
             String(reference.byteCount),
-            producer,
         ].joined(separator: "\u{001E}")
     }
 
