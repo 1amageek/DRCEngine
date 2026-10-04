@@ -13,7 +13,7 @@ let signoffToolSupportDependency: Package.Dependency = .package(
 
 let semiconductorLayoutDependency: Package.Dependency = .package(
     url: "https://github.com/1amageek/semiconductor-layout.git",
-    revision: "688ffac1839a0705e907e8a5ed665f32e591b057"
+    revision: "dde1fb35d5d7db7f7da7746d29235fc8c21105b5"
 )
 
 let package = Package(
