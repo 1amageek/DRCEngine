@@ -44,7 +44,8 @@ let package = Package(
                 .product(name: "CircuiteFoundationFoundation", package: "CircuiteFoundation"),
                 .product(name: "CircuiteFoundationCrypto", package: "CircuiteFoundation"),
                 .product(name: "CircuiteFoundationFileSystem", package: "CircuiteFoundation"),
-            ]
+            ],
+            exclude: ["DESIGN.md", "ElectricalContext/DESIGN.md"]
         ),
         .target(
             name: "DRCFoundryImport",
@@ -63,6 +64,7 @@ let package = Package(
                 .product(name: "LayoutVerify", package: "semiconductor-layout"),
                 .product(name: "LayoutIO", package: "semiconductor-layout"),
             ],
+            exclude: ["DESIGN.md"],
             resources: [.copy("Resources")]
         ),
         .target(name: "DRCParsers", dependencies: ["DRCCore"]),
@@ -74,6 +76,7 @@ let package = Package(
                 .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
                 .product(name: "SignoffToolSupport", package: "SignoffToolSupport"),
             ],
+            exclude: ["DESIGN.md"],
             resources: [.copy("Resources/drc.tcl")]
         ),
         .target(
@@ -94,7 +97,8 @@ let package = Package(
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
                 .product(name: "LayoutIO", package: "semiconductor-layout"),
                 .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
-            ]
+            ],
+            exclude: ["DESIGN.md"]
         ),
         .target(
             name: "DRCEngine",
@@ -105,7 +109,8 @@ let package = Package(
             dependencies: [
                 "DRCEngine",
                 .product(name: "SignoffToolSupport", package: "SignoffToolSupport"),
-            ]
+            ],
+            exclude: ["DESIGN.md"]
         ),
         .executableTarget(name: "DRCCLI", dependencies: ["DRCCLICore"], path: "Sources/DRCCLI"),
         .testTarget(name: "DRCAdaptersTests", dependencies: ["DRCAdapters", "DRCCore"]),
@@ -114,6 +119,7 @@ let package = Package(
             dependencies: [
                 "DRCNative",
                 "DRCCore",
+                "DRCRuntime",
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
                 .product(name: "LayoutIO", package: "semiconductor-layout"),

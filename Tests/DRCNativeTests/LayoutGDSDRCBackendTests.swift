@@ -4,6 +4,7 @@ import DRCCore
 import LayoutCore
 import LayoutIO
 import LayoutTech
+import DRCRuntime
 @testable import DRCNative
 
 /// The Native engine on STANDARD inputs: GDS geometry plus a
@@ -11,6 +12,81 @@ import LayoutTech
 /// editor uses. Fixtures are generated in code — no binary blobs.
 @Suite("Layout GDS DRC backend", .timeLimit(.minutes(2)))
 struct LayoutGDSDRCBackendTests {
+
+    @Test(arguments: [DRCLayoutFormat.gds, .nativeJSON])
+    func explicitMOSContextSeparatesChannelsPreservesMetalShortsAndCommitsRequest(format: DRCLayoutFormat) async throws {
+        let root = try makeRoot()
+        defer {
+            do { try FileManager.default.removeItem(at: root) }
+            catch { Issue.record("Could not remove electrical-context fixture: \(error)") }
+        }
+        let active = LayoutLayerID(name: "ACTIVE", purpose: "drawing")
+        let poly = LayoutLayerID(name: "POLY", purpose: "drawing")
+        let metal = LayoutLayerID(name: "M1", purpose: "drawing")
+        let cut = LayoutLayerID(name: "CONTACT", purpose: "cut")
+        let layers = [active, poly, metal, cut]
+        let tech = LayoutTechDatabase(grid: 0.001, layers: layers.enumerated().map { index, layer in
+            .init(id: layer, displayName: layer.name, gdsLayer: index + 1, gdsDatatype: 0, color: .gray)
+        }, vias: [.init(id: "CONTACT", cutLayer: cut, topLayer: metal, bottomLayer: active,
+            cutSize: .init(width: 0.2, height: 0.2), enclosure: .init(top: 0, bottom: 0), cutSpacing: 0.2)],
+            layerRules: layers.map { .init(layerID: $0, minWidth: 0, minSpacing: 0, minArea: 0,
+                minDensity: 0, maxDensity: 1) })
+        let a = LayoutNet(name: "A"), b = LayoutNet(name: "B")
+        func shape(_ layer: LayoutLayerID, _ x: Double, _ y: Double, _ width: Double, _ height: Double,
+                   net: LayoutNet? = nil) -> LayoutShape {
+            .init(layer: layer, netID: net?.id, geometry: .rect(.init(origin: .init(x: x, y: y),
+                size: .init(width: width, height: height))),
+                properties: net.map { ["def.route.netName": $0.name] } ?? [:])
+        }
+        let shapes = [shape(active, 0, 0, 2, 1), shape(poly, 0.9, -0.5, 0.2, 2),
+            shape(metal, 0.1, 0.1, 0.2, 0.2, net: a), shape(metal, 1.7, 0.1, 0.2, 0.2, net: b),
+            shape(cut, 0.1, 0.1, 0.2, 0.2), shape(cut, 1.7, 0.1, 0.2, 0.2)]
+        let cell = LayoutCell(name: "TOP", shapes: shapes, nets: [a, b])
+        let document = LayoutDocument(name: "MOS", cells: [cell], topCellID: cell.id)
+        func write(_ source: LayoutDocument, name: String) throws -> URL {
+            let url = root.appending(path: "\(name).\(format == .gds ? "gds" : "json")")
+            if format == .gds {
+                try MaskDataFormatConverter(tech: tech).exportDocument(source, to: url, format: .gds)
+            } else {
+                try LayoutDocumentSerializer().encodeDocument(source).write(to: url)
+            }
+            return url
+        }
+        let layout = try write(document, name: "same-mask")
+        let originalBytes = try Data(contentsOf: layout)
+        let technology = root.appending(path: "technology.json")
+        try JSONEncoder().encode(tech).write(to: technology)
+        func request(_ url: URL, _ context: DRCElectricalContext, persist: Bool = false) -> DRCRequest {
+            .init(layoutURL: url, topCell: "TOP", layoutFormat: format, technologyURL: technology,
+                workingDirectory: persist ? root : nil, backendSelection: .init(backendID: "native-gds"),
+                options: .init(electricalContext: context))
+        }
+        let geometric = try await LayoutGDSDRCBackend().run(request(layout, .geometric))
+        #expect(geometric.result.diagnostics.contains { $0.ruleID == "connectivity.short.nativeComponent" })
+        let mos = try await DefaultDRCEngine(backend: nil).run(request(layout, .deviceAwareMOS, persist: true))
+        #expect(mos.result.passed && mos.request.options.electricalContext == .deviceAwareMOS)
+        #expect(try Data(contentsOf: layout) == originalBytes)
+        let report = try #require(mos.reportURL)
+        let retained = try JSONDecoder().decode(DRCExecutionResult.self, from: Data(contentsOf: report))
+        #expect(retained.request.options.electricalContext == .deviceAwareMOS)
+        let manifestURL = try #require(mos.artifactManifestURL)
+        #expect(try DRCArtifactManifestVerifier().verify(manifestURL: manifestURL).isEmpty)
+        let manifest = try JSONDecoder().decode(DRCArtifactManifest.self, from: Data(contentsOf: manifestURL))
+        #expect(manifest.requestSHA256?.count == 64)
+
+        var bypass = document
+        bypass.cells[0].shapes.append(shape(metal, 0.1, 0.1, 1.8, 0.2))
+        let short = try await LayoutGDSDRCBackend().run(request(write(bypass, name: "metal-bypass"), .deviceAwareMOS))
+        #expect(short.result.diagnostics.contains { $0.ruleID == "connectivity.short.nativeComponent" })
+        var unsupported = document
+        unsupported.cells[0].shapes[1].geometry = .rect(.init(origin: .init(x: 0.9, y: 0.2),
+            size: .init(width: 0.2, height: 0.6)))
+        let blocked = try await LayoutGDSDRCBackend().run(request(write(unsupported, name: "partial-crossing"), .deviceAwareMOS))
+        #expect(!blocked.result.passed)
+        #expect(blocked.result.diagnostics.contains {
+            $0.ruleID == "drc.geometry_operation_failed" && $0.message.contains("unsupportedDevicePreparation")
+        })
+    }
 
     private func makeRoot() throws -> URL {
         let url = FileManager.default.temporaryDirectory

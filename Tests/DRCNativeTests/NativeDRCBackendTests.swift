@@ -5,6 +5,15 @@ import DRCNative
 
 @Suite("Native DRC backend")
 struct NativeDRCBackendTests {
+    @Test func unsupportedMOSContextRefusesBeforeReadingRectangleJSON() async throws {
+        let request = DRCRequest(layoutURL: URL(filePath: "/nonexistent/electrical-context-layout.json"),
+            topCell: "TOP", backendSelection: .init(backendID: "native"),
+            options: .init(electricalContext: .deviceAwareMOS))
+        await #expect(throws: DRCError.unsupportedElectricalContext(backendID: "native", requested: .deviceAwareMOS)) {
+            try await NativeDRCBackend().run(request)
+        }
+    }
+
     @Test func scalarAntennaRuleIsRejected() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = try writeLayout(

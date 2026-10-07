@@ -6,6 +6,18 @@ import DRCAdapters
 
 @Suite("Magic DRC adapter")
 struct MagicDRCAdapterTests {
+    @Test func unsupportedMOSContextRefusesBeforeInputOrProcessIO() async throws {
+        let root = URL(filePath: "/nonexistent/drc-context-test")
+        let adapter = MagicDRCAdapter(toolchain: .init(toolVersion: "unavailable",
+            magicExecutableURL: root.appending(path: "magic"), rcFileURL: root.appending(path: "magicrc"),
+            pdkRoot: root.path, driverScriptURL: root.appending(path: "drc.tcl")))
+        let request = DRCRequest(layoutURL: root.appending(path: "input.gds"), topCell: "TOP",
+            options: .init(electricalContext: .deviceAwareMOS))
+        await #expect(throws: DRCError.unsupportedElectricalContext(backendID: "magic", requested: .deviceAwareMOS)) {
+            try await adapter.run(request)
+        }
+    }
+
     @Test func additionalEnvironmentCannotOverrideReservedKeys() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = directory.appending(path: "inverter.gds")

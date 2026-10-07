@@ -17,19 +17,22 @@ public struct DRCOptions: Sendable, Hashable, Codable {
     /// Require a technology deck to contain explicit antenna rules before a
     /// standard-layout backend may report a clean run.
     public let requireAntennaRules: Bool
+    public let electricalContext: DRCElectricalContext
 
     public init(
         timeoutSeconds: Double = 300,
         additionalEnvironment: [String: String] = [:],
         requireSignedArtifacts: Bool = false,
         trustedArtifactPublicKey: String? = nil,
-        requireAntennaRules: Bool = false
+        requireAntennaRules: Bool = false,
+        electricalContext: DRCElectricalContext = .geometric
     ) {
         self.timeoutSeconds = timeoutSeconds
         self.additionalEnvironment = additionalEnvironment
         self.requireSignedArtifacts = requireSignedArtifacts
         self.trustedArtifactPublicKey = trustedArtifactPublicKey
         self.requireAntennaRules = requireAntennaRules
+        self.electricalContext = electricalContext
     }
 
 }
@@ -611,6 +614,7 @@ public struct DRCAppliedWaiver: Sendable, Hashable, Codable {
 public protocol DRCBackend: Sendable {
     var backendID: String { get }
     var identity: DRCBackendIdentity { get }
+    var supportedElectricalContexts: Set<DRCElectricalContext> { get }
 
     func run(_ request: DRCRequest) async throws -> DRCExecutionResult
 }
@@ -631,6 +635,7 @@ public protocol DRCCancellableBackend: DRCBackend {
 }
 
 public enum DRCError: Error, LocalizedError, Equatable {
+    case unsupportedElectricalContext(backendID: String, requested: DRCElectricalContext)
     case invalidInput(String)
     case backendUnavailable(String)
     case backendFailed(String)
@@ -641,6 +646,8 @@ public enum DRCError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
+        case .unsupportedElectricalContext(let backendID, let requested):
+            return "DRC backend '\(backendID)' does not support electrical context '\(requested.rawValue)'."
         case .invalidInput(let message):
             return "Invalid DRC input: \(message)"
         case .backendUnavailable(let message):

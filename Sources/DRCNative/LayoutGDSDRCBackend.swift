@@ -15,6 +15,7 @@ import LayoutVerify
 /// layout editor's live DRC.
 public struct LayoutGDSDRCBackend: DRCCancellableBackend {
     public let backendID = "native-gds"
+    public let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric, .deviceAwareMOS]
 
     public init() {}
 
@@ -26,6 +27,7 @@ public struct LayoutGDSDRCBackend: DRCCancellableBackend {
         _ request: DRCRequest,
         cancellationCheck: DRCExecutionCancellationCheck?
     ) async throws -> DRCExecutionResult {
+        try request.validateElectricalContext(for: self)
         let startedAt = Date()
         let inputArtifacts = try DRCExecutionProvenance.captureInputArtifacts(for: request)
         try await checkCancellation(cancellationCheck)
@@ -35,7 +37,8 @@ public struct LayoutGDSDRCBackend: DRCCancellableBackend {
         let layoutResult = Self.collectResult(
             document: input.document,
             tech: input.tech,
-            topCell: input.topCell
+            topCell: input.topCell,
+            electricalContext: request.options.electricalContext
         )
         try await checkCancellation(cancellationCheck)
         let diagnostics = Self.makeDiagnostics(from: layoutResult)
@@ -158,14 +161,21 @@ public struct LayoutGDSDRCBackend: DRCCancellableBackend {
     private static func collectResult(
         document: LayoutDocument,
         tech: LayoutTechDatabase,
-        topCell: LayoutCell
+        topCell: LayoutCell,
+        electricalContext: DRCElectricalContext
     ) -> LayoutDRCResult {
-        LayoutDRCService()
+        let context: LayoutElectricalContext
+        switch electricalContext {
+        case .geometric: context = .geometric
+        case .deviceAwareMOS: context = .deviceAwareMOS
+        }
+        return LayoutDRCService()
             .run(
                 document: document,
                 tech: tech,
                 cellID: topCell.id,
-                geometryMode: .exactOnly
+                geometryMode: .exactOnly,
+                electricalContext: context
             )
     }
 

@@ -13,6 +13,7 @@ public struct DRCCLIOptions: Sendable, Hashable {
     public let timeoutSeconds: Double
     public let requireSignedArtifacts: Bool
     public let requireAntennaRules: Bool
+    public let electricalContext: DRCElectricalContext
     public let trustedArtifactPublicKey: String?
     public let artifactSigningPrivateKeyURL: URL?
     public let emitJSON: Bool
@@ -29,6 +30,7 @@ public struct DRCCLIOptions: Sendable, Hashable {
         self.timeoutSeconds = parsed.timeoutSeconds
         self.requireSignedArtifacts = parsed.requireSignedArtifacts
         self.requireAntennaRules = parsed.requireAntennaRules
+        self.electricalContext = parsed.electricalContext
         self.trustedArtifactPublicKey = parsed.trustedArtifactPublicKey
         self.artifactSigningPrivateKeyURL = parsed.artifactSigningPrivateKeyURL
         if parsed.requireSignedArtifacts && parsed.artifactSigningPrivateKeyURL == nil {
@@ -64,7 +66,8 @@ public struct DRCCLIOptions: Sendable, Hashable {
                 timeoutSeconds: timeoutSeconds,
                 requireSignedArtifacts: requireSignedArtifacts,
                 trustedArtifactPublicKey: trustedArtifactPublicKey,
-                requireAntennaRules: requireAntennaRules
+                requireAntennaRules: requireAntennaRules,
+                electricalContext: electricalContext
             )
         )
     }
@@ -89,6 +92,7 @@ public struct DRCCLIOptions: Sendable, Hashable {
         var timeoutSeconds = 300.0
         var requireSignedArtifacts = false
         var requireAntennaRules = false
+        var electricalContext: DRCElectricalContext = .geometric
         var trustedArtifactPublicKey: String?
         var artifactSigningPrivateKeyURL: URL?
         var emitJSON = false
@@ -115,6 +119,14 @@ public struct DRCCLIOptions: Sendable, Hashable {
                 requireSignedArtifacts = true
             case "--require-antenna-rules":
                 requireAntennaRules = true
+            case "--electrical-context":
+                let value = try cursor.requireValue(for: argument)
+                guard let context = DRCElectricalContext(rawValue: value) else {
+                    throw DRCCLIError.invalidValue(
+                        argument: argument, value: value, expected: "geometric or deviceAwareMOS"
+                    )
+                }
+                electricalContext = context
             case "--trusted-artifact-public-key":
                 trustedArtifactPublicKey = try cursor.requireNonEmptyValue(
                     for: argument,

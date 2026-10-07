@@ -48,6 +48,7 @@ public struct DefaultDRCEngine: DRCExecuting, Sendable {
         guard let backend = backends[backendID] else {
             throw DRCError.backendUnavailable("Unsupported DRC backend: \(request.backendSelection.backendID)")
         }
+        try request.validateElectricalContext(for: backend)
         let executionRequest = try requestWithBoundInputArtifacts(request)
         let deadline = Date().addingTimeInterval(executionRequest.options.timeoutSeconds)
         var result: DRCExecutionResult
@@ -87,6 +88,9 @@ public struct DefaultDRCEngine: DRCExecuting, Sendable {
             throw DRCError.backendFailed(
                 "Backend '\(backendID)' returned result backend ID '\(result.result.backendID)'."
             )
+        }
+        guard result.request.options.electricalContext == executionRequest.options.electricalContext else {
+            throw DRCError.backendFailed("DRC backend returned a request with a different electrical context.")
         }
         let backendIdentity = backendIdentities[backendID] ?? backend.identity
         let expectedImplementationID = DRCExecutionProvenance.implementationID(for: backendIdentity)

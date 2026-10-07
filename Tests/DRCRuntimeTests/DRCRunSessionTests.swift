@@ -130,6 +130,7 @@ private struct SessionLayoutFixture {
 }
 
 private struct SessionStubBackend: DRCBackend {
+    let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
     let backendID = "stub"
     var delayNanoseconds: UInt64 = 0
 

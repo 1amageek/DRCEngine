@@ -1,6 +1,14 @@
 import Foundation
 
 public extension DRCRequest {
+    /// Derived admission reads capability through the backend protocol requirement.
+    func validateElectricalContext(for backend: any DRCBackend) throws {
+        guard backend.supportedElectricalContexts.contains(options.electricalContext) else {
+            throw DRCError.unsupportedElectricalContext(backendID: backend.backendID,
+                requested: options.electricalContext)
+        }
+    }
+
     /// Validates the request contract before a backend is selected or launched.
     func validate() throws {
         guard !topCell.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

@@ -5,6 +5,23 @@ import DRCRuntime
 
 @Suite("DRC request validation")
 struct DRCRequestValidationTests {
+    @Test func electricalContextIsExplicitRequiredWire() throws {
+        #expect(DRCOptions().electricalContext == .geometric)
+        let encoder = JSONEncoder()
+        for context in [DRCElectricalContext.geometric, .deviceAwareMOS] {
+            let data = try encoder.encode(DRCOptions(electricalContext: context))
+            #expect(try JSONDecoder().decode(DRCOptions.self, from: data).electricalContext == context)
+            var fields = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            #expect(fields["electricalContext"] as? String == context.rawValue)
+            fields.removeValue(forKey: "electricalContext")
+            let missing = try JSONSerialization.data(withJSONObject: fields)
+            #expect(throws: DecodingError.self) { try JSONDecoder().decode(DRCOptions.self, from: missing) }
+            fields["electricalContext"] = "unknown"
+            let unknown = try JSONSerialization.data(withJSONObject: fields)
+            #expect(throws: DecodingError.self) { try JSONDecoder().decode(DRCOptions.self, from: unknown) }
+        }
+    }
+
     @Test func rejectsInvalidTimeoutBeforeBackendLookup() async throws {
         let request = DRCRequest(
             layoutURL: URL(filePath: "/tmp/layout.json"),

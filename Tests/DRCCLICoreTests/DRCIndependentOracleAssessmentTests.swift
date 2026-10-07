@@ -77,6 +77,7 @@ struct DRCIndependentOracleAssessmentTests {
 
 private struct IndependentReferenceBackend: DRCBackend {
     let backendID = "reference"
+    let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
     let identity = DRCBackendIdentity(
         backendID: "reference",
         implementationFamily: .magic,

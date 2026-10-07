@@ -126,6 +126,25 @@ public enum DRCCLI {
     }
 
     private static func dispatch(arguments: [String], writer: DRCCLIOutputWriter) async throws -> DRCCLIInvocationResult {
+        if arguments == ["--help"] {
+            writer.writeStandardOutputLine("""
+            Usage: drcengine --layout <path> --top-cell <name> --out <directory> [options]
+
+            Single-run options:
+              --tech <path>                         Technology JSON; defaults backend to native-gds
+              --backend <identifier>                Explicit backend selection
+              --format <format>                     auto, gds, oasis, cif, dxf, native-json, magic-layout
+              --electrical-context <context>        geometric or deviceAwareMOS (case-sensitive)
+                                                    Default: geometric; backend must support the context
+              --waivers <path>                      Waiver JSON
+              --timeout <seconds>                   Positive finite seconds (default: 300)
+              --require-antenna-rules               Require explicit antenna rules
+              --json                                Structured output
+              --list-backends                       List backend identifiers
+              --help                                Show this help without running DRC
+            """)
+            return writer.result(exitCode: 0)
+        }
         if arguments == ["--list-backends"] {
             return runListBackends(writer: writer)
         }

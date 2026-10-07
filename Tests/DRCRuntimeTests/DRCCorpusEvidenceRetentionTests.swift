@@ -225,6 +225,7 @@ struct DRCCorpusEvidenceRetentionTests {
     }
 
     private struct PrimaryPassStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "primary-pass-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -243,6 +244,7 @@ struct DRCCorpusEvidenceRetentionTests {
     }
 
     private struct OracleWidthStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "oracle-width-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {

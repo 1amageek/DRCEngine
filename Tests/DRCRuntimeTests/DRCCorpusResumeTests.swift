@@ -109,6 +109,7 @@ private actor EventSink {
 }
 
 private struct ResumeStubBackend: DRCBackend {
+    let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
     let counter: RunCounter
     let backendID = "resume-stub"
     let identity = DRCBackendIdentity(backendID: "resume-stub", implementationFamily: .layoutVerify)

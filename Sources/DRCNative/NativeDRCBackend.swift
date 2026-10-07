@@ -4,6 +4,7 @@ import DRCCore
 
 public struct NativeDRCBackend: DRCCancellableBackend {
     public let backendID = "native"
+    public let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
     private let decoder: JSONDecoder
 
     public init(decoder: JSONDecoder = JSONDecoder()) {
@@ -18,6 +19,7 @@ public struct NativeDRCBackend: DRCCancellableBackend {
         _ request: DRCRequest,
         cancellationCheck: DRCExecutionCancellationCheck?
     ) async throws -> DRCExecutionResult {
+        try request.validateElectricalContext(for: self)
         let startedAt = Date()
         let inputArtifacts = try DRCExecutionProvenance.captureInputArtifacts(for: request)
         try await checkCancellation(cancellationCheck)

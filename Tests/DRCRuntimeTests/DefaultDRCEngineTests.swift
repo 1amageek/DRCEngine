@@ -7,6 +7,48 @@ import DRCPersistence
 
 @Suite("Default DRC engine")
 struct DefaultDRCEngineTests {
+    @Test func incapableCustomBackendRefusesBeforeInputCaptureOrDispatch() async throws {
+        let request = DRCRequest(layoutURL: URL(filePath: "/nonexistent/drc-context-input.gds"),
+            topCell: "TOP", backendSelection: .init(backendID: "incapable-context"),
+            options: .init(electricalContext: .deviceAwareMOS))
+        await #expect(throws: DRCError.unsupportedElectricalContext(backendID: "incapable-context", requested: .deviceAwareMOS)) {
+            try await DefaultDRCEngine(backends: [IncapableContextBackend()]).run(request)
+        }
+    }
+
+    @Test func capableCustomBackendCannotRewriteRetainedElectricalContext() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let layout = root.appending(path: "input.gds")
+        try Data([0]).write(to: layout)
+        let request = DRCRequest(layoutURL: layout, topCell: "TOP",
+            backendSelection: .init(backendID: "context-rewriter"), options: .init(electricalContext: .deviceAwareMOS))
+        await #expect(throws: DRCError.backendFailed("DRC backend returned a request with a different electrical context.")) {
+            try await DefaultDRCEngine(backends: [ContextRewriterBackend()]).run(request)
+        }
+    }
+
+    private struct IncapableContextBackend: DRCBackend {
+        let backendID = "incapable-context"
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
+        func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
+            Issue.record("Unsupported context reached custom backend dispatch")
+            throw DRCError.backendFailed("Unexpected dispatch")
+        }
+    }
+
+    private struct ContextRewriterBackend: DRCBackend {
+        let backendID = "context-rewriter"
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric, .deviceAwareMOS]
+        func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
+            let changed = DRCRequest(layoutURL: request.layoutURL, topCell: request.topCell,
+                backendSelection: request.backendSelection, options: .init(electricalContext: .geometric),
+                executionInputArtifacts: request.executionInputArtifacts)
+            return try DRCExecutionResult.inProcess(request: changed,
+                result: .init(backendID: backendID, toolName: "test-rewriter", success: true, completed: true, logPath: ""))
+        }
+    }
+
     @Test func cancellableBackendDeadlineProducesTypedTimeout() async throws {
         let directory = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(directory) }
@@ -818,6 +860,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct StubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -842,6 +885,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct DeadlineStubDRCBackend: DRCCancellableBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "deadline-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -862,6 +906,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct AliasStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID: String
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -879,6 +924,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct LyingStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "lying-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -896,6 +942,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct WaiverStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "waiver-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -924,6 +971,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct CleanStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "clean-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -941,6 +989,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct ViolationStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "violation-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -966,6 +1015,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct MarkerStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "marker-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {
@@ -995,6 +1045,7 @@ struct DefaultDRCEngineTests {
     }
 
     private struct IncompleteStubDRCBackend: DRCBackend {
+        let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
         let backendID = "incomplete-stub"
 
         func run(_ request: DRCRequest) async throws -> DRCExecutionResult {

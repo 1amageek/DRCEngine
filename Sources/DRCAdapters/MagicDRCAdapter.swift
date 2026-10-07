@@ -32,6 +32,7 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
     private let parser: MagicDRCReportParser
 
     public let backendID = "magic"
+    public let supportedElectricalContexts: Set<DRCElectricalContext> = [.geometric]
     public let identity: DRCBackendIdentity
 
     private static func makeIdentity(toolchain: MagicDRCToolchain) -> DRCBackendIdentity {
@@ -196,6 +197,7 @@ public struct MagicDRCAdapter: DRCCancellableBackend {
         _ request: DRCRequest,
         cancellationCheck: DRCExecutionCancellationCheck?
     ) async throws -> DRCExecutionResult {
+        try request.validateElectricalContext(for: self)
         try Self.validateAdditionalEnvironment(request.options.additionalEnvironment)
         try Self.validateMagicDRCStyle(request.options.additionalEnvironment["MAGIC_DRC_STYLE"])
         let startedAt = Date()
