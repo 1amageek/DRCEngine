@@ -3,7 +3,7 @@ import PackageDescription
 
 let circuiteFoundationDependency: Package.Dependency = .package(
     url: "https://github.com/1amageek/CircuiteFoundation.git",
-    exact: "26.812.0"
+    revision: "ae88104c556f5802819713ed741f5b2fffffc2d9"
 )
 
 let signoffToolSupportDependency: Package.Dependency = .package(
@@ -13,7 +13,7 @@ let signoffToolSupportDependency: Package.Dependency = .package(
 
 let semiconductorLayoutDependency: Package.Dependency = .package(
     url: "https://github.com/1amageek/semiconductor-layout.git",
-    revision: "3782d80a8038118ec0e4d18d550391d4e6587da1"
+    revision: "17278fb7340e98a7af5a960766083c0e0c39f69b"
 )
 
 let package = Package(
